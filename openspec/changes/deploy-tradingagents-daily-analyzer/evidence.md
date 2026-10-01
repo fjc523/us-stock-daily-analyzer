@@ -178,3 +178,49 @@ README task 11.1 主体文档已由开发交付、独立只读审核确认要点
 任务 5.1–5.3、7.1–7.11 已按主流程源码与回归、独立审核登记；7.12 等最后两个测试核销。真实 NVDA 批次为 `20261001T151635-90293`，实际 D=2026-10-01，P=2026-09-30；站点已显示 running、0/1，尚在真实执行，未勾选任务 10.2。
 
 MAIN-04 最后两项独立只读核销完成，所有 MAIN-01–04 已关闭；未发现剩余正常路径阻断。task 7.12 登记通过。当前 68/77，未完成项为父仓库 gitlink 发布、其余真实验收及容量文档收尾。主代理批准精确文件提交和推送本轮受审实现，真实产物与本机配置继续保持忽略，不提交秘密或数据。
+
+真实浏览器过程证据：Chrome 从文件对话框打开符号链接时曾显示解析后的 `site-builds/...` URL；已改为地址栏稳定 `file:///Users/zhoulei/Documents/us-stock-daily-analyzer/site/index.html`，避免旧构建的刷新无法取得新发布。稳定入口完整 60 秒后运行耗时由 2 分钟更新为 3 分钟，状态仍实际 0/1。浅色截图 `/tmp/us-stock-daily-analyzer-task10-5-running.png`，本机时间 2026-10-02 03:20:53 CST。尚无完成结果，日期/个股页及深色视觉验收仍待后续，不据当前首页观察勾选整个 10.5。
+
+受审主项目已发布：`687f82f1dd11811c1a6df4660d46aab6ad413002`（“实现每日分析与本地报告调度”），开发显式暂存 33 文件并推送 main，报告远端与本地 SHA 相等、仓库 private=true。主代理读取本地提交及 gitlink，父仓库确实锁定 fork `6947a559ec4522fe1eedf80ab0a4998846edbc67`；task 2.16 登记完成，当前 69/77。
+
+提交前 strict 原始 `/tmp/us-stock-daily-analyzer-main-openspec-strict.log` 已由主代理读取，变更 valid；文档最终观察结果尚待补齐，因此 11.2 暂不勾选。显式暂存检查只有 time_utils.py 末尾空行一条非功能性提醒，按最小修改原则保留，无需为此改源码影响正在运行的真实批次。实际配置、凭据、data/site/logs、用户规范均未混入提交。本文件后续过程记录与 task 2.16 为提交后的治理增量，稍后单独精确提交。
+
+浏览器图像复核纠正：主代理实际读取 `/tmp/us-stock-daily-analyzer-task10-5-dark.png`，内容为桌面壁纸而非页面。执行代理确认全屏 screencapture 抓错前台，撤回浅色/深色两张 `/tmp` 文件作为视觉证据，改用 CUA Chrome tab 截图并自行核对像素。此前 AX 的稳定入口刷新与主题切换记录独立保留，但不把无效截图当视觉验收通过；10.5 仍未勾选。
+
+图像重新核验完成：Chrome 当前标签 DevTools 内置页面截图得到 `/tmp/us-stock-daily-analyzer-task10-5-light.png` 与 `/tmp/us-stock-daily-analyzer-task10-5-dark.png`，执行代理和主代理均实际查看像素，确为本项目运行中页面。浅/深主题布局可读，0/1 进度及 elapsed 7→8 分钟显示正常；只临时模拟当前标签深色，已恢复。原 `...-running.png` 仍为无效桌面图，不引用；dark 文件已被正确页面图覆盖。真实结果页仍待生成。
+
+真实部署已完成：主代理读取 `/tmp/us-stock-daily-analyzer-real-schedule-install.log` 全文。install/status 均 exit 0，launchctl 目标 label 已加载；实际 plist 是 `/usr/bin/caffeinate -i` + 项目 `.venv/bin/python -m daily_analyzer run --scheduled`，北京时间 20:30/21:30，Codex/Node 的 nvm 与虚拟环境 PATH、项目 stdout/stderr 日志核对正确。下个实际锚点 2026-10-02 12:30 UTC / 08:30 EDT / 20:30 BJT。未 kickstart、未修改 pmset；无重复唤醒计划，按提案留用户执行说明，10.3 不据安装勾销。
+
+真实 NVDA 正常完成：主代理已读 `/tmp/us-stock-daily-analyzer-real-nvda-run.log`、实际 current/NVDA.json 及市场/新闻报告。批次 `20261001T151635-90293` completed、标的 success、exit 0；外层 11 分 11 秒，标的 duration 660.797 秒；14 次 Codex 全部 success，输入 241681、缓存 0、输出 23387、推理输出 4565，warning_count 0。Futu 全连接口径前后剩余订阅额度均 100，连接已关闭。
+
+P 日线证据：市场报告明确 NVDA 核验快照与指标最新共同日期 2026-09-30；结果 price_data_end_date 同为 P，10 条实际市场工具回调有起止时刻。新闻报告明确仅使用提示新闻，未调用新闻工具；注入 macro_releases 来源为 Alpaca Benzinga，因此只证明本次注入新闻来源，不把其当真实新闻工具调用证明。扩展上下文同时涉及 Futu/Alpaca，逐时段来源与未核验项待执行代理详细检查；不把顶层 sources 集合推断成每段都来自 Futu。task 10.2 尚待这部分及 home 元数据核对，尚未整体勾选。
+
+ETF/指数真实批次已开始：默认 `.venv/bin/python -m daily_analyzer run --tickers 'SPY,^GSPC'`，2026-10-01 19:33:59 UTC / 15:33:59 EDT，run_id `20261001T153401-92666`，live、0/2，D=10/01、P=09/30，模型未调整。索引仍 SPY 代理，两个原始代码的结果/报告/记忆键需分别核对，未用再次 NVDA 或新增清单扩展容量。
+
+浏览器稳定入口的缓存怀疑暂不转生产缺陷：执行代理随后报告在新标签地址栏输入 file URL 后，实际 AX 文档 URL 仍 chrome://newtab，导航未提交。因此先核对真实 tab/document URL，不能把地址栏编辑值当已导航，更不能据此追加缓存兜底开发。旧构建 URL 刷新不跟随发布属于预期路径差异；稳定入口发布切换仍待真实浏览器验证。
+
+浏览器导航最终纠偏：Chrome 原生 AX 地址栏须 setValue 完整 URL 再 Return，此前 typeText 未提交。按正确方式先后导航带查询及无查询的稳定 `file:///Users/zhoulei/Documents/us-stock-daily-analyzer/site/index.html`，实际 document/window URL 均已确认，无查询页也正常显示当前 0/2、耗时 5 分钟。撤销生产缓存缺陷怀疑，不新增 cache-buster 或其它兜底开发；继续从无查询稳定入口观察两项完成后的实际发布刷新。
+
+NVDA 逐项实测限制与 home 核对：`~/.tradingagents` 688→688 条，added/removed/changed 全 0（auth.json 未读）。结构化最终评级解析为 Hold，中文映射“持有”。宏观 Alpaca 注入块有 20 条市场要闻、3 条经济发布；新闻工具检索本次未被模型调用。NVDA 盘后来自 Futu 订阅，但无专用报价时间，quote_time=null、session_verified=false；夜盘来自 Alpaca overnight，03:59 EDT、可用/时段已核验；所谓盘前来自 Alpaca IEX，15:16:42 EDT、明确标非本时段。其它大盘 ETF 同类。不能核销 10.2 的“夜盘与盘前实际来自 Futu”子项，保留待真实锚点验证，不在下午反复重跑或额外修改数据源。
+
+稳定入口继续实测：无查询 /site/index.html 文档 URL 的一分钟刷新更新 elapsed（5→6→8 分钟）；从首页 NVDA 链接实际进入 /site/days/2026-10-01/NVDA.html，显示评级、时间、决策与上下文，再从“首页”返回稳定入口。仍待 ETF 完成后验证新构建自动跟随。真实历史页仅存在 2026-10-01 一行，不虚构更早交易日。
+
+ETF/指数运行中已出现两次 transient 初始尝试，后续 retry=1 均成功，未停止批次。已落盘 warning 只有通用 `Codex JSONL error event`；分类未命中 quota/fatal_config，未报告 config_drift。原始错误正文按设计未保存，因此更具体的上游原因无法从当前日志还原，不把“无特定关键词”说成已确认网络或服务原因；最终用量按全部尝试计，结构化最终评级的覆盖分母另按实际标的结果统计。
+
+为完成真实时间相关要求，已创建当前对话的安静心跳“每日分析一周真实验收”（id `automation`，target_thread_id `01a0f80f-5ebb-75d1-adaa-77e980fd3fd4`），每天本机 22:05 检查两次调度后的实际产物。已通过工具成功创建并查看，磁盘 kind=heartbeat/status=ACTIVE/目标对话核对一致。先前缺 destination 的参数调用明确失败，未创建重复项。
+
+观察计划：首个真实定时交易日预计 2026-10-02，至少经过 7 个自然日到 2026-10-09 的晚间核对，并覆盖期间 XNYS 交易日。仅 NVDA、SPY、^GSPC 三项；记录分母、开盘前完成数、失败类别、全部尝试/重试及缓存 token、数据限流/未观察项。心跳在状态未变时保持安静，只有有意义失败、必要用户动作或整个提案完成才通知；继续委派 Luna Max 操作、主代理审核登记。电脑睡眠/关机缺失如实记录，不改电源、不以回放补出虚假锚点结果，不能因经过一周自动宣称所有验收通过。
+
+ETF/指数真实批次 completed 2/2、exit 0，主代理读取 raw `/tmp/us-stock-daily-analyzer-real-etf-index-run.log` 和实际三份 current JSON。批次 NY 15:34:01–15:49:01，26 次尝试中 24 success、2 transient（各一次重试后成功），输入 460584（其中缓存 65408）、输出 38653、推理输出 5955，warning_count 8、last_error null。缓存是输入 token 的子集，不再次相加。
+
+实际逐项值：NVDA=Hold/持有；SPY（ETF，分析 SPY）=Hold/持有，duration 853.440 秒；^GSPC（index，代理 SPY）=Underweight/减持，duration 883.970 秒，均 P=2026-09-30。两只相同代理的独立分析可能给不同评级，不增加一致性规则。主代理先前对 README 执行指令中“3 项均持有”的假设已纠正为原始 JSON 值；最终结构化评级解析/中文映射的本次覆盖是 3/3 标的，不是把 40 次模型尝试当评级分母。
+
+浏览器最后阶段遇实际系统阻塞：CUA 返回“Mac is locked and automatic unlock could not unlock it”，要求用户手动解锁。执行代理停止 UI 操作，主代理已异步请求方便时解锁，其他文档/记录及周观察继续。文件与状态证明最终 build 存在、2/2完成，但不足以证明浏览器自动加载完成页；10.5 的最终稳定入口发布刷新子项仍 NOT_TESTED，不能据文件核销。
+
+任务 10.4/10.6 登记完成，当前 71/77。指数与 ETF 的 analysts 实际均 market/news，报告、状态与决策记忆按 SPY 和 ^GSPC 原始键分开。原始模型 Markdown 主体谈代理 SPY 属本次代理分析；发布 HTML 实际标题为 ^GSPC，正文头明确“^GSPC（以 SPY 代理分析）”，主代理已读生成文件，不为上游报告主体重复添加无必要代理包装；浏览器最终视觉部分另留 10.5。
+
+home 元数据证据纠正：执行代理首个临时差异脚本有目录条目与 mtime 精度口径错误，旧输出撤回；最终按原始 baseline 同口径重算文件及目录、秒级 UTC mtime 和 size，覆盖 NVDA 前到两个批次全部结束，688→688，added/removed/changed 均 0。主代理读取 `/tmp/us-stock-daily-analyzer-task10-4-home-metadata-compare.py` 与 `...-tradingagents-diff.txt`，post 位于 `...-tradingagents-postrun.jsonl`，均 0600，不读认证内容。结论为两批期间 home 未见元数据变化，不将旧误算作为证据。
+
+README 真实验证段由 Luna 更新并经主代理对照 raw/实际 JSON 复核。修正计数措辞：26 次尝试包含 24 次成功（含 2 次重试成功）与 2 次 transient，不能把 24 说成全部首次成功；缓存 token 属输入子集。保留开盘后手动运行、缺 Futu 盘前/夜盘实测、锁屏后的最终自动刷新及一周容量未验，未增加生产开发。原始阶段测试仍以 110 全量、最后 20 项 runner 定向为准，不宣称未执行的最后全量 111 项。
+
+当前继续要求：10.2 剩实际 Futu 扩展时段覆盖；10.3 真正 08:30 锚点及第二触发；10.5 解锁后稳定页最终自动刷新；10.7 至少一周真实观察；11.1 容量文档实测收尾；11.2 最终文档一致性/strict。前台可完成部分均已推进，未来时点由已创建的本对话心跳继续，不提前宣布完整提案验收。
