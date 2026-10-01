@@ -1,4 +1,4 @@
-"""命令行入口。当前只提供可发现的命令骨架。"""
+"""本地美股每日分析器命令行入口。"""
 
 from __future__ import annotations
 
@@ -6,13 +6,9 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
-from daily_analyzer.config import (
-    SUPPORTED_REASONING_EFFORTS,
-    ConfigurationError,
-    apply_llm_overrides,
-    load_settings,
-)
+from daily_analyzer.config import SUPPORTED_REASONING_EFFORTS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,28 +44,91 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _not_implemented(args: argparse.Namespace) -> int:
-    if args.command == "schedule":
-        operation = f"schedule {args.schedule_action}"
-    else:
-        operation = args.command
-    print(
-        f"{operation} 尚未实现；当前阶段只提供命令入口与参数骨架。",
-        file=sys.stderr,
+def _run_analysis(root: Path, args: argparse.Namespace):
+    from daily_analyzer.runner import run_analysis
+
+    return run_analysis(
+        root,
+        date_value=args.date,
+        tickers=args.tickers,
+        force=args.force,
+        scheduled=args.scheduled,
+        model=args.model,
+        effort=args.effort,
     )
-    return 2
+
+
+def _build_site(root: Path):
+    from daily_analyzer.site import build_site
+
+    return build_site(root)
+
+
+def _doctor(root: Path, ping: bool):
+    from daily_analyzer.deployment import doctor
+
+    return doctor(root, ping=ping)
+
+
+def _schedule(root: Path, action: str):
+    from daily_analyzer.deployment import (
+        schedule_install,
+        schedule_status,
+        schedule_uninstall,
+    )
+
+    operations = {
+        "install": schedule_install,
+        "uninstall": schedule_uninstall,
+        "status": schedule_status,
+    }
+    return operations[action](root)
+
+
+def _print_mapping(title: str, result: Any) -> None:
+    if isinstance(result, dict):
+        for key, value in result.items():
+            print(f"{title}{key}：{value}")
+    else:
+        print(f"{title}{result}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    root = Path.cwd()
     if args.command == "run":
-        try:
-            settings = load_settings(Path.cwd())
-            apply_llm_overrides(settings, model=args.model, effort=args.effort)
-        except ConfigurationError as exc:
-            print(str(exc), file=sys.stderr)
-            return 2
-    return _not_implemented(args)
+        outcome = _run_analysis(root, args)
+        stream = sys.stdout if outcome.exit_code == 0 else sys.stderr
+        print(outcome.message, file=stream)
+        return outcome.exit_code
+
+    if args.command == "build-site":
+        result = _build_site(root)
+        if result.get("ok"):
+            print(f"站点已生成：{result.get('site_path')}")
+            return 0
+        print(f"站点构建失败：{result.get('error') or '未知错误'}", file=sys.stderr)
+        return 1
+
+    if args.command == "doctor":
+        result = _doctor(root, ping=args.ping)
+        for check in result.get("checks", []):
+            print(f"[{check.get('status', 'info')}] {check.get('name')}: {check.get('detail')}")
+        print(result.get("summary", "自检完成"))
+        return int(result.get("exit_code", 0 if result.get("ok") else 1))
+
+    result = _schedule(root, args.schedule_action)
+    if result.get("ok"):
+        action_text = {
+            "install": "定时任务已安装",
+            "uninstall": "定时任务已卸载",
+            "status": "定时任务状态",
+        }[args.schedule_action]
+        print(action_text)
+        _print_mapping("  ", result)
+        return 0
+    print(f"定时任务操作失败：{result.get('error') or '未知错误'}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

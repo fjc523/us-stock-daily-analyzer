@@ -1,0 +1,633 @@
+from __future__ import annotations
+
+import sys
+import types
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import exchange_calendars
+import pandas as pd
+import pytest
+
+from daily_analyzer.config import WatchlistItem
+from daily_analyzer.context.base import (
+    ContextBlock,
+    ContextManager,
+    ProviderRegistry,
+    ProviderServices,
+    render_context,
+    serialize_blocks,
+)
+from daily_analyzer.context.market_data import (
+    DailyPriceService,
+    calculate_window_metrics,
+    previous_trading_day,
+)
+from daily_analyzer.context.providers import (
+    EASTERN,
+    ExtendedHoursProvider,
+    MacroReleasesProvider,
+    MarketRegimeProvider,
+    SectorStrengthProvider,
+)
+
+
+class FakePrices:
+    def __init__(self, metrics=None, rows=None):
+        self.provided_metrics = metrics or {}
+        self.rows = rows or {}
+        self.calls = []
+
+    def metrics(self, symbols, end, windows):
+        self.calls.append((list(symbols), end, tuple(windows)))
+        return {symbol: self.provided_metrics.get(symbol, {}) for symbol in symbols}
+
+    def bars(self, symbol, end):
+        if symbol in self.rows:
+            return self.rows[symbol], "Alpaca SIP adjustment=all"
+        return [], "不可用"
+
+
+class FakeYahoo:
+    def __init__(self, sectors=None, bars=None, calendar=None):
+        self.sectors = sectors or {}
+        self.bars = bars or {}
+        self.calendar = calendar
+        self.sector_calls = []
+        self.calendar_calls = []
+
+    def sector_etf(self, symbol):
+        self.sector_calls.append(symbol)
+        return self.sectors.get(symbol)
+
+    def daily_bars(self, symbol, start, end):
+        return self.bars.get(symbol)
+
+    def economic_calendar(self, start, end):
+        self.calendar_calls.append((start, end))
+        if isinstance(self.calendar, Exception):
+            return None
+        return self.calendar or []
+
+
+class FakeAlpaca:
+    def __init__(self, *, news=None, snapshots=None, minute_bars=None, daily_error=None):
+        self.news_result = news or {"articles": [], "truncated": False}
+        self.snapshot_rows = snapshots or {}
+        self.minute_rows = minute_bars or {}
+        self.daily_error = daily_error
+        self.calls = []
+
+    def daily_bars(self, symbols, start, end):
+        self.calls.append(("daily", list(symbols), start, end))
+        if self.daily_error:
+            raise self.daily_error
+        return {symbol: [] for symbol in symbols}
+
+    def snapshots(self, symbols, feed):
+        self.calls.append(("snapshots", list(symbols), feed))
+        return {symbol: self.snapshot_rows.get(feed, {}).get(symbol, {}) for symbol in symbols}
+
+    def iex_minute_bars(self, symbols, start, end):
+        self.calls.append(("minutes", list(symbols), start, end))
+        return {symbol: self.minute_rows.get(symbol, []) for symbol in symbols}
+
+    def news(self, symbols, start, end, *, limit=None, max_pages=20):
+        self.calls.append(("news", symbols, start, end, limit, max_pages))
+        if isinstance(self.news_result, Exception):
+            raise self.news_result
+        return self.news_result
+
+
+class FakeFutu:
+    def __init__(self, *, rows=None, snapshots=None, mode="subscription"):
+        self.rows = rows or {}
+        self.snapshot_rows = snapshots or {}
+        self.mode = mode
+        self.warning = None
+        self.start_symbols = []
+        self.quote_calls = []
+        self.snapshot_calls = []
+
+    def start_batch(self, symbols):
+        self.start_symbols = list(symbols)
+        return self
+
+    def get_quotes(self, symbols):
+        self.quote_calls.append(list(symbols))
+        return self.rows
+
+    def get_snapshots(self, symbols):
+        self.snapshot_calls.append(list(symbols))
+        return self.snapshot_rows
+
+    def close(self):
+        pass
+
+
+def _services(*, prices=None, alpaca=None, futu=None, yahoo=None):
+    return ProviderServices(
+        alpaca=alpaca or FakeAlpaca(),
+        futu=futu or FakeFutu(mode="unavailable"),
+        yahoo=yahoo or FakeYahoo(),
+        prices=prices or FakePrices(),
+    )
+
+
+def _sessions(end: date, count: int):
+    calendar = exchange_calendars.get_calendar("XNYS")
+    sessions = calendar.sessions_in_range(
+        pd.Timestamp(end - timedelta(days=count * 3 + 5)), pd.Timestamp(end)
+    )
+    return [session.date() for session in sessions][-count:]
+
+
+def _rows(end: date, count: int, values=None):
+    sessions = _sessions(end, count)
+    values = values or (lambda index: 100 + index)
+    return [{"t": session.isoformat(), "c": values(index)} for index, session in enumerate(sessions)]
+
+
+def _complete_metric(*, close=100.0, sma20=99.0, sma50=98.0, sma200=97.0, r5=0.01, r20=0.02, r60=0.03):
+    return {
+        "close": close,
+        "sma_20d": sma20,
+        "sma_50d": sma50,
+        "sma_200d": sma200,
+        "return_5d": r5,
+        "return_20d": r20,
+        "return_60d": r60,
+        "status": "可用",
+        "source": "Alpaca SIP adjustment=all",
+    }
+
+
+def test_previous_session_and_fixed_window_formulas() -> None:
+    end = date(2026, 9, 11)
+    rows = _rows(end, 61, lambda index: 100 + index * 2)
+
+    result = calculate_window_metrics(rows, end, (20, 50))
+
+    expected_closes = [100 + index * 2 for index in range(61)]
+    assert result["return_20d"] == pytest.approx(expected_closes[-1] / expected_closes[-21] - 1, abs=1e-12)
+    assert result["sma_50d"] == pytest.approx(sum(expected_closes[-50:]) / 50, abs=1e-12)
+    assert previous_trading_day(date(2026, 9, 14)) == end
+
+
+def test_window_metrics_mark_unupdated_and_insufficient_without_filling() -> None:
+    p = date(2026, 9, 11)
+    older = _rows(date(2026, 9, 10), 60)
+    insufficient = _rows(p, 20)
+
+    unupdated = calculate_window_metrics(older, p, (5, 20))
+    too_short = calculate_window_metrics(insufficient, p, (20,))
+
+    assert unupdated["status"] == "未更新"
+    assert unupdated["return_5d"] is None
+    assert unupdated["sma_20d"] is None
+    assert too_short["return_20d"] is None
+    assert too_short["status_20d"] == "数据不足"
+
+
+def test_daily_price_service_falls_back_to_auto_adjust_yahoo() -> None:
+    end = date(2026, 9, 30)
+    yahoo_rows = _rows(end, 3)
+    alpaca = FakeAlpaca(daily_error=RuntimeError("service unavailable"))
+    yahoo = FakeYahoo(bars={"NVDA": yahoo_rows})
+    service = DailyPriceService(alpaca, yahoo)
+
+    rows, source = service.bars("NVDA", end)
+    vix_rows, vix_source = service.bars("^VIX", end)
+
+    assert rows == yahoo_rows
+    assert source == "yfinance auto_adjust=True"
+    assert vix_rows == []
+    assert vix_source == "不可用"
+    assert len(alpaca.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("trend_close", "sma50", "sma200", "vix_close", "vix_change", "expected"),
+    [
+        (101, 100, 100, 16, 0.05, "偏强"),
+        (101, 100, 100, 19, 0.30, "偏弱"),
+        (101, 100, 100, 22, 0.01, "中性"),
+        (101, None, 100, 16, 0.05, "数据不足"),
+    ],
+)
+def test_market_regime_rules(trend_close, sma50, sma200, vix_close, vix_change, expected) -> None:
+    data = {
+        "SPY": _complete_metric(close=trend_close, sma50=sma50, sma200=sma200),
+        "QQQ": _complete_metric(close=trend_close, sma50=sma50, sma200=sma200),
+        "IWM": _complete_metric(),
+        "DIA": _complete_metric(),
+        "^VIX": _complete_metric(close=vix_close, r5=vix_change),
+    }
+    if sma50 is None:
+        data["SPY"]["sma_50d"] = None
+    if vix_change > 0.20:
+        data["SPY"]["sma_200d"] = 102
+        data["QQQ"]["sma_200d"] = 102
+    provider = MarketRegimeProvider(_services(prices=FakePrices(data)))
+    provider.prepare({"trade_date": date(2026, 10, 1), "price_data_end_date": date(2026, 9, 30)})
+
+    block = provider.build(None, "2026-10-01T08:31:00-04:00")
+
+    assert block.data["label"] == expected
+    assert "相对200日线" in block.markdown
+    assert block.as_of == date(2026, 9, 30)
+
+
+def test_sector_ranking_ties_manual_override_and_unknown_sector() -> None:
+    p = date(2026, 9, 30)
+    metrics = {symbol: _complete_metric(r5=0.01, r20=0.01, r60=0.02) for symbol in ["SPY", "SMH", *(
+        "XLK XLF XLE XLV XLY XLP XLI XLB XLU XLRE XLC".split()
+    )]}
+    metrics["XLK"] = _complete_metric(r20=0.015, r60=0.03)
+    metrics["XLC"] = _complete_metric(r20=0.015, r60=0.04)
+    metrics["XLRE"] = _complete_metric(r20=None, r60=None)
+    metrics["NVDA"] = _complete_metric(r5=0.03, r20=0.05, r60=0.07)
+    yahoo = FakeYahoo(sectors={"UNKNOWN": None})
+    provider = SectorStrengthProvider(_services(prices=FakePrices(metrics), yahoo=yahoo))
+    items = [
+        WatchlistItem(symbol="NVDA", type="stock", sector_etf="SMH"),
+        WatchlistItem(symbol="UNKNOWN", type="stock"),
+        WatchlistItem(symbol="SPY", type="etf"),
+    ]
+    provider.prepare({"trade_date": date(2026, 10, 1), "price_data_end_date": p, "items": items})
+
+    stock = provider.build(items[0], "2026-10-01T08:31:00-04:00")
+    unknown = provider.build(items[1], "2026-10-01T08:31:00-04:00")
+    etf = provider.build(items[2], "2026-10-01T08:31:00-04:00")
+    order = [row["symbol"] for row in provider.ranking]
+
+    assert order.index("XLC") < order.index("XLK")
+    assert provider.ranking[-1]["symbol"] == "XLRE"
+    assert provider.ranking[-1]["rank"] is None
+    assert stock.data["sector_etf"] == "SMH"
+    assert stock.data["manual_override"] is True
+    assert stock.data["sector_excess_20d"] == pytest.approx(0.04)
+    assert "未能识别所属板块" in unknown.markdown
+    assert "sector_etf" not in etf.data
+
+    manager = ContextManager(
+        ["sector_strength"],
+        services=_services(prices=FakePrices(metrics), yahoo=FakeYahoo()),
+    )
+    batch = {"trade_date": date(2026, 10, 1), "price_data_end_date": p, "items": [items[0]]}
+    assert manager.prepare(batch) == {}
+    managed = manager.build(items[0], "2026-10-01T08:31:00-04:00")["sector_strength"]
+    assert managed.data["sector_etf"] == "SMH"
+    assert managed.data["sector_excess_20d"] == pytest.approx(0.04)
+
+
+def _futu_row(
+    symbol: str,
+    *,
+    update_time="2026-10-01 08:31:00",
+    after_time="2026-09-30 19:59:00",
+    overnight_time="2026-10-01 03:59:00",
+    pre_time="2026-10-01 08:29:00",
+):
+    row = {"code": f"US.{symbol}", "update_time": update_time}
+    for segment, price, update in (
+        ("after", 99.0, after_time),
+        ("overnight", 100.5, overnight_time),
+        ("pre", 101.0, pre_time),
+    ):
+        row.update(
+            {
+                f"{segment}_price": price,
+                f"{segment}_high_price": price + 1,
+                f"{segment}_low_price": price - 1,
+                f"{segment}_volume": 1000,
+                f"{segment}_update_time": update,
+            }
+        )
+    return row
+
+
+def _extended_provider(futu, alpaca=None):
+    price_rows = {
+        symbol: [{"t": "2026-09-30", "c": 100.0}]
+        for symbol in ["NVDA", "SPY", "QQQ", "IWM", "DIA"]
+    }
+    services = _services(
+        futu=futu,
+        alpaca=alpaca or FakeAlpaca(),
+        prices=FakePrices(rows=price_rows),
+    )
+    provider = ExtendedHoursProvider(services)
+    batch = {
+        "mode": "live",
+        "trade_date": date(2026, 10, 1),
+        "price_data_end_date": date(2026, 9, 30),
+        "items": [WatchlistItem(symbol="NVDA", type="stock")],
+    }
+    provider.prepare(batch)
+    return provider, batch
+
+
+def test_extended_hours_futu_timestamp_and_session_rules() -> None:
+    rows = {f"US.{symbol}": _futu_row(symbol) for symbol in ["NVDA", *("SPY QQQ IWM DIA".split())]}
+    rows["US.NVDA"].pop("after_update_time")
+    rows["US.NVDA"].pop("overnight_update_time")
+    futu = FakeFutu(rows=rows)
+    provider, _batch = _extended_provider(futu)
+
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:40:00-04:00")
+
+    assert block.data["NVDA"]["overnight"]["status"] == "时段未核验（无分时段时间）"
+    assert block.data["NVDA"]["overnight"]["quote_time"] is None
+    assert block.data["NVDA"]["overnight"]["source_update_time"] == "2026-10-01 08:31:00"
+    assert block.data["NVDA"]["overnight"]["session_verified"] is False
+    assert block.data["NVDA"]["after"]["status"] == "时段未核验（无分时段时间）"
+    assert block.data["NVDA"]["after"]["quote_time"] is None
+    assert block.data["NVDA"]["after"]["source_update_time"] == "2026-10-01 08:31:00"
+    assert block.data["NVDA"]["after"]["session_verified"] is False
+    assert "时段未核验（无分时段时间）" in block.markdown
+    assert "2026-09-30T19:59:59" not in block.markdown
+    assert block.data["NVDA"]["pre"]["quote_time"].endswith("08:29:00-04:00")
+    assert block.data["NVDA"]["pre"]["session_verified"] is True
+    assert block.data["NVDA"]["pre"]["change_pct"] == pytest.approx(1.0)
+    assert block.data["premarket_relative_to_spy_pct"] == pytest.approx(0.0)
+    assert block.data["NVDA"]["overnight"]["status"] != "过期"
+
+
+def test_extended_hours_marks_stale_premarket_and_wrong_prior_after_hours() -> None:
+    row = _futu_row("NVDA", after_time="2026-09-29 19:59:00", pre_time="2026-10-01 08:00:00")
+    futu = FakeFutu(rows={"US.NVDA": row})
+    provider, _batch = _extended_provider(futu)
+
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+
+    assert block.data["NVDA"]["after"]["status"] == "非本时段数据"
+    assert block.data["NVDA"]["after"]["change_pct"] is None
+    assert block.data["NVDA"]["pre"]["status"] == "过期"
+
+
+def test_extended_hours_excludes_exact_session_end() -> None:
+    rows = {f"US.{symbol}": _futu_row(symbol) for symbol in ["NVDA", *"SPY QQQ IWM DIA".split()]}
+    rows["US.NVDA"]["pre_update_time"] = "2026-10-01 09:30:00"
+    futu = FakeFutu(rows=rows)
+    provider, _batch = _extended_provider(futu)
+
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T09:30:00-04:00")
+
+    assert block.data["NVDA"]["pre"]["status"] == "非本时段数据"
+
+
+def test_extended_hours_uses_futu_snapshot_before_alpaca() -> None:
+    subscribed = {"US.NVDA": _futu_row("NVDA", pre_time="2026-10-01 07:50:00")}
+    snapshot = {"US.NVDA": _futu_row("NVDA", pre_time="2026-10-01 08:29:00")}
+    futu = FakeFutu(rows=subscribed, snapshots=snapshot)
+    alpaca = FakeAlpaca()
+    provider, _batch = _extended_provider(futu, alpaca)
+
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+
+    assert futu.snapshot_calls
+    assert block.data["NVDA"]["pre"]["source"] == "富途快照"
+    assert not any(
+        "NVDA" in call[1]
+        for call in alpaca.calls
+        if call[0] == "snapshots" and call[2] == "iex"
+    )
+
+
+def test_extended_hours_respects_disabled_futu_setting() -> None:
+    futu = FakeFutu()
+    alpaca = FakeAlpaca()
+    services = _services(futu=futu, alpaca=alpaca)
+    services.futu_enabled = False
+    provider = ExtendedHoursProvider(services)
+    batch = {
+        "mode": "live",
+        "trade_date": date(2026, 10, 1),
+        "price_data_end_date": date(2026, 9, 30),
+        "items": [WatchlistItem(symbol="NVDA", type="stock")],
+    }
+
+    provider.prepare(batch)
+
+    assert futu.start_symbols == []
+
+
+def test_extended_hours_alpaca_fallback_and_backfill_minute_bars() -> None:
+    snapshots = {
+        "overnight": {
+            "NVDA": {
+                "latestTrade": {"p": 100.5, "s": 10, "t": "2026-10-01T07:59:00Z"},
+                "dailyBar": {"h": 101, "l": 100, "v": 50},
+            }
+        },
+        "iex": {
+            "NVDA": {
+                "latestTrade": {"p": 101.0, "s": 20, "t": "2026-10-01T12:29:00Z"},
+                "dailyBar": {"h": 102, "l": 99, "v": 80},
+            }
+        },
+    }
+    alpaca = FakeAlpaca(snapshots=snapshots)
+    futu = FakeFutu(mode="unavailable")
+    provider, batch = _extended_provider(futu, alpaca)
+
+    live = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+    assert live.data["NVDA"]["overnight"]["source"] == "Alpaca feed=overnight"
+    assert live.data["NVDA"]["pre"]["source"] == "Alpaca feed=iex"
+    assert live.data["NVDA"]["pre"]["warning"] == "IEX 覆盖不完整"
+
+    batch["mode"] = "backfill"
+    alpaca.minute_rows["NVDA"] = [
+        {"t": "2026-10-01T12:30:00Z", "o": 100, "h": 101, "l": 99, "c": 100.5, "v": 10},
+        {"t": "2026-10-01T12:31:00Z", "o": 101, "h": 103, "l": 100, "c": 102, "v": 20},
+        {"t": "2026-10-01T12:32:00Z", "o": 102, "h": 105, "l": 101, "c": 104, "v": 30},
+    ]
+    replay = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+    assert replay.data["NVDA"]["overnight"]["status"] == "回放不可用"
+    assert replay.data["NVDA"]["pre"]["price"] == pytest.approx(100.5)
+    assert replay.data["NVDA"]["pre"]["volume"] == pytest.approx(10)
+    assert alpaca.calls[-1][0] == "minutes"
+    assert alpaca.calls[-1][3] == datetime(2026, 10, 1, 8, 31, tzinfo=EASTERN)
+
+
+def _article(title: str, created_at: str, updated_at: str | None = None, revised: bool = False):
+    return {
+        "headline": title,
+        "created_at": created_at,
+        "updated_at": updated_at or created_at,
+        "symbol": "",
+        "source": "Benzinga",
+        "revised_after_cutoff": revised,
+    }
+
+
+def test_macro_releases_parse_claims_revisions_and_latest_twenty() -> None:
+    articles = [
+        _article("USA Initial Jobless Claims 197K Vs 201K Est.", "2026-10-01T12:30:18Z"),
+        _article("USA Continuing Jobless Claims 1,701k Vs 1,730K Est.; 1,712K Prior", "2026-10-01T12:30:56Z"),
+        _article("USA Prior Revised: Initial Jobless Claims 201K", "2026-10-01T12:30:57Z", revised=True),
+        _article("USA Unrecognized Economic Title", "2026-10-01T12:30:58Z"),
+        _article("Outside cutoff", "2026-10-01T12:32:00Z"),
+    ]
+    articles.extend(
+        _article(f"Market headline {index}", f"2026-10-01T12:20:{index:02d}Z")
+        for index in range(25)
+    )
+    articles.sort(key=lambda item: item["created_at"])
+    alpaca = FakeAlpaca(news={"articles": articles, "truncated": False})
+    provider = MacroReleasesProvider(
+        _services(
+            alpaca=alpaca,
+            yahoo=FakeYahoo(
+                calendar=[{"start_time": "2026-10-01T13:30:00-04:00", "title": "ISM Manufacturing PMI"}]
+            ),
+        )
+    )
+    provider.prepare({"trade_date": date(2026, 10, 1), "mode": "live"})
+
+    block = provider.build(None, "2026-10-01T08:31:00-04:00")
+
+    assert block.data["releases"][0]["name"] == "Initial Jobless Claims"
+    assert block.data["releases"][0]["actual"] == "197K"
+    assert block.data["releases"][0]["estimate"] == "201K"
+    assert block.data["releases"][0]["prior"] is None
+    assert block.data["releases"][1]["actual"] == "1,701k"
+    assert block.data["releases"][1]["prior"] == "1,712K"
+    assert len(block.data["prior_revised"]) == 1
+    assert block.data["post_cutoff_revisions"] == ["USA Prior Revised: Initial Jobless Claims 201K"]
+    assert len(block.data["unparsed_economic_titles"]) == 1
+    assert len(block.data["market_news"]) == 20
+    assert "标题已截断" not in block.markdown
+    assert "内容可能已在截止后修订" in block.markdown
+    assert block.data["upcoming_events"] == ["13:30 ET ISM Manufacturing PMI"]
+    assert alpaca.calls[0][1] is None
+    assert alpaca.calls[0][4:] == (None, 20)
+
+
+def test_macro_marks_truncation_and_no_releases_at_cutoff() -> None:
+    truncated_provider = MacroReleasesProvider(
+        _services(alpaca=FakeAlpaca(news={"articles": [], "truncated": True}))
+    )
+    truncated_provider.prepare({"trade_date": date(2026, 10, 1), "mode": "live"})
+    truncated = truncated_provider.build(None, "2026-10-01T08:31:00-04:00")
+    assert "标题已截断" in truncated.markdown
+
+    empty_provider = MacroReleasesProvider(_services(alpaca=FakeAlpaca()))
+    empty_provider.prepare({"trade_date": date(2026, 10, 1), "mode": "live"})
+    empty = empty_provider.build(None, "2026-10-01T08:31:00-04:00")
+    assert "截至 08:31:00 ET 未见当日经济数据标题" in empty.markdown
+
+    unparsed_provider = MacroReleasesProvider(
+        _services(alpaca=FakeAlpaca(news={"articles": [_article("USA Unrecognized Title", "2026-10-01T12:30:00Z")], "truncated": False}))
+    )
+    unparsed_provider.prepare({"trade_date": date(2026, 10, 1), "mode": "live"})
+    unparsed = unparsed_provider.build(None, "2026-10-01T08:31:00-04:00")
+    assert "截至 08:31:00 ET 未见当日经济数据标题" in unparsed.markdown
+    assert unparsed.data["unparsed_economic_titles"][0]["title"] == "USA Unrecognized Title"
+
+
+def test_macro_processes_all_one_hundred_thirty_news_articles_without_truncation() -> None:
+    articles = [
+        _article(
+            f"USA Indicator {index} 1K Vs 2K Est.",
+            f"2026-10-01T12:30:{index % 60:02d}Z",
+        )
+        for index in range(130)
+    ]
+    provider = MacroReleasesProvider(
+        _services(alpaca=FakeAlpaca(news={"articles": articles, "truncated": False}))
+    )
+    provider.prepare({"trade_date": date(2026, 10, 1), "mode": "live"})
+
+    block = provider.build(None, "2026-10-01T08:31:00-04:00")
+
+    assert len(block.data["releases"]) == 130
+    assert block.data["truncated"] is False
+    assert "标题已截断" not in block.markdown
+
+
+def test_provider_registry_custom_class_empty_override_and_safe_failure(caplog) -> None:
+    calls = []
+    module = types.ModuleType("test_market_context_extension")
+
+    class ExtensionProvider:
+        name = "extension"
+        scope = "ticker"
+
+        def prepare(self, batch):
+            calls.append(("prepare", batch))
+
+        def build(self, item, cutoff):
+            calls.append(("build", item, cutoff))
+            return ContextBlock("自定义", "扩展块", {"symbol": item["symbol"]}, cutoff, ["fixture"])
+
+    module.ExtensionProvider = ExtensionProvider
+    sys.modules[module.__name__] = module
+    registry = ProviderRegistry()
+    registry.register("default", lambda services: ExtensionProvider())
+    services = _services()
+    manager = ContextManager(
+        ["default"],
+        services=services,
+        registry=registry,
+    )
+    batch = {
+        "context_as_of": "2026-10-01T08:31:00-04:00",
+        "items": [
+            {"symbol": "NVDA", "context_providers": ["test_market_context_extension:ExtensionProvider"]},
+            {"symbol": "SPY", "context_providers": []},
+        ],
+    }
+    manager.prepare(batch)
+    nvda = manager.build(batch["items"][0], batch["context_as_of"])
+    spy = manager.build(batch["items"][1], batch["context_as_of"])
+
+    assert list(nvda) == ["test_market_context_extension:ExtensionProvider"]
+    assert nvda[next(iter(nvda))].data == {"symbol": "NVDA"}
+    assert spy == {}
+    serial = serialize_blocks(nvda)
+    assert serial[next(iter(serial))]["as_of"] == batch["context_as_of"]
+    assert "附加市场上下文（截至" in render_context(nvda, batch["context_as_of"])
+
+    class FailingProvider:
+        name = "broken"
+        scope = "ticker"
+
+        def prepare(self, batch):
+            raise RuntimeError("authorization: APCA_API_SECRET_KEY=never-show")
+
+        def build(self, item, cutoff):
+            raise AssertionError("prepare failed providers are not built")
+
+    broken_registry = ProviderRegistry()
+    broken_registry.register("broken", lambda services: FailingProvider())
+    broken = ContextManager(["broken"], services=services, registry=broken_registry)
+    broken.prepare({"items": [{"symbol": "NVDA"}], "context_as_of": batch["context_as_of"]})
+    block = broken.build({"symbol": "NVDA"}, batch["context_as_of"])["broken"]
+    assert "该维度数据不可用" in block.markdown
+    assert "RuntimeError" in block.markdown
+    assert "never-show" not in block.markdown
+    assert "上下文提供器 broken prepare 失败：RuntimeError" in caplog.text
+    assert "never-show" not in caplog.text
+
+
+def test_macro_provider_network_failure_becomes_unavailable_context() -> None:
+    manager = ContextManager(
+        ["macro_releases"],
+        services=_services(alpaca=FakeAlpaca(news=RuntimeError("network failure"))),
+    )
+    item = WatchlistItem(symbol="NVDA", type="stock")
+    manager.prepare(
+        {
+            "trade_date": date(2026, 10, 1),
+            "mode": "live",
+            "context_as_of": "2026-10-01T08:31:00-04:00",
+            "items": [item],
+        }
+    )
+
+    block = manager.build(item, "2026-10-01T08:31:00-04:00")["macro_releases"]
+
+    assert block.markdown == "该维度数据不可用：RuntimeError；经济数据与要闻不可用。"

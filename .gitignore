@@ -3,7 +3,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 data/
-site
+/site
 site-builds/
 logs/
 config/*.yaml
