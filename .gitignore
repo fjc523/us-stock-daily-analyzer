@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+data/
+site
+site-builds/
+logs/
+config/*.yaml
+!config/*.example.yaml
+config/secrets.env
+.claude/

@@ -1,0 +1,26 @@
+schema: spec-driven
+
+context: |
+  项目：us-stock-daily-analyzer，美股自选股/指数每日盘前分析器。
+  - 分析引擎：用户自己的 TradingAgents fork（git@github.com:fjc523/TradingAgents.git，main 分支），作为 git 子模块放在 `TradingAgents/`，以可编辑方式安装。
+    通用能力（如 codex_exec LLM provider）可以直接在 fork 中修改；项目特定逻辑（编排、上下文提供器、HTML、调度）放在主项目。
+    fork 改动尽量放在新文件中，减少与上游冲突；推送 fork 前须经用户确认。
+  - LLM 推理：默认通过本机 Codex CLI（ChatGPT 订阅登录）执行，模型与推理强度可配置，默认 gpt-6.1-sol + high；codex exec 使用精简指令配置。
+  - 调度：开跑锚点为美东 08:30（经济数据发布时刻，夏令时为北京时间 20:30），由 IANA 时区库换算，不写死时差；目标是开盘前完成。
+    每只标的的信息截止于其开始分析的时刻，必须包含此前的全部新闻、当日经济数据、夜盘与盘前行情。
+  - 数据源：富途 OpenD（夜盘、盘前、盘后；按“订阅 → 读取 → 取消订阅”使用，订阅至少保持 60 秒，额度与其他项目共享）；
+    Alpaca（新闻与经济数据标题、复权日线、夜盘兜底；免费套餐，限流 200 次/分钟）；Yahoo 只作兜底（已出现 429 限流）。
+  - 运行环境：本机 macOS，launchd 定时；Python 3.13（/Users/zhoulei/miniconda3/bin/python 创建的项目 .venv）。
+  - 输出：本地静态 HTML 报告站点，可按日期、按股票查看；不做消息推送。
+  - 所有描述性内容（文档、提案、规格、任务、代码注释）使用中文；代码标识符使用英文。
+  - 凭据：来自其他项目的凭据（如 quant_trading 的 Alpaca 密钥）必须复制到本项目 config/secrets.env（git 忽略，权限 0600），
+    运行时不得读取其他项目目录；复用其他项目的代码时，复制或改写进本项目，不跨项目导入。凭据不得写入仓库、日志、结果、HTML 或 URL。
+    Codex 登录凭证由 Codex 自行管理，本项目不读取、不复制 ~/.codex/auth.json。
+
+rules:
+  specs:
+    - 需求使用 "SHALL/MUST" 表述，每条需求至少一个 "#### Scenario:"，场景用 WHEN/THEN 描述。
+  tasks:
+    - 每个任务必须可独立验证；新增功能必须附带单元测试任务。
+    - 涉及真实 Codex 调用或真实行情的验证任务需单独标注为“真实环境验证”，不得用假数据测试替代。
+    - 对 TradingAgents 子模块的修改须在子模块内单独提交，并标明“推送 fork 前需用户确认”。
