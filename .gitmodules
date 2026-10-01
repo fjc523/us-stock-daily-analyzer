@@ -1,0 +1,4 @@
+[submodule "TradingAgents"]
+	path = TradingAgents
+	url = git@github.com:fjc523/TradingAgents.git
+	branch = main

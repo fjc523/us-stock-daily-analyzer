@@ -1,0 +1,10 @@
+items:
+  - symbol: NVDA
+    type: stock
+    name: NVIDIA
+  - symbol: SPY
+    type: etf
+    name: SPDR S&P 500 ETF
+  - symbol: ^GSPC
+    type: index
+    name: S&P 500

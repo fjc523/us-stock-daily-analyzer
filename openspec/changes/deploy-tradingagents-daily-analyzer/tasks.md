@@ -1,20 +1,20 @@
 ## 1. 项目初始化、子模块与凭据复制
 
-- [ ] 1.1 `git init`，新建 `.gitignore`：排除 `.venv/`、`data/`、`site`（符号链接）、`site-builds/`、`logs/`、`config/*.yaml`、`config/secrets.env`（保留 `config/*.example.*`）、`__pycache__/`、`.pytest_cache/`
-- [ ] 1.2 执行 `git submodule add -b main git@github.com:fjc523/TradingAgents.git TradingAgents`，在子模块中添加 `upstream` remote。验证：子模块 HEAD 与 fork `main` 一致，remote 同时包含 origin 与 upstream
-- [ ] 1.3 编写主项目 `pyproject.toml`：
+- [x] 1.1 `git init`，新建 `.gitignore`：排除 `.venv/`、`data/`、`site`（符号链接）、`site-builds/`、`logs/`、`config/*.yaml`、`config/secrets.env`（保留 `config/*.example.*`）、`__pycache__/`、`.pytest_cache/`
+- [x] 1.2 执行 `git submodule add -b main git@github.com:fjc523/TradingAgents.git TradingAgents`，在子模块中添加 `upstream` remote。验证：子模块 HEAD 与 fork `main` 一致，remote 同时包含 origin 与 upstream
+- [x] 1.3 编写主项目 `pyproject.toml`：
   - src 布局，console script `daily-analyzer`；
   - 依赖：`exchange-calendars`、`pyyaml`、`pydantic>=2`、`jinja2`、`markdown`、`nh3`、`python-dotenv`、`futu-api`、`requests`；
   - dev 依赖：`pytest`；
   - **不声明** `tradingagents`。
-- [ ] 1.4 用 `/Users/zhoulei/miniconda3/bin/python` 创建 `.venv`，依次执行 `pip install -e ./TradingAgents` 与 `pip install -e '.[dev]'`。验证：可编辑安装位置为项目内 `TradingAgents/`，两个包均可导入
-- [ ] 1.5 **凭据复制**：
+- [x] 1.4 用 `/Users/zhoulei/miniconda3/bin/python` 创建 `.venv`，依次执行 `pip install -e ./TradingAgents` 与 `pip install -e '.[dev]'`。验证：可编辑安装位置为项目内 `TradingAgents/`，两个包均可导入
+- [x] 1.5 **凭据复制**：
   - 把 `~/.config/quant_trading/credentials/alpaca_paper_phase0.env` 中的 A 组 Alpaca 模拟盘密钥（`ALPACA_PAPER_A_API_KEY_ID` / `ALPACA_PAPER_A_API_SECRET_KEY`，2026-10-01 实测可用）复制为项目内 `config/secrets.env` 中的 `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`；
   - 若用户同意，再从 `~/.codex/us_stock_trading.env` 复制 `ALPHA_VANTAGE_API_KEY`；
   - `chmod 600 config/secrets.env`；新建只含变量名的 `config/secrets.example.env`。
 
   验证：`git status` 中看不到 `secrets.env`，复制过程的终端输出不含密钥值
-- [ ] 1.6 新建 `CLAUDE.md` 协作规范，内容包括：
+- [x] 1.6 保留用户提供的 `AGENTS.md`（链接到 `CLAUDE.md`）协作规范，在 `README.md` 补充项目专属约定，内容包括：
   - 描述性内容使用中文；
   - 改动归属原则；
   - fork 提交与推送确认流程；
@@ -23,8 +23,8 @@
   - 新功能必须带测试；
   - 真实环境验证不可用假数据替代；
   - 功能变更须同步 README。
-- [ ] 1.7 新建 `config/settings.example.yaml`、`config/watchlist.example.yaml`（1 只个股、1 只 ETF、1 个指数）、`config/portfolio.example.yaml`
-- [ ] 1.8 搭建命令行骨架：`run`、`build-site`、`doctor`、`schedule install|uninstall|status`；`--help` 能列出全部子命令
+- [x] 1.7 新建 `config/settings.example.yaml`、`config/watchlist.example.yaml`（1 只个股、1 只 ETF、1 个指数）、`config/portfolio.example.yaml`
+- [x] 1.8 搭建命令行骨架：`run`、`build-site`、`doctor`、`schedule install|uninstall|status`；`--help` 能列出全部子命令
 
 ## 2. fork 内修改（在 `TradingAgents/` 子模块中进行）
 
@@ -69,16 +69,16 @@
 
 ## 3. 配置与凭据模块（主项目）
 
-- [ ] 3.1 实现 Pydantic 配置模型与默认值（watchlist-config 规格），校验以下内容：
+- [x] 3.1 实现 Pydantic 配置模型与默认值（watchlist-config 规格），校验以下内容：
   - 并行度范围 1–4；
   - 锚点格式；
   - analyst key；
   - 指数代理；
   - `context_providers`；
   - Alpaca 限流范围。
-- [ ] 3.2 实现凭据加载：只读进程环境与 `config/secrets.env`；检查文件权限；密钥值不进入日志
-- [ ] 3.3 实现命令行覆盖参数 `--model` / `--effort` 的合并
-- [ ] 3.4 单元测试：覆盖 watchlist-config 规格的全部场景，以及 market-data-sources 规格中的“凭据来自项目内文件”“权限过宽”“不读取其他项目”（用打桩的 `open` 审计路径）“不跨项目导入”（静态扫描）
+- [x] 3.2 实现凭据加载：只读进程环境与 `config/secrets.env`；检查文件权限；密钥值不进入日志
+- [x] 3.3 实现命令行覆盖参数 `--model` / `--effort` 的合并
+- [x] 3.4 单元测试：覆盖 watchlist-config 规格的全部场景，以及 market-data-sources 规格中的“凭据来自项目内文件”“权限过宽”“不读取其他项目”（用打桩的 `open` 审计路径）“不跨项目导入”（静态扫描）
 
 ## 4. 数据源客户端（主项目）
 
