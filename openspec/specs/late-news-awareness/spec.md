@@ -22,7 +22,7 @@
 - **THEN** 决策中有一节逐条评估该消息的影响，并在认为必要时写明建议重跑
 
 ### Requirement: 截止后新增消息提示
-查看器 SHALL 在美东交易日 04:00–20:00 每 10 分钟检查启用订阅当日结果在 `information_through` 之后的新增新闻（Alpaca，一次请求多标的，复用限流器），结果只写入 `data/news_watch.json`，MUST NOT 修改分析结果、`current/` 或批次文件，MUST NOT 自动发起分析。首页 SHALL 在该行显示“截止后新增 N 条消息”；按集中维护的中英文关键词判定为重大的条目 SHALL 以橙色列出最多 3 条标题与时间。没有新增时不显示。查询失败 SHALL 在下一轮重试且不影响页面。
+查看器 SHALL 在美东交易日 04:00–20:00 每 10 分钟检查启用订阅当日结果在 `information_through` 之后的新增新闻（Alpaca，一次请求多标的，复用限流器），结果只写入 `data/news_watch.json`，MUST NOT 修改分析结果、`current/` 或批次文件，MUST NOT 自动发起分析。首页 SHALL 在该行显示“截止后新增 N 条消息”；按集中维护的中英文关键词判定为重大的条目 SHALL 以橙色提示。收起时 SHALL 只显示消息条数，全部标题与时间 MUST 位于折叠内容内，MUST NOT 在外部重复列出摘要。没有新增时不显示。查询失败 SHALL 在下一轮重试且不影响页面。
 
 #### Scenario: 分析结束后出现交付新闻
 - **WHEN** TSLA 报告信息截止为 09:00:17 ET，09:04:19 ET 出现标题含 “Deliveries” 的新闻

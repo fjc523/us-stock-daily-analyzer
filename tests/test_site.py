@@ -805,8 +805,11 @@ def test_home_late_news_and_bound_cutoff_watch_render_and_hide_stale(tmp_path):
     assert '分析期间纳入 1 条新增消息' in html
     assert '截止后新增 5 条消息' in html
     assert 'data-news-watch' in html and '未自动重跑' in html
-    assert len(re.findall(r'<span class="subline source-degraded">',html))==3
-    assert all(article['title'] in html for article in articles)
+    folded = re.search(r'<details[^>]*data-news-watch>.*?</details>', html, re.DOTALL).group(0)
+    outside = html.replace(folded, '')
+    assert 'source-degraded' in folded
+    assert all(article['title'] in folded and article['title'] not in outside for article in articles)
+    assert all(html.count(article['title']) == 1 for article in articles)
     build_site(tmp_path,now=now)
     assert '截止后新增 5 条消息' in (tmp_path/'site/index.html').read_text()
     watch['items']['TSLA']['run_id']='旧报告'
