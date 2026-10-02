@@ -367,7 +367,8 @@ const allButton={disabled:false,textContent:"全部分析一次",addEventListene
 let value={busy:false,items:{},active_symbols:[]};
 let reloads=0;
 const delays=[];
-const global={document:{getElementById(id){return id==="analyze-all"?allButton:message;},querySelectorAll(){return buttons;}},
+const watchManager={open:false};
+const global={document:{getElementById(id){return id==="analyze-all"?allButton:id==="watchlist-manager"?watchManager:message;},querySelectorAll(){return buttons;}},
   clearTimeout(){},setTimeout(fn,delay){delays.push(delay);return delays.length;},location:{reload(){reloads++;}}};
 async function api(data){
   if(data){
@@ -405,6 +406,10 @@ async function api(data){
   assert.equal(buttons[1].textContent,"排队中");
   assert.equal(buttons[1].disabled,true);
   value={busy:false,active_symbols:[],items:{}};
+  watchManager.open=true;
+  await analysisStatus();
+  assert.equal(reloads,0);
+  watchManager.open=false;
   await analysisStatus();
   assert.ok(buttons.every(button=>!button.disabled && button.box.hidden && !button.summary.hidden));
   assert.equal(reloads,1);
@@ -829,3 +834,93 @@ def test_home_shows_late_macro_count_and_errors(tmp_path):
     del result['late_macro'], result['late_macro_errors']
     _write_json(tmp_path/'data/runs/2026-10-02/current/TSLA.json',result)
     assert '条经济数据' not in render_home(tmp_path,now=now)
+
+
+def test_subscription_manager_keeps_open_for_consecutive_changes(tmp_path):
+    """执行实际管理脚本，核对连续操作及手动关闭的刷新时机。"""
+    from daily_analyzer.site import render_home
+    node = shutil.which('node')
+    if node is None:
+        pytest.skip('当前环境没有node，无法执行订阅管理脚本')
+    _fixture(tmp_path)
+    html = render_home(tmp_path, managed=True)
+    script = re.search(r'(  const manager =.*?)(?=  const settingsDialog=)', html, re.DOTALL).group(1)
+    harness = r'''
+const assert=require('node:assert/strict');
+class Element {
+  constructor(){this.children=[];this.events={};this.value='';this.textContent='';this.open=false;this.disabled=false;}
+  addEventListener(name,handler){this.events[name]=handler;}
+  appendChild(child){this.children.push(child);}
+  replaceChildren(){this.children=[];}
+  showModal(){this.open=true;}
+  close(){this.open=false;this.events.close?.();}
+  async emit(name,event={}){return this.events[name]?.(event);}
+}
+const ids=Object.fromEntries(['watchlist-manager','watchlist-form','manager-message','manager-list','manage-watchlist','close-manager','type-field','identity-message'].map(id=>[id,new Element()]));
+const input=new Element(),type=new Element(),submit=new Element();
+const formElement=ids['watchlist-form'];
+formElement.elements={symbol:input,type};
+formElement.querySelector=()=>submit;
+formElement.reset=()=>{input.value='';type.value='';};
+class FormData {
+  constructor(form){this.rows=Object.entries(form.elements).map(([key,value])=>[key,value.value]);}
+  [Symbol.iterator](){return this.rows[Symbol.iterator]();}
+}
+let items=[{symbol:'NVDA',name:'英伟达',type:'stock',enabled:true}],reloads=0,fail=false;
+const global={document:{getElementById(id){return ids[id];},createElement(){return new Element();}},
+  location:{reload(){reloads++;}},clearTimeout(){},setTimeout(){return 1;},
+  async fetch(path,options={}){
+    if(path.startsWith('/api/instruments')){const symbol=new URL(path,'http://localhost').searchParams.get('symbol');return {ok:true,json:async()=>({symbol,name:symbol,type:'stock',source:'测试资料'})};}
+    if(options.body){
+      const command=JSON.parse(options.body);
+      if(fail)return {ok:false,json:async()=>({error:'保存失败'})};
+      if(command.action==='add')items.push({...command.item,enabled:true});
+      if(command.action==='remove')items=items.filter(item=>item.symbol!==command.symbol);
+      if(command.action==='toggle'){const item=items.find(item=>item.symbol===command.symbol);item.enabled=!item.enabled;}
+    }
+    return {ok:true,json:async()=>({items:items.map(item=>({...item}))})};
+  }};
+'''+script+r'''
+function listSymbols(){return ids['manager-list'].children.map(row=>row.children[0].textContent);}
+async function add(symbol){input.value=symbol;await validateCode();await formElement.emit('submit',{preventDefault(){}});}
+function action(symbol,index){return ids['manager-list'].children.find(row=>row.children[0].textContent.startsWith(symbol)).children[1].children[index].emit('click');}
+(async()=>{
+  await ids['manage-watchlist'].emit('click');
+  assert.equal(ids['watchlist-manager'].open,true);
+  await add('TSLA');
+  assert.equal(ids['watchlist-manager'].open,true);
+  assert.equal(reloads,0);
+  assert.equal(input.value,'');
+  assert.equal(submit.disabled,true);
+  assert.match(ids['manager-message'].textContent,/已添加 TSLA/);
+  await add('AAPL');
+  assert.equal(listSymbols().length,3);
+  await action('NVDA',1);
+  assert.deepEqual(listSymbols(),['TSLA','AAPL']);
+  await action('TSLA',0);
+  assert.match(listSymbols()[0],/已暂停/);
+  await action('TSLA',0);
+  assert.equal(listSymbols()[0],'TSLA');
+  assert.equal(ids['watchlist-manager'].open,true);
+  assert.equal(reloads,0);
+  fail=true;
+  await add('AMZN');
+  assert.equal(input.value,'AMZN');
+  assert.equal(submit.disabled,false);
+  assert.equal(ids['watchlist-manager'].open,true);
+  assert.match(ids['manager-message'].textContent,/保存失败/);
+  await action('AAPL',1);
+  assert.equal(listSymbols().length,2);
+  assert.equal(reloads,0);
+  await ids['close-manager'].emit('click');
+  assert.equal(ids['watchlist-manager'].open,false);
+  assert.equal(reloads,1);
+  await ids['manage-watchlist'].emit('click');
+  await ids['close-manager'].emit('click');
+  assert.equal(reloads,1);
+})().catch(error=>{console.error(error);process.exitCode=1;});
+'''
+    path = tmp_path / 'subscription-manager.js'
+    path.write_text(harness, encoding='utf-8')
+    result = subprocess.run([node, str(path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

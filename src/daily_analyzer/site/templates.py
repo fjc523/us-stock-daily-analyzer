@@ -186,17 +186,14 @@ BASE = _ENV.from_string(
   const manager = global.document.getElementById("watchlist-manager");
   const form = global.document.getElementById("watchlist-form");
   const message = global.document.getElementById("manager-message");
+  let managerChanged = false;
   async function api(data, path="/api/watchlist") {
     const response = await global.fetch(path, data ? {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)} : {});
     const value = await response.json();
     if (!response.ok) throw new Error(value.error || "保存失败，请重试。");
     return value;
   }
-  async function showManager() {
-    message.textContent = "";
-    manager.showModal();
-    try {
-      const value = await api();
+  function renderManager(value) {
       const list = global.document.getElementById("manager-list");
       list.replaceChildren();
       value.items.forEach(item => {
@@ -207,15 +204,30 @@ BASE = _ENV.from_string(
           const button=global.document.createElement("button"); button.type="button"; button.textContent=text;
           button.addEventListener("click",async()=>{
             button.disabled=true;
-            try { await api({action,symbol:item.symbol}); global.location.reload(); }
-            catch(error) { message.textContent=error.message; button.disabled=false; }
+            try {
+              const value = await api({action,symbol:item.symbol});
+              managerChanged = true;
+              renderManager(value);
+              message.className = "toast";
+              message.textContent = "已"+(action==="remove"?"移除":item.enabled?"暂停":"恢复")+" "+item.symbol;
+            }
+            catch(error) { message.className="error toast"; message.textContent=error.message; button.disabled=false; }
           }); actions.appendChild(button);
         }); row.appendChild(actions); list.appendChild(row);
       });
-    } catch(error) { message.textContent=error.message; }
+  }
+  async function showManager() {
+    message.textContent = "";
+    message.className = "error toast";
+    manager.showModal();
+    try { renderManager(await api()); }
+    catch(error) { message.textContent=error.message; }
   }
   global.document.getElementById("manage-watchlist").addEventListener("click", showManager);
   global.document.getElementById("close-manager").addEventListener("click",()=>manager.close());
+  manager.addEventListener("close",()=>{
+    if(managerChanged){managerChanged=false;global.location.reload();}
+  });
   const codeInput=form.elements.symbol, typeInput=form.elements.type;
   const typeField=global.document.getElementById("type-field");
   const identityMessage=global.document.getElementById("identity-message");
@@ -254,8 +266,18 @@ BASE = _ENV.from_string(
     const item=Object.fromEntries(new FormData(form));
     Object.keys(item).forEach(key=>{if(!item[key].trim()) delete item[key];});
     item.symbol=verified.symbol;
-    try { await api({action:"add",item}); global.location.reload(); }
-    catch(error) { message.textContent=error.message; allowSubmit(); }
+    try {
+      const value = await api({action:"add",item});
+      managerChanged = true;
+      renderManager(value);
+      form.reset(); ++validationVersion; verified=null;
+      global.clearTimeout(validationTimer);
+      typeField.hidden=true; typeInput.value=""; allowSubmit();
+      identityMessage.textContent="输入代码后自动验证和识别类型";
+      message.className="toast";
+      message.textContent="已添加 "+item.symbol+"，可继续管理订阅";
+    }
+    catch(error) { message.className="error toast"; message.textContent=error.message; allowSubmit(); }
   });
   const settingsDialog=global.document.getElementById("settings-manager");
   const settingsForm=global.document.getElementById("settings-form");
@@ -356,7 +378,11 @@ BASE = _ENV.from_string(
       const progress=value.run && value.run.progress;
       analysisMessage.textContent=value.busy?"批次进度"+(progress?" · "+progress.completed+"/"+progress.total:""):"";
       if(value.busy){polling=true;analysisTimer=global.setTimeout(analysisStatus,3000);}
-      else if(polling){polling=false;global.location.reload();}
+      else if(polling){
+        const manager=global.document.getElementById("watchlist-manager");
+        if(manager && manager.open) analysisTimer=global.setTimeout(analysisStatus,3000);
+        else {polling=false;global.location.reload();}
+      }
     } catch(error){analysisMessage.textContent=error.message;analysisTimer=global.setTimeout(analysisStatus,3000);}
   }
   analysisButtons.forEach(button=>button.addEventListener("click",async()=>{
