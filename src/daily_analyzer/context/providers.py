@@ -32,7 +32,7 @@ SECTOR_TO_ETF = {
     "Communication Services": "XLC",
 }
 MACRO_TITLE_RE = re.compile(
-    r"^USA (?P<name>.+?) (?P<actual>\S+) Vs (?P<est>\S+) Est\.(?:; (?P<prior>\S+) Prior)?"
+    r"^USA (?P<name>.+?) (?P<actual>\S+) Vs (?P<est>\S+) Est\.?(?:; (?P<prior>\S+) Prior)?"
 )
 
 
@@ -724,55 +724,9 @@ class MacroReleasesProvider:
                 raise
             result = {"articles": [], "truncated": False}
             news_warning.append("宏观新闻不可用：" + type(exc).__name__)
-        articles = list(result.get("articles", []))
-        start_utc = start.astimezone(timezone.utc)
-        end_utc = as_of.astimezone(timezone.utc)
-        articles = [
-            article
-            for article in articles
-            if (created := _created_at(article)) is not None
-            and start_utc <= created <= end_utc
-        ]
+        articles = _articles_in_window(result, start, as_of)
         truncated = bool(result.get("truncated", False))
-        articles.sort(key=lambda article: _created_at(article) or datetime.min.replace(tzinfo=timezone.utc))
-        releases: list[dict[str, Any]] = []
-        revised: list[dict[str, Any]] = []
-        unparsed: list[dict[str, Any]] = []
-        post_cutoff_revisions: list[str] = []
-        for article in articles:
-            title = _headline(article)
-            if bool(_row_get(article, "revised_after_cutoff")):
-                post_cutoff_revisions.append(title)
-            if "Prior Revised" in title:
-                revised.append(
-                    {
-                        "title": title,
-                        "created_at": _iso_created(article),
-                        "revised_after_cutoff": bool(_row_get(article, "revised_after_cutoff")),
-                    }
-                )
-                continue
-            match = MACRO_TITLE_RE.match(title)
-            if match:
-                releases.append(
-                    {
-                        "name": match.group("name"),
-                        "actual": match.group("actual"),
-                        "estimate": match.group("est"),
-                        "prior": match.group("prior"),
-                        "title": title,
-                        "created_at": _iso_created(article),
-                        "revised_after_cutoff": bool(_row_get(article, "revised_after_cutoff")),
-                    }
-                )
-            elif title.startswith("USA "):
-                unparsed.append(
-                    {
-                        "title": title,
-                        "created_at": _iso_created(article),
-                        "revised_after_cutoff": bool(_row_get(article, "revised_after_cutoff")),
-                    }
-                )
+        releases, revised, unparsed, post_cutoff_revisions = _classify_macro_articles(articles)
         market_news = [
             {
                 "title": _headline(article),
@@ -842,6 +796,69 @@ class MacroReleasesProvider:
             if any('已尝试Yahoo兜底' in warning for warning in self.calendars['warnings']):
                 sources.append('Yahoo日历兜底')
         return ContextBlock(self.name, "\n".join(lines), data, as_of, sources)
+
+    def fresh_releases(self, as_of: datetime | date | str) -> list[dict[str, Any]]:
+        """分析期间重新取当日经济数据标题，供决策节点前补抓。
+
+        返回已解析的发布值、前值修订及其他 ``USA `` 开头的经济类标题；数据源失败时
+        抛出异常，由调用方记为数据限制。
+        """
+        if self.batch is None:
+            raise ValueError("macro_releases 尚未准备")
+        start = datetime.combine(_trade_date(self.batch), time.min, EASTERN)
+        cutoff = _cutoff_datetime(as_of)
+        result = self.services.alpaca.news(None, start, cutoff, limit=None, max_pages=20)
+        releases, revised, unparsed, _ = _classify_macro_articles(_articles_in_window(result, start, cutoff))
+        return [*releases, *revised, *unparsed]
+
+
+def macro_seen_titles(block_data: Mapping[str, Any] | None) -> list[str]:
+    """初始上下文中已出现的经济类标题，用于补抓去重。"""
+    data = block_data or {}
+    rows = [*data.get("releases", []), *data.get("prior_revised", []), *data.get("unparsed_economic_titles", [])]
+    return [str(row["title"]) for row in rows if isinstance(row, Mapping) and row.get("title")]
+
+
+def _articles_in_window(result: Mapping[str, Any], start: datetime, end: datetime) -> list[Any]:
+    start_utc = start.astimezone(timezone.utc)
+    end_utc = end.astimezone(timezone.utc)
+    articles = [
+        article
+        for article in list(result.get("articles", []))
+        if (created := _created_at(article)) is not None
+        and start_utc <= created <= end_utc
+    ]
+    articles.sort(key=lambda article: _created_at(article) or datetime.min.replace(tzinfo=timezone.utc))
+    return articles
+
+
+def _classify_macro_articles(articles: Sequence[Any]) -> tuple[list, list, list, list]:
+    """把新闻标题分为已解析发布值、前值修订、未解析经济类标题与截止后修订。"""
+    releases: list[dict[str, Any]] = []
+    revised: list[dict[str, Any]] = []
+    unparsed: list[dict[str, Any]] = []
+    post_cutoff_revisions: list[str] = []
+    for article in articles:
+        title = _headline(article)
+        flagged = bool(_row_get(article, "revised_after_cutoff"))
+        if flagged:
+            post_cutoff_revisions.append(title)
+        row = {"title": title, "created_at": _iso_created(article), "revised_after_cutoff": flagged}
+        if "Prior Revised" in title:
+            revised.append(row)
+            continue
+        match = MACRO_TITLE_RE.match(title)
+        if match:
+            releases.append({
+                "name": match.group("name"),
+                "actual": match.group("actual"),
+                "estimate": match.group("est"),
+                "prior": match.group("prior"),
+                **row,
+            })
+        elif title.startswith("USA "):
+            unparsed.append(row)
+    return releases, revised, unparsed, post_cutoff_revisions
 
 
 def _row_get(row: Any, *keys: str) -> Any:

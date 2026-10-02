@@ -419,10 +419,21 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
             else:
                 second.set()
             return super().propagate(*args, **kwargs)
+    macro_counts = {}
     class Manager:
         def prepare(self, batch): return {}
         def extend(self, items): pass
-        def build(self, item, cutoff): return _context(item.symbol, cutoff)
+        def build(self, item, cutoff):
+            blocks = dict(_context(item.symbol, cutoff))
+            blocks['macro_releases'] = ContextBlock('macro_releases', '截至开始时刻未见当日经济数据标题。',
+                {'releases': [], 'prior_revised': [], 'unparsed_economic_titles': []}, cutoff, ['fixture'])
+            return blocks
+        def refresh_macro_releases(self, item, as_of):
+            # 每进入一个决策节点补抓一次：模拟数据源在开始后才收录的 08:30 标题
+            count = macro_counts[item.symbol] = macro_counts.get(item.symbol, 0) + 1
+            return [{'title': f'USA {item.symbol}宏观指标{index} 1{index}K Vs 9K Est.', 'name': f'{item.symbol}宏观指标{index}',
+                     'actual': f'1{index}K', 'estimate': '9K', 'prior': None, 'created_at': '2026-10-02T12:30:12Z'}
+                    for index in range(1, count + 1)]
         def close(self): pass
     main_thread = threading.get_ident()
     writes = []
@@ -463,6 +474,12 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         trader = next(row['text'] for row in llm_calls if row['stage'] == '交易员' and f'{ticker}交付消息2' in row['text'])
         assert f'{ticker}交付消息2' in trader and f'{ticker}交付消息3' not in trader
         assert any(f'{ticker}交付消息3' in text and '上游未评估' in text for text in prompts)
+        # 经济数据补抓：按标题去重，研究阶段一条、组合经理阶段新增一条
+        assert [row['stage'] for row in result['late_macro']] == ['research', 'portfolio']
+        assert result['late_macro_errors'] == []
+        assert result['information_through'] >= result['late_macro'][-1]['fetched_at']
+        assert f'{ticker}宏观指标1：实际 11K' in trader and f'{ticker}宏观指标2' not in trader
+        assert any(f'{ticker}宏观指标2：实际 12K' in text and '上游未评估的经济数据' in text for text in prompts)
 
 
 

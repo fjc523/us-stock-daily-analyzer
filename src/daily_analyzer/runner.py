@@ -488,10 +488,22 @@ def _analyze_item(
 
             injected = render_context(typed_blocks, cutoff)
         write_progress(progress_path, "准备分析与决策记忆", clock)
+        graph_config = shared_config
+        macro_block = typed_blocks.get("macro_releases")
+        macro_initial = getattr(macro_block, "data", None)
+        if window.mode == "live" and isinstance(macro_initial, Mapping) and "releases" in macro_initial:
+            # 数据源存在收录延迟，决策节点前按标题去重补抓当日经济数据
+            from daily_analyzer.context.providers import macro_seen_titles
+
+            graph_config = {
+                **shared_config,
+                "_late_macro_refresher": lambda: context_manager.refresh_macro_releases(item, _clock_now(clock)),
+                "_late_macro_seen": macro_seen_titles(macro_initial),
+            }
         graph = analyzer_factory(
             item=item,
             mode=window.mode,
-            config=shared_config,
+            config=graph_config,
             state_log_dir=batch_dir / "results" / symbol_slug(item.symbol) / "state",
             context_blocks=typed_blocks,
             context_as_of=cutoff,
@@ -520,7 +532,8 @@ def _analyze_item(
             window.news_cutoff_utc.isoformat()
             if window.mode == "backfill" and window.news_cutoff_utc
             else max(started_at.isoformat(timespec="seconds"), last_query or "",
-                     *(row.get("fetched_at", "") for row in final_state.get("late_news", [])))
+                     *(row.get("fetched_at", "") for row in final_state.get("late_news", [])),
+                     *(row.get("fetched_at", "") for row in final_state.get("late_macro", [])))
         )
         open_time, _ = session_bounds(window.trade_date)
         started_after_open = window.mode == "live" and started_at > open_time
@@ -559,6 +572,8 @@ def _analyze_item(
             "final_trade_decision": final_state.get("final_trade_decision"),
             "late_news": final_state.get("late_news", []),
             "late_news_errors": final_state.get("late_news_errors", []),
+            "late_macro": final_state.get("late_macro", []),
+            "late_macro_errors": final_state.get("late_macro_errors", []),
             "trader_investment_plan": final_state.get("trader_investment_plan"),
             "investment_plan": final_state.get("investment_plan"),
             "reports": reports,

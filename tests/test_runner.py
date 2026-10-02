@@ -1018,3 +1018,76 @@ def test_append_rejected_after_stop_and_closing(tmp_path, monkeypatch, stop):
         assert '停止派发' in reasons['stopped'] or '最长运行时间' in reasons['stopped']
     else:
         assert batch['items']['SPY']['status'] == 'success'
+
+
+class _MacroContextManager(_ContextManager):
+    """带 macro_releases 块的上下文管理器，用于验证决策节点前补抓经济数据的接线。"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.refresh_calls: list[tuple[str, datetime]] = []
+
+    def build(self, item: object, cutoff: datetime) -> dict[str, ContextBlock]:
+        blocks = super().build(item, cutoff)
+        blocks["macro_releases"] = ContextBlock(
+            "macro_releases", "今日经济数据", {
+                "releases": [{"title": "USA Initial Jobless Claims 197K Vs 201K Est."}],
+                "prior_revised": [], "unparsed_economic_titles": [],
+            }, cutoff, ["fake"],
+        )
+        return blocks
+
+    def refresh_macro_releases(self, item: object, as_of: datetime) -> list[dict[str, object]]:
+        self.refresh_calls.append((item.symbol, as_of))
+        return [{"title": "USA Nonfarm Payrolls For Sept. 29K Vs 89K Est."}]
+
+
+class _LateMacroGraph(_FakeGraph):
+    def propagate(self, company_name: str, trade_date: str, **kwargs: object):
+        state, rating = super().propagate(company_name, trade_date, **kwargs)
+        refresher = self.config.get("_late_macro_refresher")
+        if refresher is not None:
+            row = refresher()[0]
+            state["late_macro"] = [{**row, "stage": "research", "fetched_at": "2026-10-02T08:45:00-04:00"}]
+        return state, rating
+
+
+def test_live_run_wires_macro_refresher_with_initial_titles(tmp_path: Path, monkeypatch) -> None:
+    import daily_analyzer.runner as runner
+
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: "test")
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {"tradingagents_commit": "abc", "tradingagents_dirty": False})
+    root = _project(tmp_path, symbols=("NVDA",), parallelism=1)
+    manager = _MacroContextManager()
+    now = datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK)
+    outcome = _run(root, clock=lambda: now, context_manager=manager, analyzer_factory=_LateMacroGraph)
+
+    assert outcome.exit_code == 0
+    config = _FakeGraph.configs[0]
+    assert config["_late_macro_seen"] == ["USA Initial Jobless Claims 197K Vs 201K Est."]
+    assert manager.refresh_calls == [("NVDA", now)]
+    result_path = next((root / "data" / "runs" / "2026-10-02" / "current").glob("NVDA.json"))
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    assert result["late_macro"][0]["title"] == "USA Nonfarm Payrolls For Sept. 29K Vs 89K Est."
+    assert result["late_macro_errors"] == []
+    assert result["information_through"] >= "2026-10-02T08:45:00-04:00"
+
+
+def test_backfill_run_never_wires_macro_refresher(tmp_path: Path, monkeypatch) -> None:
+    import daily_analyzer.runner as runner
+
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: "test")
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {"tradingagents_commit": "abc", "tradingagents_dirty": False})
+    root = _project(tmp_path, symbols=("NVDA",), parallelism=1)
+    manager = _MacroContextManager()
+    _FakeGraph.configs = []
+    outcome = run_analysis(
+        root, date_value="2026-10-01", tickers="NVDA", force=True,
+        clock=lambda: datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK),
+        monotonic=lambda: 100.0, sleeper=lambda seconds: None,
+        context_manager_factory=lambda *args: manager, analyzer_factory=_LateMacroGraph,
+        site_builder=lambda *args, **kwargs: {"ok": True},
+    )
+    assert outcome.exit_code == 0
+    assert "_late_macro_refresher" not in _FakeGraph.configs[-1]
+    assert manager.refresh_calls == []

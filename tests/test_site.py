@@ -811,3 +811,21 @@ def test_home_late_news_and_bound_cutoff_watch_render_and_hide_stale(tmp_path):
     watch['items']['TSLA']['count']=0
     _write_json(tmp_path/'data/news_watch.json',watch)
     assert 'data-news-watch' not in render_home(tmp_path,now=now)
+
+
+def test_home_shows_late_macro_count_and_errors(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    now = datetime(2026,10,2,10,tzinfo=ZoneInfo('America/New_York'))
+    result = _result('TSLA','2026-10-02')
+    result['late_macro'] = [{'title':'USA Nonfarm Payrolls For Sept. 29K Vs 89K Est.','stage':'research'},
+                            {'title':'USA Unemployment Rate For September 4.2% Vs 4.1% Est.','stage':'portfolio'}]
+    result['late_macro_errors'] = ['portfolio阶段补抓经济数据失败：TimeoutError']
+    (tmp_path/'config').mkdir(exist_ok=True)
+    (tmp_path/'config/watchlist.yaml').write_text('items:\n  - symbol: TSLA\n    type: stock\n')
+    _write_json(tmp_path/'data/runs/2026-10-02/current/TSLA.json',result)
+    html=render_home(tmp_path,now=now)
+    assert '分析期间补抓 2 条经济数据' in html
+    del result['late_macro'], result['late_macro_errors']
+    _write_json(tmp_path/'data/runs/2026-10-02/current/TSLA.json',result)
+    assert '条经济数据' not in render_home(tmp_path,now=now)

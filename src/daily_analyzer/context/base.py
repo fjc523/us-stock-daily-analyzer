@@ -278,6 +278,19 @@ class ContextManager:
                 blocks[name] = block
         return blocks
 
+    def refresh_macro_releases(self, item: Any, as_of: datetime) -> list[dict[str, Any]]:
+        """供决策节点前补抓经济数据：复用已准备的 macro_releases 提供器与共享数据源。"""
+        extension = self._extensions.get(_value(item, 'symbol'))
+        if extension is not None:
+            return extension.refresh_macro_releases(item, as_of)
+        if 'macro_releases' in self._prepare_errors:
+            raise RuntimeError('macro_releases 未能准备')
+        provider = self._providers.get('macro_releases')
+        fresh = getattr(provider, 'fresh_releases', None)
+        if not callable(fresh):
+            raise RuntimeError('macro_releases 未启用')
+        return fresh(as_of)
+
     def close(self) -> None:
         """释放批次级数据源资源，调用方应在 finally 中执行。"""
         close = getattr(self.services.futu, "close", None)

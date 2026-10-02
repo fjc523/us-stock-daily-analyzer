@@ -296,6 +296,7 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None) -> list[str]:
     if result.get("news_truncated") is True or macro_truncated:
         marks.append("新闻已截断")
     marks.extend(str(error) for error in result.get("late_news_errors", []))
+    marks.extend(str(error) for error in result.get("late_macro_errors", []))
     return marks
 
 
@@ -619,6 +620,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "status": _status(result), "error": _display(error) if error else None,
         "duration": duration_text,
         "late_news_count": len(result.get("late_news") or []),
+        "late_macro_count": len(result.get("late_macro") or []),
         "source_status": _source_status(result),
         "started_at": _pretty_timestamp(result.get("started_at")),
         "start_clock": _start_clock(result.get("started_at")) if result.get("started_at") else "",

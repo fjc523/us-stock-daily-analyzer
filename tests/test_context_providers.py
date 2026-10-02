@@ -850,3 +850,42 @@ def test_after_open_live_premarket_reuses_history_and_excludes_opening_bar():
     assert pre['quote_time']=='2026-10-01T09:29:00-04:00'
     assert pre['warning']=='IEX 覆盖不完整'
     assert [row for row in alpaca.calls if row[0]=='minutes'][0][3]==datetime(2026,10,1,9,30,tzinfo=EASTERN)
+
+
+def test_macro_fresh_releases_includes_late_indexed_and_unparsed_titles() -> None:
+    from daily_analyzer.context.providers import macro_seen_titles
+
+    articles = [
+        _article("USA Nonfarm Payrolls For Sept. 29K Vs 89K Est.", "2026-10-02T12:30:12Z"),
+        _article("USA Private Nonfarm Payrolls For Sept. 46K Vs 85K Est", "2026-10-02T12:30:25Z"),
+        _article("USA Participation Rate For September 61.8% Vs 61.6% Prior", "2026-10-02T12:30:18Z"),
+        _article("USA Nonfarm Payrolls For Sept. Revises Prior From 162K To 133K", "2026-10-02T12:30:47Z"),
+        _article("Market headline", "2026-10-02T12:31:30Z"),
+        _article("Yesterday", "2026-10-01T20:00:00Z"),
+    ]
+    alpaca = FakeAlpaca(news={"articles": articles, "truncated": False})
+    provider = MacroReleasesProvider(_services(alpaca=alpaca))
+    provider.prepare({"trade_date": date(2026, 10, 2), "mode": "live"})
+
+    rows = provider.fresh_releases("2026-10-02T08:40:00-04:00")
+
+    parsed = {row["title"]: row for row in rows if row.get("actual")}
+    assert parsed["USA Nonfarm Payrolls For Sept. 29K Vs 89K Est."]["actual"] == "29K"
+    # 末尾无句点的 Est 也应解析
+    assert parsed["USA Private Nonfarm Payrolls For Sept. 46K Vs 85K Est"]["estimate"] == "85K"
+    raw = [row["title"] for row in rows if not row.get("actual")]
+    assert raw == [
+        "USA Participation Rate For September 61.8% Vs 61.6% Prior",
+        "USA Nonfarm Payrolls For Sept. Revises Prior From 162K To 133K",
+    ]
+    assert all(not row["title"].startswith(("Market", "Yesterday")) for row in rows)
+    assert alpaca.calls[-1][1] is None
+
+    block = provider.build(None, "2026-10-02T08:40:00-04:00")
+    assert sorted(macro_seen_titles(block.data)) == sorted(row["title"] for row in rows)
+
+
+def test_context_manager_refresh_macro_requires_prepared_provider() -> None:
+    manager = ContextManager([], services=_services(alpaca=FakeAlpaca(news={"articles": [], "truncated": False})))
+    with pytest.raises(RuntimeError, match="macro_releases 未启用"):
+        manager.refresh_macro_releases(WatchlistItem(symbol="NVDA", type="stock"), datetime(2026, 10, 2, 8, 40, tzinfo=EASTERN))
