@@ -312,3 +312,5 @@ README、示例、proposal/design/规格和第 13 节任务已同步，strict �
 实际 API 和页面载入八项：gpt-6.1-sol、gpt-6-astra、gpt-6-sol、gpt-6-luna、gpt-5.6-sol、gpt-5.6-terra、gpt-5.6-luna、gpt-5.5。IAB 将 quick 临时选择 Luna，推理强度变为 low/medium/high/xhigh/max（无 ultra），再恢复 6.1-sol/medium 并保存；deep 保持 6.1-sol/xhigh、并发保持 3/4。没有执行另一次真实推理。
 
 已重建站点并重载查看器。Chrome 真实桌面通过可访问性菜单确认八项，最终截图展示下拉控件、当前模型和目录更新时间（系统弹出菜单未进入窗口截图） `/tmp/us-stock-daily-analyzer-models-desktop.png`。这是最终版本；先前可手填模型的截图只记录中间版本。第 13.10 完成，父仓库提交包含此追加。
+
+发布确认：主项目功能提交 ca9a6dd、fork 提交 427b516 均已推送各自用户 origin/main，父仓库 gitlink 为 427b516187c890644ba58ace566263c24cf1c9ff，两个工作树干净。既有「每日分析一周真实验收」心跳已同步 quick medium/deep xhigh、QQQ 与第 13 节能力、周末无定时批次的口径，保留原 22:05 观察时间和安静通知策略；后续仍按实际批次模型/清单/并发分组，不使用旧双 medium 估算容量，没有创建重复自动化。
