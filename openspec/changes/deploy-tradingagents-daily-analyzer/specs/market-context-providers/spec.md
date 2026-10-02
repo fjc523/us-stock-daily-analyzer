@@ -6,7 +6,7 @@
 - `prepare(batch)`；
 - `build(item, cutoff)`，返回 `ContextBlock(title, markdown, data, as_of, sources)` 或空值。
 
-内置提供器按名称注册；用户扩展 SHALL 以 `module.path:ClassName` 写在配置中。提供器 MUST 只使用确定性数据，MUST NOT 调用 LLM。默认启用 `[market_regime, sector_strength, extended_hours, macro_releases]`，自选项可单独覆盖。
+内置提供器按名称注册；用户扩展 SHALL 以 `module.path:ClassName` 写在配置中。提供器 MUST 只使用确定性数据，MUST NOT 调用 LLM。默认启用 `[market_regime, sector_strength, extended_hours, macro_releases, price_anchors]`（`price_anchors` 的口径见主规格 `price-plan-anchors`），自选项可单独覆盖。
 
 #### Scenario: 加载用户自定义提供器
 - **WHEN** 配置中加入 `my_ext.earnings:EarningsCalendarProvider`，且该类实现了接口

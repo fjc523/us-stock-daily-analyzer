@@ -64,7 +64,7 @@
 - `llm`：`provider`（`codex_exec`）；`deep.model`/`quick.model`（`gpt-6.1-sol`）；`deep.reasoning_effort`/`quick.reasoning_effort`（`medium`）；`call_timeout_seconds`（600）；`max_retries`（3）；`max_concurrent_calls`（4）；`log_prompts`（false）。
 - `codex`：`binary`（未设置时自动解析）、`min_version`（`0.159.3`）。
 - `tradingagents`：`output_language`（`Chinese`）、`max_debate_rounds`（1）、`max_risk_discuss_rounds`（1）。上游的 `market_timezone` 固定为 `America/New_York`，不对用户开放；上游的 `data_vendors.news_data` 固定为 `alpaca,yfinance`。
-- `context_providers`（`[market_regime, sector_strength, extended_hours, macro_releases]`）。
+- `context_providers`（`[market_regime, sector_strength, extended_hours, macro_releases, price_anchors]`；`price_anchors` 由已归档变更 `price-plan-anchors` 规格加入）。
 - `run`：`max_parallel_tickers`（3，取值范围 1–4）、`max_duration_minutes`（180）、`min_start_after_anchor_seconds`（60）。
 - `schedule`：`anchor`（`08:30 America/New_York`，格式为 `HH:MM <IANA 时区>`）。
 - `futu`：`enabled`（true）、`host`（`127.0.0.1`）、`port`（11111）、`max_subscriptions`（40）。

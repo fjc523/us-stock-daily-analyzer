@@ -228,7 +228,7 @@
 
 ## 11. 文档
 
-- [ ] 11.1 编写 `README.md`，内容包括：
+- [x] 11.1 编写 `README.md`，内容包括：
   - 定位与免责声明；
   - 前置条件：Codex 版本与登录、fork 的 SSH 访问、富途 OpenD 在锚点时刻运行、建议配置定时唤醒的 `pmset` 命令（由用户自行执行）；
   - 安装：`git clone --recurse-submodules`、两次可编辑安装；
@@ -240,7 +240,7 @@
   - fork 工作流与同步上游；
   - 用量、耗时与容量预期；
   - 常见故障排查：模型不受支持、CLI 版本、`config_drift`、launchd PATH、额度耗尽、富途额度不足、Alpaca 与 Yahoo 限流、今日尚未运行。
-- [ ] 11.2 核对文档、示例配置、规格与实现一致，执行 `openspec validate deploy-tradingagents-daily-analyzer --strict` 并通过
+- [x] 11.2 核对文档、示例配置、规格与实现一致，执行 `openspec validate deploy-tradingagents-daily-analyzer --strict` 并通过
 
 ## 12. 首页重做、订阅管理与后端复审（2026-10-02，主代理直接执行）
 

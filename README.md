@@ -95,6 +95,30 @@ items:
 
 内置上下文提供器按配置顺序运行。自定义提供器写成 `module.path:ClassName`，必须能导入并实现 `prepare(batch)` 与 `build(item, cutoff)`；提供器只做确定性数据处理，不调用 LLM。个股板块维度通过上下文提供器配置，不是 TradingAgents 分析师名称。
 
+自定义提供器以无参方式构造，需声明 `name` 与 `scope`（`batch` 每批计算一次，`ticker` 在每只标的开始时计算），`build` 返回 `ContextBlock` 或 `None`；异常会被替换为“该维度数据不可用”的说明块，不中断分析。最小示例（模块需位于当前虚拟环境可导入的路径）：
+
+```python
+# my_ext/notes.py
+from daily_analyzer.context.base import ContextBlock
+
+class WatchNoteProvider:
+    name = "watch_note"
+    scope = "ticker"
+
+    def prepare(self, batch):
+        pass
+
+    def build(self, item, cutoff):
+        return ContextBlock(
+            title="自定义关注要点",
+            markdown=f"- {item.symbol}：关注本周财报前后的成交量变化",
+            as_of=cutoff,
+            sources=("手工规则",),
+        )
+```
+
+在 `settings.yaml` 的 `context_providers` 末尾加入 `my_ext.notes:WatchNoteProvider` 即可全局启用，或只写进某个自选项的 `context_providers`。
+
 ### 可选持仓 `portfolio.yaml`
 
 `config/portfolio.example.yaml` 可直接作为空持仓模板。需要传入持仓时，按 `cash`（数字）、`currency` 和 `positions`（`ticker`、`quantity`、可选 `average_price`）填写，例如：
@@ -112,7 +136,7 @@ positions:
 
 ## 运行模式与信息时间
 
-所有交易日判断使用 `America/New_York` 和 XNYS 交易日历。默认锚点为 08:30 ET；北京时间在美东夏令时为 20:30、冬令时为 21:30，换算由时区数据库完成。
+所有交易日判断使用 `America/New_York` 和 XNYS 交易日历。默认锚点为 08:30 ET（美国主要经济数据发布时刻）；北京时间在美东夏令时为 20:30、冬令时为 21:30，换算由时区数据库完成，不写死时差。夏令时现状（2026-10-01 核实）：美国众议院已于 2026-07-14 通过永久夏令时法案，但参议院尚未表决，未成为法律，本机时区库仍在 2026-11-01 切回冬令时；若日后立法并更新时区库，重新执行 `schedule install` 后只保留 20:30 一个触发点，无需改代码。
 
 - **实时 `live`**：在美东交易日收盘前运行，`trade_date` 为当日。日线、指标和行情快照的最后日期限制为上一完整交易日 `price_data_end_date`；定时第一只标的最早在锚点后 60 秒开始，手动立即运行。每只标的在 `started_at` 时采集附加上下文，记录为 `context_as_of`。运行中的新闻工具不冻结，因此 `last_data_query_at` 和 `information_through` 可能晚于 `context_as_of`。
 - **历史回放 `backfill`**：`--date` 指定已过去的交易日，或指定今天但已收盘后运行时使用。日线仍截至目标日的上一交易日；新闻及上下文冻结在目标日 08:31 ET。盘前数据通过 Alpaca IEX 历史分钟线还原，覆盖可能不完整；历史夜盘不可用，回放结果会注明这一限制。回放不写入或结算实时决策记忆。
@@ -230,6 +254,7 @@ git -C TradingAgents merge upstream/main
 - **模型不支持、未登录或 Codex 版本过低**：运行 `codex --version`、`codex login status` 和 `doctor --ping`。确认是 ChatGPT 登录、CLI 版本达到 `codex.min_version`，且所选模型对当前账号可用。升级 Codex CLI 后再运行 `doctor`。
 - **出现 `config_drift`**：查看 `doctor --ping` 的被忽略配置项并核对 CLI 版本；精简配置被 CLI 忽略时，token 用量可能高于预期。
 - **LaunchAgent 找不到 Codex/Node**：在 `settings.yaml` 的 `codex.binary` 中设置 `codex` 可执行文件的绝对路径，然后重新运行 `schedule install` 和 `doctor`。
+- **Codex 额度耗尽**：批次遇到 usage limit/429 会停止派发新标的，已派发的继续收尾，其余标为 `skipped_quota`，首页横幅显示原因；不会自动重试。等额度恢复后在首页点“分析一次”或运行 `run` 补跑（已成功的标的自动跳过）。可在「参数设置」降低 quick 推理强度或并行数以减少用量。
 - **Alpaca 未配置、限流或无历史数据**：检查本项目 `config/secrets.env` 的变量名与 `chmod 600` 权限，再运行 `doctor`。不要把密钥复制到命令行或日志。达到限流时，按数据源降级结果检查报告中的来源和不可用说明。
 - **Futu OpenD 不可连或订阅额度不足**：确认 OpenD 在 `futu.host`/`futu.port` 上运行且已登录；检查 `doctor` 的剩余订阅额度。额度不足时系统尝试快照，连接失败时扩展时段数据降级到 Alpaca。
 - **Yahoo/yfinance 返回 429**：它只作兜底；个别指标、板块信息或经济日历可能不可用，不应将空值当成零。
@@ -252,7 +277,7 @@ git -C TradingAgents merge upstream/main
 
 真实 LaunchAgent 已安装并加载，触发时间为北京时间20:30/21:30。首个真实定时批次`20261002T083002-90276`于2026-10-02 08:30:02 ET触发，实际派发QQQ、INTC，两只分别在08:49:38、08:51:56完成，均早于开盘；09:30第二触发只记录跳过。未设置重复`pmset`唤醒或更改电源设置。浏览器已核验稳定`file://`入口、浅/深色主题、运行中首页刷新及详情页；真实Chrome中的完整运行结束刷新组合仍待验收，不以应用内静态文件快照替代。
 
-真实盘前批次已确认富途盘前快照与盘后订阅报价、Alpaca overnight夜盘主源。富途缺专用分时段时间时仍标`session_verified=false`，不把快照更新时间冒充时段证明。2026-10-02 08:31上下文中，当日08:30就业事件的富途日历实际值为空，Alpaca宏观标题也未含发布值，不能保证发布后一分钟内取得实际/预期/前值；本次来源返回为何滞后尚未查明，原验收10.3保留未完成。来源缺值时报告明确写出限制，不补造数值。
+真实盘前批次已确认富途盘前快照与盘后订阅报价、Alpaca overnight夜盘主源。富途缺专用分时段时间时仍标`session_verified=false`，不把快照更新时间冒充时段证明。2026-10-02 08:31上下文中，当日08:30就业事件的富途日历实际值为空，Alpaca宏观标题也未含发布值。事后复核：Benzinga在08:30:05–08:30:25 ET已发出失业率、非农、时薪等标题，以当时完全相同的请求参数重放可正常取得，说明原因是Alpaca新闻接口在08:31:02查询时尚未收录这些条目（当时接口最新条目停在08:24:25），并非解析或参数问题。现有“锚点后等待60秒”不足以保证取得08:30实际值；是否增加等待或在决策节点前补抓宏观标题待确认，原验收10.3保留未完成。来源缺值时报告明确写出限制，不补造数值。
 
 耗时、用量、限流和开盘前完成率仍需持续观察至少一周，计划至2026-10-09晚间复核。首日定时批次的派发标的开盘前完成2/2；其他订阅可能已有当日手动成功结果而被跳过，不把派发数冒充完整启用清单的容量分母。每批按实际清单、模型、强度和并发分组；8只个股容量尚未验证，富途与Alpaca的完整请求频率账本未采集，不能仅凭未见限流错误宣称容量通过。
 

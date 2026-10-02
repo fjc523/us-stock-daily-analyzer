@@ -403,3 +403,37 @@ README与fork说明已同步；本轮实现由主代理直接完成和复核，�
 10.3缺值项仍未核销：两份08:31上下文的富途实际值为空，Alpaca宏观标题最新停在08:24:25，没有发布值。已存结果只支持“当次来源返回未提供”，不能确认具体滞后原因，不补抓历史响应后冒充当时已取得。README修正此前“尚未观察首个定时批次”等过时说明，保留一周观察、完整Chrome/file验收与容量结论待项。
 
 补充提案`optimize-agent-prompts-and-price-plans`已完成89/89、严格校验通过；第12组真实同批追加和第13组新增新闻感知的证据均在其`evidence.md`，主仓库4de2134及fork0421c86已推送。原部署提案的第12/13组不是该补充提案同号任务，后续观察须区分目录，不重复实施。所有后续工作按用户最新“全部主代理直接完成”执行，不再委派Luna。原部署提案整体尚未完成，观察心跳继续到2026-10-09。
+
+## 2026-10-02 23:00（北京时间）收尾核对（主代理直接执行）
+
+本轮未运行测试套件，未启动分析或 Codex 调用。只做了以下只读查询：Alpaca 新闻只读查询（项目内凭据）、README 示例的离线加载检查。
+
+**归档**：`optimize-agent-prompts-and-price-plans`（89/89）已用 `openspec archive` 归档为 `archive/2026-10-02-optimize-agent-prompts-and-price-plans`。7 份 ADDED 规格合并为主规格（共 44 条需求），各规格的“目的”已由 TBD 改写为中文说明；`openspec validate --all --strict` 8/8 通过。仓库内无引用旧变更路径的文件。
+
+**10.3（仍未勾选）根因已查明**：
+- 批次 `20261002T083002-90276` 的 `macro_releases` 块在每只标的开始时获取（QQQ 08:31:00、INTC 08:31:02 ET），取数时机符合规格。
+- 用项目内 Alpaca 凭据只读查询 2026-10-02 08:25–08:45 ET 新闻：Benzinga 在 08:30:05–08:30:25 ET（created_at）已发出 9 条就业数据标题，例如 `USA Nonfarm Payrolls For Sept. 29K Vs 89K Est.`、`USA Unemployment Rate For September 4.2% Vs 4.1% Est.; 4.1% Prior`。
+- 以当时完全相同的参数（start=04:00Z、end=`12:31:02.106344Z`、sort=desc、limit=50）重放，现在能返回 7 条 `USA ` 标题；去掉微秒的结果相同。说明请求参数与解析逻辑都没有问题。
+- 结论：08:31:02 查询时，Alpaca 新闻接口尚未收录 08:30 的条目（当时返回的最新条目为 08:24:25），属于数据源**收录延迟**。原设计“锚点后等待 60 秒”所依据的 10-01 实测，是事后按 created_at 查询得到的，并未测到实时收录延迟。
+- 修复会改变开跑时序等关键业务规则（例如开跑后轮询等待宏观标题，或在决策节点前补抓宏观数据），按 CLAUDE.md 第 3 条需用户确认，本轮不改代码。10.3 其余各项均已满足（见上一节）。
+
+**10.5（仍未勾选）**：Claude in Chrome 扩展两次连接均失败（未连接），无法在真实 Chrome 中以 `file://` 观察运行中的自动刷新；为避免无效消耗模型用量，未启动分析批次。
+
+**11.1（勾选）**：逐条对照 README，补齐三处：
+- 自定义上下文提供器的最小示例（已在临时目录用项目 `ProviderRegistry` 加载并 build 成功）；
+- 夏令时立法现状；
+- “Codex 额度耗尽”故障排查。
+
+另把“为何滞后尚未查明”更新为上述根因。其余条目（定位与免责、前置条件含 pmset、安装、凭据复制与不跨项目读取、三个 YAML、模型切换、锚点、信息截止与回放局限、常用命令与定时部署、fork 工作流与同步上游、用量与容量、故障排查）原已覆盖。
+
+**11.2（勾选）**：核对范围如下：
+- 示例配置与 `config.py` 默认值（llm、codex、run、schedule、futu、alpaca、context_providers）一致；
+- 修正本变更规格中两处过时口径：
+  - `watchlist-config` 与 `market-context-providers` 的默认提供器列表补上 `price_anchors`；
+  - `html-report-viewer` 中“遇锁说明忙碌、不暗中排队”“运行时禁用全局按钮”，改为引用主规格 `manual-analysis-append` 的追加行为；
+- 推理强度默认值（quick medium / deep xhigh）、手动运行不等锚点两处已由开发 agent 同步，确认一致；
+- `openspec validate deploy-tradingagents-daily-analyzer --strict` 通过。
+
+这是针对配置默认值和已知变更口径的定向核对，不是对全部规格逐条回归。
+
+**其他**：`data/run.lock` 残留 PID 1060（进程已退出），按设计在下次运行时自动清理，本轮未改动。
