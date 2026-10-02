@@ -22,6 +22,7 @@ from markupsafe import Markup
 
 from daily_analyzer.config import load_settings, load_watchlist
 from daily_analyzer.site.templates import BASE, DETAIL, HISTORY, HOME, OVERVIEW
+from daily_analyzer.context.providers import BENCHMARK_NAMES
 
 DISCLAIMER = "仅供个人研究参考，不构成投资建议。"
 _MARKET_TZ = "America/New_York"
@@ -441,19 +442,117 @@ def _relative_metric(value: Any) -> dict[str, str]:
     return {"text": f"{number * 100:+.2f}", "tone": "positive" if number > 0 else "negative" if number < 0 else "muted"}
 
 
-def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str) -> dict[str, Any]:
+def _decision_section(value: Any, label: str) -> str:
+    """只摘取固定报告章节，保留组合经理优先的来源顺序。"""
+    if not isinstance(value, str):
+        return ""
+    match = re.search(
+        rf"(?:\*\*|#{{1,6}}\s*){re.escape(label)}(?:\*\*)?\s*[:：]\s*(.*?)"
+        r"(?=\n\s*(?:\*\*[^*\n]+\*\*\s*[:：]|#{1,6}\s|FINAL TRANSACTION PROPOSAL)|\Z)",
+        value, flags=re.DOTALL,
+    )
+    return match.group(1).strip() if match else ""
+
+
+def _allocation_summary(result: Mapping[str, Any]) -> str:
+    """只认明确的标准仓位口径，不把账户资产比例或普通百分数当成配置。"""
+    for key in ("final_trade_decision", "trader_investment_plan", "investment_plan"):
+        text = result.get(key)
+        if not isinstance(text, str):
+            continue
+        fixed = _decision_section(text, "目标配置（标准仓位=100%）")
+        match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*%\s*", fixed)
+        if not fixed:
+            match = re.search(r"标准(?:配置|仓位|敞口)\s*(?:的|为|=|：|:)\s*(\d+(?:\.\d+)?)\s*%", text)
+        if match:
+            return f"目标配置 {float(match.group(1)):g}% · 标准仓位=100%"
+        # 最终决策明确未提供目标时，不用上游目标覆盖最终结论。
+        if fixed:
+            return "目标配置未提供 · 标准仓位=100%"
+    return "目标配置未提供 · 标准仓位=100%"
+
+
+def _strength_data(result: Mapping[str, Any], root: Path | None) -> Mapping[str, Any]:
+    sector = _block_data(_provider_block(result, "sector_strength"))
+    symbol = result.get("symbol")
+    if result.get("type") != "stock" or (sector.get("symbol") and sector.get("symbol") != symbol):
+        return {}
+    has_values = any(sector.get(f"{prefix}_excess_{days}d") is not None
+                     for prefix in ("sector", "benchmark") for days in (5, 20, 60))
+    if root is not None and (not has_values or not sector.get("comparisons")):
+        end = str(result.get("price_data_end_date") or "")
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", end):
+            path = root / "data/cache/relative_strength" / end / f"{symbol_slug(str(symbol))}.json"
+            if path.is_file():
+                supplement = _as_mapping(_load_json(path))
+                if supplement.get("symbol") == symbol and supplement.get("as_of") == end:
+                    if not has_values:
+                        return {**supplement, "display_supplement": True}
+                    if supplement.get("comparisons"):
+                        return {**sector, "comparisons": supplement["comparisons"], "comparisons_supplement": True}
+    return sector
+
+
+def _comparison_chart(chart: Any, symbol: str, benchmark: str) -> dict[str, Any] | None:
+    """把已存归一化序列排到SVG坐标，不重新计算行情。"""
+    if not isinstance(chart, Mapping):
+        return None
+    dates = chart.get("dates") or []
+    stock, baseline = chart.get("stock") or [], chart.get("benchmark") or []
+    if len(dates) < 2 or len(stock) != len(dates) or len(baseline) != len(dates):
+        return None
+    values = [float(v) for v in [*stock, *baseline]]
+    if not all(math.isfinite(v) for v in values):
+        return None
+    low, high = min(values), max(values)
+    padding = max((high - low) * 0.1, 1)
+    low, high = low - padding, high + padding
+    def y(value):
+        return round(255 - (value - low) / (high - low) * 225, 2)
+    series = []
+    for label, prices, color in ((symbol, stock, "stock-line"), (benchmark, baseline, "benchmark-line")):
+        dots = [{"x": round(58 + i / (len(dates) - 1) * 560, 2), "y": y(price),
+                 "tip": f"{dates[i]} · {label} {float(price):.2f}"} for i, price in enumerate(prices)]
+        series.append({"label": label, "color": color, "points": " ".join(f"{p['x']},{p['y']}" for p in dots), "dots": dots})
+    return {"series": series, "ticks": [{"y": y(v), "text": f"{v:.1f}"} for v in (low, (low + high) / 2, high)],
+            "baseline_y": y(100), "start": dates[0], "end": dates[-1], "count": len(dates),
+            "sources": "；".join(dict.fromkeys(chart.get("sources") or []))}
+
+
+def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: Path | None = None) -> dict[str, Any]:
     rating, rating_class = _rating(result)
     advice = result.get("final_trade_decision") or result.get("trader_investment_plan")
     symbol_type = str(result.get("type") or "")
-    sector = _block_data(_provider_block(result, "sector_strength"))
-    # 只读取此标的的结构化指标，不从板块排名或其他标的递归取值。
-    if symbol_type != "stock" or (sector.get("symbol") and sector.get("symbol") != result.get("symbol")):
-        sector = {}
-    relative = {str(days): _relative_metric(sector.get(f"sector_excess_{days}d")) for days in (5, 20, 60)}
+    sector = _strength_data(result, root)
+    benchmark = sector.get("benchmark_symbol") or sector.get("sector_etf")
+    benchmark_kind = sector.get("benchmark_kind") or ("sector" if sector.get("sector_etf") else "")
+    benchmark_label = "板块" if benchmark_kind == "sector" else "指数"
+    prefix = "benchmark" if sector.get("benchmark_symbol") else "sector"
+    relative = {str(days): _relative_metric(sector.get(f"{prefix}_excess_{days}d")) for days in (5, 20, 60)}
     strength = "不适用" if symbol_type != "stock" else "数据不足"
     tone = relative["20"]["tone"]
     if relative["20"]["text"] != "—" and symbol_type == "stock":
-        strength = {"positive": "强于板块", "negative": "弱于板块", "muted": "与板块持平"}[tone]
+        strength = {"positive": f"强于{benchmark_label}", "negative": f"弱于{benchmark_label}", "muted": f"与{benchmark_label}持平"}[tone]
+    comparisons = []
+    raw_comparisons = sector.get("comparisons") or ([{
+        "symbol": benchmark, "kind": benchmark_kind, "reason": sector.get("benchmark_reason", ""),
+        **{f"excess_{days}d": sector.get(f"{prefix}_excess_{days}d") for days in (5, 20, 60)},
+    }] if benchmark else [])
+    for comparison in raw_comparisons:
+        name = comparison["symbol"]
+        kind_label = "板块" if comparison.get("kind") == "sector" else "指数"
+        metrics = {str(days): _relative_metric(comparison.get(f"excess_{days}d")) for days in (5, 20, 60)}
+        strength_text = "数据不足" if metrics["20"]["text"] == "—" else {
+            "positive": f"强于{kind_label}", "negative": f"弱于{kind_label}", "muted": f"与{kind_label}持平"}[metrics["20"]["tone"]]
+        comparisons.append({"symbol": name, "name": BENCHMARK_NAMES.get(name, name), "kind": kind_label,
+                            "reason": comparison.get("reason", ""), "relative": metrics, "strength": strength_text,
+                            "tone": metrics["20"]["tone"], "chart": _comparison_chart(comparison.get("chart"), str(result.get("symbol")), name)})
+    plans = []
+    for label in ("建仓点位", "加仓点位", "减仓点位"):
+        full_text = next((section for key in ("final_trade_decision", "trader_investment_plan")
+                          if (section := _decision_section(result.get(key), label))), "")
+        plans.append({"label": label, "text": _advice_summary(full_text, 100) if full_text else "本报告未提供",
+                      "full_text": full_text})
     error = result.get("error") or _safe_retry_error(retry)
     duration = result.get("duration_seconds")
     duration_text = "耗时未记录"
@@ -467,10 +566,15 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str) -> dic
         "proxy": result.get("analyzed_symbol") if symbol_type == "index" else None,
         "rating": rating, "rating_class": rating_class,
         "advice": _advice_summary(advice),
+        "plans": plans, "allocation": _allocation_summary(result),
         "premarket": _summary_premarket(result),
-        "sector_rank": _display(_summary_sector_rank(result)),
+        "sector_rank": _display(sector.get("sector_rank") if sector.get("sector_rank") is not None
+                                else _summary_sector_rank(result)) if benchmark_kind == "sector" else "—",
         "sector_etf": sector.get("sector_etf") or "—",
+        "benchmark": benchmark or "—", "benchmark_reason": sector.get("benchmark_reason") or "",
+        "strength_supplement": sector.get("display_supplement", False),
         "relative": relative, "strength": strength, "strength_tone": tone,
+        "comparisons": comparisons, "comparisons_supplement": sector.get("display_supplement") or sector.get("comparisons_supplement", False),
         "price_date": result.get("price_data_end_date") or "—",
         "date": result.get("_date") or result.get("upstream_trade_date") or "—",
         "information_through": _pretty_timestamp(result.get("information_through")),
@@ -731,7 +835,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         else:
             day = result["_date"]
             row = _summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / day), result),
-                               f"days/{day}/{result['_slug']}.html")
+                               f"days/{day}/{result['_slug']}.html", root)
         row["name"] = item.name or row["name"]
         attempt_status = _as_mapping(batch_items.get(symbol_slug(item.symbol))).get("status")
         if attempt_status in {"running", "pending"}:
@@ -739,7 +843,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         rows.append(row)
     if watchlist is None:
         rows = [_summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / latest_day), result),
-                             f"days/{latest_day}/{result['_slug']}.html") for result in latest_results]
+                             f"days/{latest_day}/{result['_slug']}.html", root) for result in latest_results]
     macro_rows, macro_html = _macro_data(latest_results)
     sector_rows, sector_html = _sector_data(latest_context, latest_results)
     regime = latest_context.get("market_regime") or _latest_result_block(latest_results, "market_regime")
@@ -798,7 +902,7 @@ def _build_pages(build_root: Path, grouped: dict[str, list[dict[str, Any]]], roo
         manifest = _manifest(day_dir)
         context = _latest_context(day_dir)
         rows = [
-            _summary_row(item, _retry_failure(manifest, item), f"{item['_slug']}.html")
+            _summary_row(item, _retry_failure(manifest, item), f"{item['_slug']}.html", root)
             for item in day_results
         ]
         cards = _context_cards(context, day_results)

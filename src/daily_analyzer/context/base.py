@@ -93,6 +93,7 @@ class ProviderServices:
     futu_enabled: bool = True
     yahoo: Any = None
     prices: Any = None
+    index_metadata: Any = None
     project_root: str = "."
     clock: Callable[[], datetime] = datetime.now
     sleep: Callable[[float], None] | None = None
@@ -111,6 +112,10 @@ class ProviderServices:
             from .market_data import DailyPriceService
 
             self.prices = DailyPriceService(self.alpaca, self.yahoo)
+        if self.index_metadata is None:
+            from daily_analyzer.data_sources.index_metadata import IndexMetadataSource
+
+            self.index_metadata = IndexMetadataSource()
 
 
 class ProviderRegistry:

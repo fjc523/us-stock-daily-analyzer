@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv",
     "futu-api",
     "requests",
+    "openpyxl",
 ]
 
 [project.optional-dependencies]

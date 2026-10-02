@@ -263,6 +263,40 @@ def test_manual_analysis_http_is_async_and_reports_busy(tmp_path):
         server.shutdown(); thread.join(); server.server_close()
 
 
+def test_analyze_all_launches_enabled_subscriptions_with_shared_lock(tmp_path):
+    root = project(tmp_path)
+    path = root / "config/watchlist.yaml"
+    with path.open("a") as stream:
+        stream.write("  - {symbol: TSLA, type: stock}\n  - {symbol: MSFT, type: stock, enabled: false}\n")
+    calls = []
+    process = SimpleNamespace(poll=lambda: None)
+    def launch(command, **kwargs):
+        calls.append(command)
+        return process
+    launcher = AnalysisLauncher(root, popen=launch, clock=lambda: datetime(2026, 10, 2, 8, 40, tzinfo=NEW_YORK))
+    server = create_server(root, port=0, launcher=launcher)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        code, body = request(base + "/api/analysis", {"scope": "all"})
+        assert code == 202 and json.loads(body)["active_symbols"] == ["NVDA", "TSLA"]
+        assert calls[0][-3:] == ["--tickers", "NVDA,TSLA", "--force"]
+        assert request(base + "/api/analysis", {"scope": "all"})[0] == 409
+        assert request(base + "/api/analysis", {"symbol": "NVDA"})[0] == 409
+        assert len(calls) == 1 and not (root / "data/status.json").exists()
+        process.poll = lambda: 0
+        assert request(base + "/api/analysis", {"scope": "bad"})[0] == 400
+        raw = yaml.safe_load(path.read_text())
+        for row in raw["items"]:
+            row["enabled"] = False
+        path.write_text(yaml.safe_dump(raw))
+        code, body = request(base + "/api/analysis", {"scope": "all"})
+        assert code == 400 and "没有启用" in json.loads(body)["error"]
+    finally:
+        server.shutdown(); thread.join(); server.server_close()
+
+
 def test_settings_preserve_hidden_values_and_validate_atomically(tmp_path, monkeypatch):
     root = project(tmp_path)
     path = root / "config/settings.yaml"

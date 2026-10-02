@@ -29,6 +29,9 @@ BASE = _ENV.from_string(
     .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); box-shadow:var(--shadow); } table { width:100%; border-collapse:collapse; min-width:650px; } th,td { padding:10px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; } th { background:color-mix(in srgb,var(--panel) 50%,var(--bg)); color:var(--muted); font-size:11px; font-weight:500; white-space:nowrap; } tr:last-child td { border-bottom:0; } .watch-table { table-layout:fixed; min-width:0; } .watch-table th:nth-child(1) { width:16%; } .watch-table th:nth-child(2) { width:31%; } .watch-table th:nth-child(3) { width:25%; } .watch-table th:nth-child(4) { width:9%; } .watch-table th:nth-child(5) { width:13%; } .watch-table th:nth-child(6) { width:6%; }
     .symbol { font-size:16px; font-weight:700; color:var(--fg); letter-spacing:.02em; } .subline { display:block; color:var(--muted); font-size:11px; } .advice { font-size:13px; line-height:1.65; margin-top:6px; overflow-wrap:anywhere; } .badge { display:inline-block; padding:2px 9px; border-radius:6px; font-size:12px; font-weight:600; background:var(--soft); color:var(--muted); } .rating-buy,.rating-overweight { color:var(--good); background:color-mix(in srgb,var(--good) 10%,var(--panel)); } .rating-hold { background:var(--soft); color:var(--fg); } .rating-underweight,.rating-sell { color:var(--bad); background:color-mix(in srgb,var(--bad) 10%,var(--panel)); } .rating-review { color:var(--muted); }
     .positive { color:var(--good); } .negative,.error { color:var(--bad); } .relative-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; font-variant-numeric:tabular-nums; } .relative-grid span { font-size:13px; font-weight:600; } .relative-grid small { display:block; font-size:10px; font-weight:400; color:var(--muted); } .relative-grid .focus { background:var(--soft); border-radius:6px; padding:2px 6px; margin:-2px -6px; } .number { font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:550; }
+    .allocation { font-size:12px; font-weight:600; margin-top:7px; } .price-plans { margin:6px 0 0; font-size:12px; line-height:1.6; } .price-plans div { display:grid; grid-template-columns:4.5em 1fr; gap:5px; margin-top:4px; } .price-plans dt { color:var(--muted); } .price-plans dd { margin:0; overflow-wrap:anywhere; } .allocation-note { font-size:12px; line-height:1.7; border-left:3px solid var(--line); padding:7px 12px; margin:12px 0; color:var(--muted); }
+    .comparison + .comparison { margin-top:10px; padding-top:10px; border-top:1px solid var(--line); } .comparison-trigger { display:block; width:100%; border:0; padding:0; background:none; text-align:left; color:var(--fg); } .comparison-trigger:hover { color:var(--accent); background:none; } .comparison-title { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; font-size:12px; } .comparison-dialog { width:min(900px,94vw); max-width:94vw; } .relative-chart { display:block; width:100%; height:auto; max-height:45vh; } .relative-chart text { fill:var(--muted); font-size:12px; } .chart-grid { stroke:var(--line); } .chart-baseline { stroke:var(--muted); stroke-dasharray:4 4; opacity:.6; } .stock-line { stroke:var(--accent); color:var(--accent); } .benchmark-line { stroke:#cf8a32; color:#cf8a32; } .chart-legend { display:flex; gap:20px; font-size:13px; } .chart-legend span::before { content:'━ '; } .relative-chart polyline { fill:none; stroke-width:2.5; } .chart-dot { fill:transparent; stroke:none; }
+    @media(max-width:800px) { .watch-heading { flex-direction:column; align-items:flex-start; gap:12px; } .watch-heading .manager-actions { flex-wrap:wrap; } }
     .marks { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; } .mark { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:5px; padding:1px 5px; } details { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin:10px 0; } summary { cursor:pointer; font-weight:550; } .row-details { padding:0; border:0; margin:4px 0; background:transparent; font-size:11px; } .row-details summary { color:var(--muted); font-weight:400; } .row-details p { overflow-wrap:anywhere; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:12px; }
     .markdown { overflow-x:auto; overflow-wrap:anywhere; max-width:920px; } .markdown p { margin:12px 0; } .markdown h2 { margin-top:24px; } .markdown table { min-width:0; font-size:13px; } .markdown pre { overflow:auto; padding:12px; background:var(--bg); border-radius:8px; } .markdown code { font-family:ui-monospace,SFMono-Regular,monospace; } .time-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr)); gap:8px 20px; font-size:12px; } .empty { padding:32px 20px; color:var(--muted); text-align:center; }
     footer { max-width:1280px; margin:auto; padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; } dialog { width:min(650px,calc(100vw - 28px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--fg); padding:24px; box-shadow:0 20px 90px #0003; } dialog::backdrop { background:#0d1c3e66; } .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; } .form-grid label { font-size:12px; display:flex; flex-direction:column; gap:5px; } .manager-row { display:flex; gap:8px; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:10px 0; } .manager-actions { display:flex; gap:5px; } .manager-actions button { font-size:12px; padding:4px 8px; } .toast { min-height:20px; font-size:12px; } [hidden] { display:none !important; } .analyze-button { display:block; font-size:11px; padding:4px 6px; margin-top:8px; white-space:nowrap; } button:disabled { opacity:.55; cursor:wait; }
@@ -165,6 +168,12 @@ BASE = _ENV.from_string(
       global.location.href = site.root_prefix + target;
     });
   }
+  global.document.querySelectorAll("[data-comparison]").forEach(button=>button.addEventListener("click",()=>{
+    button.closest(".comparison").querySelector("dialog").showModal();
+  }));
+  global.document.querySelectorAll("[data-close-comparison]").forEach(button=>button.addEventListener("click",()=>{
+    button.closest("dialog").close();
+  }));
   {% if managed %}
   const manager = global.document.getElementById("watchlist-manager");
   const form = global.document.getElementById("watchlist-form");
@@ -288,6 +297,7 @@ BASE = _ENV.from_string(
   });
   const analysisMessage=global.document.getElementById("analysis-message");
   const analysisButtons=[...global.document.querySelectorAll("[data-analyze]")];
+  const analyzeAll=global.document.getElementById("analyze-all");
   let polling=false;
   let analysisTimer;
   function durationText(seconds){
@@ -295,6 +305,7 @@ BASE = _ENV.from_string(
     return seconds<60?seconds+"秒":Math.floor(seconds/60)+"分"+(seconds%60?seconds%60+"秒":"");
   }
   function renderAnalysis(value){
+    if(analyzeAll){analyzeAll.disabled=Boolean(value.busy);analyzeAll.textContent=value.busy?"批次运行中…":"全部分析一次";}
     const active=new Set(value.active_symbols || (value.busy && value.symbol?[value.symbol]:[]));
     analysisButtons.forEach(button=>{
       const symbol=button.dataset.analyze;
@@ -331,6 +342,7 @@ BASE = _ENV.from_string(
   }
   analysisButtons.forEach(button=>button.addEventListener("click",async()=>{
     button.disabled=true;button.textContent="正在启动…";
+    if(analyzeAll)analyzeAll.disabled=true;
     try {
       const value=await api({symbol:button.dataset.analyze},"/api/analysis");
       renderAnalysis(value);analysisMessage.textContent=value.message;polling=true;analysisStatus();
@@ -339,13 +351,23 @@ BASE = _ENV.from_string(
       await analysisStatus();analysisMessage.textContent=error.message;
     }
   }));
+  if(analyzeAll)analyzeAll.addEventListener("click",async()=>{
+    analyzeAll.disabled=true;analyzeAll.textContent="正在启动…";
+    try {
+      const value=await api({scope:"all"},"/api/analysis");
+      renderAnalysis(value);analysisMessage.textContent=value.message;polling=true;analysisStatus();
+    } catch(error){
+      await analysisStatus();analysisMessage.textContent=error.message;
+    }
+  });
   analysisStatus();
   {% endif %}
   if (site.refresh_seconds > 0) {
     function refresh() {
       const dialog=global.document.getElementById("watchlist-manager");
       const settingsDialog=global.document.getElementById("settings-manager");
-      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open)) global.setTimeout(refresh, 10000);
+      const chartOpen=global.document.querySelector(".comparison-dialog[open]");
+      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open) || chartOpen) global.setTimeout(refresh, 10000);
       else global.location.reload();
     }
     global.setTimeout(refresh, site.refresh_seconds*1000);
@@ -358,15 +380,18 @@ BASE = _ENV.from_string(
 
 # 汇总表与市场补充共用模板，首页优先显示订阅结论。
 _ROWS = """
-{% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对板块强弱"><thead><tr><th>订阅标的</th><th>总体建议</th><th>相对板块 · 百分点</th><th>盘前</th><th>报告状态</th><th></th></tr></thead><tbody>
+{% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对基准强弱"><thead><tr><th>订阅标的</th><th>总体建议与点位</th><th>相对基准 · 百分点</th><th>盘前</th><th>报告状态</th><th></th></tr></thead><tbody>
 {% for row in rows %}<tr>
   <td>{% if row.path %}<a class="symbol" href="{{ row.path }}">{{ row.symbol }}</a>{% else %}<span class="symbol">{{ row.symbol }}</span>{% endif %}<span class="subline">{{ row.name }}{% if row.name %} · {% endif %}{{ row.type }}</span>{% if row.proxy %}<span class="subline">以 {{ row.proxy }} 代理</span>{% endif %}</td>
-  <td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span><div class="advice">{{ row.advice }}</div></td>
-  <td><span class="{{ row.strength_tone }}">{{ row.strength }}</span><span class="small muted">{% if row.sector_etf != '—' %} · {{ row.sector_etf }}{% endif %}</span><div class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ row.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ row.relative[days].text }}</span>{% endfor %}</div></td>
+  <td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span><div class="advice">{{ row.advice }}</div><div class="allocation">{{ row.allocation }}</div><dl class="price-plans">{% for plan in row.plans %}<div><dt>{{ plan.label }}</dt><dd title="{{ plan.full_text }}">{{ plan.text }}</dd></div>{% endfor %}</dl></td>
+  <td>{% for comp in row.comparisons %}<div class="comparison"><button type="button" class="comparison-trigger" data-comparison aria-label="查看{{ row.symbol }}相对{{ comp.symbol }}归一化走势"><span class="comparison-title"><strong>{{ comp.kind }} · {{ comp.name }} {{ comp.symbol }} ↗</strong><span class="{{ comp.tone }}">{{ comp.strength }}</span></span><span class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ comp.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ comp.relative[days].text }}</span>{% endfor %}</span></button><span class="subline">{% if row.comparisons_supplement %}补充 · {% endif %}{{ comp.reason }}</span>
+    <dialog class="comparison-dialog"><div class="section-heading" style="margin-top:0"><h2>{{ row.symbol }} / {{ comp.name }} {{ comp.symbol }}</h2><button type="button" data-close-comparison>关闭</button></div>
+    {% if comp.chart %}<p class="small muted">最近60个交易日 · {{ comp.chart.start }} 至 {{ comp.chart.end }} · {{ comp.chart.count }}个共同有效收盘点。两条复权曲线从共同首日100开始，显示累计相对表现。这里的100是价格指数，不是仓位比例。</p><div class="chart-legend"><span class="stock-line">{{ row.symbol }}</span><span class="benchmark-line">{{ comp.symbol }}</span></div><svg class="relative-chart" viewBox="0 0 640 295" role="img" aria-label="{{ row.symbol }}与{{ comp.symbol }}复权归一化走势图"><title>共同首日为100的复权收盘价对比</title>{% for tick in comp.chart.ticks %}<line class="chart-grid" x1="58" x2="618" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text x="48" y="{{ tick.y }}" text-anchor="end">{{ tick.text }}</text>{% endfor %}<line class="chart-baseline" x1="58" x2="618" y1="{{ comp.chart.baseline_y }}" y2="{{ comp.chart.baseline_y }}"/>{% for series in comp.chart.series %}<polyline class="{{ series.color }}" points="{{ series.points }}"/>{% for dot in series.dots %}<circle class="chart-dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="6"><title>{{ dot.tip }}</title></circle>{% endfor %}{% endfor %}<text x="58" y="280">{{ comp.chart.start }}</text><text x="618" y="280" text-anchor="end">{{ comp.chart.end }}</text></svg><p class="small muted">来源：{{ comp.chart.sources }}。{% if row.comparisons_supplement %}本图为后补比较，原评级未重算。{% endif %}</p>{% else %}<p class="muted">图表数据不足；没有截至该报告日的共同有效日线。旧报告可在下次分析时生成曲线。</p>{% endif %}</dialog></div>{% else %}<span class="muted">{{ row.strength }}</span>{% endfor %}</td>
   <td class="number"><span class="mobile-label subline">盘前</span>{{ row.premarket }}</td>
   <td><span data-report-summary><span class="small">{{ row.status }}</span><span class="subline">{{ row.duration }}</span></span>{% if managed %}<div class="analysis-progress" data-analysis-progress hidden role="status"><span data-stage></span><progress max="100"></progress><span class="subline" data-remaining></span><span class="subline" data-estimate-note></span></div>{% endif %}<span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
   <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}{% if managed %}<button class="analyze-button" data-analyze="{{ row.symbol }}" title="重新获取数据并分析该标的">分析一次</button>{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
+<aside class="allocation-note" aria-label="标准仓位说明"><strong>标准仓位 100% 是什么？</strong> 它是你为单只股票设定的计划持仓量，只作比较单位。例如计划投入 1 万元为 100%，目标配置 60% 就是持有 6000 元。它不是账户总资产的 60%，也不是卖出现有持仓的 60%；实际买卖量还需结合已有持仓和你的标准金额。当前未设置标准金额，页面仅展示相对比例。</aside>
 """
 _CONTEXT = """
 <div class="section-heading"><h2>市场背景与数据</h2><span class="small muted">展开查看，不影响自选比较</span></div>
@@ -383,9 +408,9 @@ HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live=
   <article class="stat"><span class="stat-label">减持 / 卖出</span><strong class="stat-value negative">{{ summary.negative }}</strong></article>
   <article class="stat"><span class="stat-label">当前订阅</span><strong class="stat-value">{{ rows|length }} <span class="small muted">只</span></strong><span class="stat-caption">{{ summary.pending }} 项待分析或复核</span></article>
 </div>
-<div class="section-heading"><div><h2>我的自选</h2><p class="small muted">强弱按 20 日超额收益判断；正值跑赢、负值跑输板块。各行保留实际报告日期。</p></div>
-{% if managed %}<div class="manager-actions"><button id="manage-settings">参数设置</button><button id="manage-watchlist" class="primary">＋ 管理订阅</button></div>{% else %}<a class="button primary" href="http://127.0.0.1:8765/">管理订阅 ↗</a>{% endif %}</div>
-""" + _ROWS + """{% if managed %}<p id="analysis-message" class="small toast" role="status"></p>{% endif %}<p class="small muted">相对收益 = 个股收益 − 板块 ETF 收益，单位为百分点；日线截至各报告的上一交易日。ETF／指数不套用个股板块基准。摘要摘自完整决策，点击详情查看条件和风险。当前模型 {{ model_label }}。</p>
+<div class="section-heading watch-heading"><div><h2>我的自选</h2><p class="small muted">板块与指数分别比较，强弱按20日超额收益判断；指数按QQQ → SPY → DIA选择。点击强弱查看归一化走势。</p></div>
+{% if managed %}<div class="manager-actions"><button id="analyze-all" title="立即重新分析当前启用的全部订阅">全部分析一次</button><button id="manage-settings">参数设置</button><button id="manage-watchlist" class="primary">＋ 管理订阅</button></div>{% else %}<a class="button primary" href="http://127.0.0.1:8765/">管理订阅 ↗</a>{% endif %}</div>
+""" + _ROWS + """{% if managed %}<p id="analysis-message" class="small toast" role="status"></p>{% endif %}<p class="small muted">相对收益 = 个股收益 − 所选基准 ETF 收益，单位为百分点；日线截至各报告的上一交易日。ETF／指数不套用个股比较。标为“补充”的强弱为后补比较，未重算原评级。点位和目标配置摘自原报告，缺失时明确注明，点击详情查看完整条件和风险。当前模型 {{ model_label }}。</p>
 """ + _CONTEXT + """
 {% if managed %}<dialog id="watchlist-manager" aria-labelledby="manager-title"><div class="section-heading" style="margin-top:0"><h2 id="manager-title">管理订阅</h2><button id="close-manager" type="button" aria-label="关闭">关闭</button></div>
 <p class="small muted">保存后从下次分析批次生效；移除或暂停不删除历史报告，不立即调用模型。</p>
@@ -406,7 +431,7 @@ HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live=
 <div class="form-grid"><label>并行分析标的数<input name="parallel" type="number" min="1" max="4" step="1" required></label><label>并行模型调用数<input name="calls" type="number" min="1" step="1" required></label></div>
 <p class="small muted">模型与推理强度从本机 Codex 模型目录自动载入，保存时再次校验。标的并行数控制同时分析几只；调用并行数控制所有标的共享的模型调用上限。</p><p id="settings-message" class="error toast" role="status"></p><button class="primary" type="submit">保存参数</button></form></dialog>{% endif %}
 """)
-OVERVIEW = _ENV.from_string("""<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对板块收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
+OVERVIEW = _ENV.from_string("""<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对基准收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
 DETAIL = _ENV.from_string("""<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>
 <p class="small muted">附加上下文截至 {{ context_as_of }}；日线截至 {{ price_data_end_date }}；工具数据最晚查询于 {{ last_data_query_at }}。</p>
 <div class="marks">{% for mark in marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if error %}<p class="error">{{ error }}</p>{% endif %}

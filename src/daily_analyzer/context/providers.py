@@ -9,11 +9,15 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
-from .market_data import as_date, previous_trading_day
+from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
 
 EASTERN = ZoneInfo("America/New_York")
 MARKET_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA")
 SECTOR_ETFS = ("XLK", "XLF", "XLE", "XLV", "XLY", "XLP", "XLI", "XLB", "XLU", "XLRE", "XLC")
+BENCHMARK_NAMES = {"XLK": "科技", "XLF": "金融", "XLE": "能源", "XLV": "医疗", "XLY": "消费可选",
+                   "XLP": "必需消费", "XLI": "工业", "XLB": "原材料", "XLU": "公用事业", "XLRE": "房地产",
+                   "XLC": "通信服务", "SMH": "半导体", "SOXX": "半导体", "QQQ": "纳斯达克100",
+                   "SPY": "标普500", "DIA": "道琼斯"}
 SECTOR_TO_ETF = {
     "Technology": "XLK",
     "Financial Services": "XLF",
@@ -232,6 +236,8 @@ class SectorStrengthProvider:
         self.end: date | None = None
         self.metrics: dict[str, dict[str, Any]] = {}
         self.stock_sector_etfs: dict[str, tuple[str | None, bool]] = {}
+        self.benchmarks: dict[str, dict[str, Any]] = {}
+        self.index_memberships: dict[str, dict[str, Any]] = {}
         self.ranking: list[dict[str, Any]] = []
         self.sources: tuple[str, ...] = ()
         self._sector_source_used = False
@@ -239,6 +245,8 @@ class SectorStrengthProvider:
     def prepare(self, batch: Any) -> None:
         self.end = _price_end(batch)
         symbols = [*SECTOR_ETFS, "SPY"]
+        unresolved = []
+        stock_symbols = []
         for item in _items(batch):
             if _item_type(item) != "stock":
                 continue
@@ -246,6 +254,7 @@ class SectorStrengthProvider:
             if not symbol:
                 continue
             symbols.append(symbol)
+            stock_symbols.append(symbol)
             override = _value(item, "sector_etf")
             if override:
                 sector_etf = str(override).strip().upper()
@@ -257,10 +266,30 @@ class SectorStrengthProvider:
                 self.stock_sector_etfs[symbol] = (sector_etf, False)
                 if sector_etf:
                     symbols.append(sector_etf)
+            sector_etf, manual = self.stock_sector_etfs[symbol]
+            if sector_etf:
+                self.benchmarks[symbol] = {"benchmark_symbol": sector_etf, "benchmark_kind": "sector",
+                                           "benchmark_reason": "手工指定板块" if manual else "Yahoo板块映射"}
+            else:
+                unresolved.append(symbol)
+        if stock_symbols:
+            if str(_value(batch, "mode", "live")) == "backfill":
+                self.index_memberships = {s: {"benchmark_symbol": "SPY", "benchmark_kind": "default", "index_symbol": None,
+                                               "benchmark_reason": "回放未核验历史指数成员，默认SPY"} for s in stock_symbols}
+            else:
+                self.index_memberships = self.services.index_metadata.lookup(stock_symbols)
+            symbols.extend(row.get("index_symbol") or "SPY" for row in self.index_memberships.values())
+            for symbol in unresolved:
+                self.benchmarks[symbol] = self.index_memberships[symbol]
+                metadata = self.benchmarks[symbol]
+                symbols.append(metadata["benchmark_symbol"])
+                if metadata["benchmark_kind"] == "sector":
+                    self.stock_sector_etfs[symbol] = (metadata["benchmark_symbol"], False)
         self.metrics = self.services.prices.metrics(list(dict.fromkeys(symbols)), self.end, (5, 20, 60))
         sources = [str(metric.get("source", "")) for metric in self.metrics.values()]
         if self._sector_source_used:
             sources.append("Yahoo Finance info.sector 映射")
+        sources.extend(str(row.get("metadata_source", "")) for row in self.index_memberships.values())
         self.sources = _source_list(sources)
         self.ranking = self._build_ranking()
 
@@ -316,51 +345,70 @@ class SectorStrengthProvider:
         if _item_type(item) == "stock":
             symbol = _symbol(item)
             sector_etf, manual = self.stock_sector_etfs.get(symbol, (None, False))
-            if sector_etf:
-                stock = self.metrics.get(symbol, {})
-                sector = self.metrics.get(sector_etf, {})
-                spy = self.metrics.get("SPY", {})
-                relative = {
-                    f"sector_excess_{days}d": (
-                        _pct_return(stock, days) - _pct_return(sector, days)
-                        if _pct_return(stock, days) is not None and _pct_return(sector, days) is not None
-                        else None
+            metadata = self.benchmarks[symbol]
+            benchmark_symbol = metadata["benchmark_symbol"]
+            stock = self.metrics.get(symbol, {})
+            benchmark = self.metrics.get(benchmark_symbol, {})
+            spy = self.metrics.get("SPY", {})
+            relative = {}
+            for days in (5, 20, 60):
+                stock_return = _pct_return(stock, days)
+                for prefix, metric in (("benchmark", benchmark), ("spy", spy)):
+                    benchmark_return = _pct_return(metric, days)
+                    relative[f"{prefix}_excess_{days}d"] = (
+                        stock_return - benchmark_return if stock_return is not None and benchmark_return is not None else None
                     )
-                    for days in (5, 20, 60)
-                }
-                relative.update(
-                    {
-                        f"spy_excess_{days}d": (
-                            _pct_return(stock, days) - _pct_return(spy, days)
-                            if _pct_return(stock, days) is not None and _pct_return(spy, days) is not None
-                            else None
-                        )
-                        for days in (5, 20, 60)
-                    }
-                )
-                sector_rank = next(
-                    (row["rank"] for row in self.ranking if row["symbol"] == sector_etf), None
-                )
-                method = "手工指定" if manual else "Yahoo Finance 板块映射"
-                lines.extend(
-                    [
-                        "",
-                        f"{symbol} 所属板块基准：{sector_etf}（{method}，名次 {sector_rank or '—'}）。",
-                        "相对板块：" + "；".join(
-                            f"{days}日 {_format_pct(relative[f'sector_excess_{days}d'])}"
-                            for days in (5, 20, 60)
-                        ),
-                        "相对 SPY：" + "；".join(
-                            f"{days}日 {_format_pct(relative[f'spy_excess_{days}d'])}"
-                            for days in (5, 20, 60)
-                        ),
-                    ]
-                )
-                data.update({"symbol": symbol, "sector_etf": sector_etf, "manual_override": manual, "sector_rank": sector_rank, **relative})
-            else:
-                lines.extend(["", f"{symbol}：未能识别所属板块。"])
-                data.update({"symbol": symbol, "sector_etf": None, "note": "未能识别所属板块"})
+                if sector_etf:
+                    relative[f"sector_excess_{days}d"] = relative[f"benchmark_excess_{days}d"]
+            sector_rank = next((row["rank"] for row in self.ranking if row["symbol"] == sector_etf), None) if sector_etf else None
+            lines.extend([
+                "", f"{symbol} 比较基准：{benchmark_symbol}（{metadata['benchmark_reason']}）。",
+                "相对基准：" + "；".join(f"{days}日 {_format_pct(relative[f'benchmark_excess_{days}d'])}" for days in (5, 20, 60)),
+                "相对 SPY：" + "；".join(f"{days}日 {_format_pct(relative[f'spy_excess_{days}d'])}" for days in (5, 20, 60)),
+            ])
+            if not sector_etf:
+                lines.append("未能识别所属板块，以上为指数基准比较。")
+            if metadata.get("membership_as_of"):
+                lines.append(f"发行方持仓名单截至 {metadata['membership_as_of']}。")
+            data.update({"symbol": symbol, "sector_etf": sector_etf, "manual_override": manual,
+                         "sector_rank": sector_rank, **metadata, **relative})
+            comparisons = []
+            if sector_etf:
+                comparisons.append(self._comparison(symbol, sector_etf, "sector", metadata["benchmark_reason"]))
+            index = self.index_memberships[symbol]
+            index_symbol = index.get("index_symbol") or "SPY"
+            index_kind = "index" if index.get("index_symbol") else "default"
+            index_reason = (f"指数成员已核验；名单截至{index.get('membership_as_of', '未知')}"
+                            if index_kind == "index" else index["benchmark_reason"])
+            if index_kind == "index" and index.get("index_warning"):
+                index_reason += "；" + index["index_warning"]
+            if sector_etf and index_kind == "default":
+                index_reason = index_reason.removeprefix("行业未识别；")
+            comparisons.append(self._comparison(symbol, index_symbol, index_kind, index_reason))
+            data["comparisons"] = comparisons
+            for comparison in comparisons:
+                lines.append(f"{comparison['name']}（{comparison['symbol']}）：" + "；".join(
+                    f"{days}日 {_format_pct(comparison[f'excess_{days}d'])}" for days in (5, 20, 60)))
         return ContextBlock(self.name, "\n".join(lines), data, self.end, self.sources)
+
+    def _comparison(self, symbol: str, benchmark: str, kind: str, reason: str) -> dict[str, Any]:
+        """图表复用批次缓存，共同首日归一为100，不补造行情。"""
+        stock_metric, benchmark_metric = self.metrics.get(symbol, {}), self.metrics.get(benchmark, {})
+        result = {"symbol": benchmark, "kind": kind, "name": BENCHMARK_NAMES.get(benchmark, benchmark), "reason": reason}
+        for days in (5, 20, 60):
+            stock_return, baseline_return = _pct_return(stock_metric, days), _pct_return(benchmark_metric, days)
+            result[f"excess_{days}d"] = stock_return - baseline_return if stock_return is not None and baseline_return is not None else None
+        stock_rows, stock_source = self.services.prices.bars(symbol, self.end)
+        benchmark_rows, benchmark_source = self.services.prices.bars(benchmark, self.end)
+        stock, baseline = normalize_closes(stock_rows, self.end), normalize_closes(benchmark_rows, self.end)
+        dates = [d for d in _expected_sessions(self.end, 61) if stock.get(d, 0) > 0 and baseline.get(d, 0) > 0]
+        result["chart"] = None
+        if len(dates) >= 2 and dates[-1] == self.end:
+            result["chart"] = {"dates": [d.isoformat() for d in dates],
+                               "stock": [stock[d] / stock[dates[0]] * 100 for d in dates],
+                               "benchmark": [baseline[d] / baseline[dates[0]] * 100 for d in dates],
+                               "sources": [stock_source, benchmark_source]}
+        return result
 
 
 class ExtendedHoursProvider:

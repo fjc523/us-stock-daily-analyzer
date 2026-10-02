@@ -126,12 +126,27 @@ class FakeFutu:
         pass
 
 
-def _services(*, prices=None, alpaca=None, futu=None, yahoo=None):
+class FakeIndexMetadata:
+    def __init__(self, benchmarks=None):
+        self.benchmarks = benchmarks or {}
+        self.calls = []
+
+    def lookup(self, symbols):
+        self.calls.append(symbols)
+        rows = {symbol: dict(self.benchmarks.get(symbol, {"benchmark_symbol": "SPY", "benchmark_kind": "default",
+                                                        "benchmark_reason": "行业未识别；指数成员未核验，默认SPY"})) for symbol in symbols}
+        for row in rows.values():
+            row.setdefault("index_symbol", row["benchmark_symbol"] if row["benchmark_kind"] == "index" else None)
+        return rows
+
+
+def _services(*, prices=None, alpaca=None, futu=None, yahoo=None, index_metadata=None):
     return ProviderServices(
         alpaca=alpaca or FakeAlpaca(),
         futu=futu or FakeFutu(mode="unavailable"),
         yahoo=yahoo or FakeYahoo(),
         prices=prices or FakePrices(),
+        index_metadata=index_metadata or FakeIndexMetadata(),
     )
 
 
@@ -268,7 +283,10 @@ def test_sector_ranking_ties_manual_override_and_unknown_sector() -> None:
     assert stock.data["sector_etf"] == "SMH"
     assert stock.data["manual_override"] is True
     assert stock.data["sector_excess_20d"] == pytest.approx(0.04)
+    assert stock.data["benchmark_symbol"] == "SMH"
+    assert stock.data["benchmark_excess_20d"] == pytest.approx(0.04)
     assert "未能识别所属板块" in unknown.markdown
+    assert unknown.data["benchmark_symbol"] == "SPY" and unknown.data["benchmark_kind"] == "default"
     assert "sector_etf" not in etf.data
 
     manager = ContextManager(
@@ -280,6 +298,74 @@ def test_sector_ranking_ties_manual_override_and_unknown_sector() -> None:
     managed = manager.build(items[0], "2026-10-01T08:31:00-04:00")["sector_strength"]
     assert managed.data["sector_etf"] == "SMH"
     assert managed.data["sector_excess_20d"] == pytest.approx(0.04)
+
+
+def test_index_benchmark_and_backfill_use_same_price_cutoff():
+    end = date(2026, 9, 30)
+    prices = FakePrices({"TSLA": _complete_metric(r20=0.10), "QQQ": _complete_metric(r20=0.03),
+                         "SPY": _complete_metric(r20=0.02)})
+    metadata = FakeIndexMetadata({"TSLA": {"benchmark_symbol": "QQQ", "benchmark_kind": "index",
+                                          "benchmark_reason": "指数成员已核验"}})
+    item = WatchlistItem(symbol="TSLA", type="stock")
+    provider = SectorStrengthProvider(_services(prices=prices, index_metadata=metadata))
+    provider.prepare({"trade_date": date(2026, 10, 1), "price_data_end_date": end, "items": [item]})
+    block = provider.build(item, "2026-10-01T08:31:00-04:00")
+    assert block.data["benchmark_excess_20d"] == pytest.approx(0.07)
+    assert "sector_excess_20d" not in block.data and block.data["sector_rank"] is None
+    assert prices.calls[0][1] == end and "QQQ" in prices.calls[0][0]
+    provider = SectorStrengthProvider(_services(prices=prices, index_metadata=metadata))
+    provider.prepare({"mode": "backfill", "trade_date": date(2026, 10, 1), "price_data_end_date": end, "items": [item]})
+    block = provider.build(item, "2026-10-01T08:31:00-04:00")
+    assert len(metadata.calls) == 1
+    assert block.data["benchmark_symbol"] == "SPY" and "历史" in block.data["benchmark_reason"]
+    assert block.data["benchmark_excess_20d"] == pytest.approx(0.08)
+
+
+def test_sector_override_kept_when_index_metadata_or_price_missing():
+    metadata = FakeIndexMetadata()
+    item = WatchlistItem(symbol="TSLA", type="stock", sector_etf="XLY")
+    provider = SectorStrengthProvider(_services(index_metadata=metadata))
+    provider.prepare({"trade_date": date(2026, 10, 1), "items": [item]})
+    block = provider.build(item, "2026-10-01T08:31:00-04:00")
+    assert metadata.calls == [["TSLA"]] and block.data["benchmark_symbol"] == "XLY"
+    assert block.data["benchmark_excess_20d"] is None
+
+
+@pytest.mark.parametrize("sector,index,expected", [
+    ("XLY", "QQQ", ["XLY", "QQQ"]), ("XLY", None, ["XLY", "SPY"]),
+    (None, "QQQ", ["QQQ"]), (None, None, ["SPY"]),
+])
+def test_sector_and_index_comparison_combinations(sector, index, expected):
+    row = {"benchmark_symbol": index or "SPY", "benchmark_kind": "index" if index else "default",
+           "index_symbol": index, "benchmark_reason": "指数成员未核验"}
+    item = WatchlistItem(symbol="TSLA", type="stock")
+    provider = SectorStrengthProvider(_services(yahoo=FakeYahoo({"TSLA": sector}),
+                                                index_metadata=FakeIndexMetadata({"TSLA": row})))
+    provider.prepare({"trade_date": date(2026, 10, 2), "items": [item]})
+    data = provider.build(item, "2026-10-02T08:31:00-04:00").data
+    assert [row["symbol"] for row in data["comparisons"]] == expected
+    assert data["comparisons"][0]["name"] in {"消费可选", "纳斯达克100", "标普500"}
+
+
+def test_normalized_chart_uses_common_start_and_never_future_bars():
+    end = date(2026, 10, 1)
+    stock = _rows(end, 65, lambda i: 100 + i * 2)
+    benchmark = _rows(end, 65, lambda i: 200 + i)
+    stock.append({"t": "2026-10-02", "c": 9999})
+    stock.pop(10)
+    prices = FakePrices(rows={"TSLA": stock, "QQQ": benchmark})
+    metadata = FakeIndexMetadata({"TSLA": {"benchmark_symbol": "QQQ", "benchmark_kind": "index", "benchmark_reason": "指数成员"}})
+    provider = SectorStrengthProvider(_services(prices=prices, index_metadata=metadata))
+    item = WatchlistItem(symbol="TSLA", type="stock")
+    provider.prepare({"trade_date": date(2026, 10, 2), "items": [item]})
+    chart = provider.build(item, "2026-10-02T08:31:00-04:00").data["comparisons"][0]["chart"]
+    assert chart["stock"][0] == chart["benchmark"][0] == 100
+    assert chart["dates"][-1] == end.isoformat() and len(chart["dates"]) == 60
+    assert chart["stock"][-1] == pytest.approx(228 / 108 * 100)
+    assert chart["benchmark"][-1] == pytest.approx(264 / 204 * 100)
+    prices.rows["QQQ"] = benchmark[:-1]
+    chart = provider.build(item, "2026-10-02T08:31:00-04:00").data["comparisons"][0]["chart"]
+    assert chart is None
 
 
 def _futu_row(

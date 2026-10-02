@@ -1,4 +1,4 @@
-"""从本机查看器启动现有单标的运行器，不参与结果和站点写入。"""
+"""从本机查看器启动现有手动运行器，不参与结果和站点写入。"""
 
 from __future__ import annotations
 
@@ -91,15 +91,22 @@ class AnalysisLauncher:
         self.lock = threading.Lock()
         self.process = None
         self.symbol = None
+        self.symbols = []
         self.started_at = None
 
-    def start(self, value: str) -> dict:
-        symbol = normalize_code(value)
+    def start(self, value: str | None = None, *, scope: str = "symbol") -> dict:
+        if scope not in {"symbol", "all"}:
+            raise ConfigurationError("分析范围只能为单标的或全部订阅")
+        symbol = normalize_code(value) if scope == "symbol" else None
         with self.lock:
             if (self.process is not None and self.process.poll() is None) or analysis_busy(self.root):
                 raise AnalysisBusyError("已有分析批次运行中，请等完成后再试")
-            if symbol not in {item.symbol for item in load_watchlist(self.root).active_items}:
+            enabled = [item.symbol for item in load_watchlist(self.root).active_items]
+            if scope == "symbol" and symbol not in enabled:
                 raise ConfigurationError("只能分析当前启用的订阅")
+            symbols = enabled if scope == "all" else [symbol]
+            if not symbols:
+                raise ConfigurationError("当前没有启用的订阅")
             now = self.clock()
             select_run_window(None, now)
             settings = load_settings(self.root)
@@ -109,11 +116,12 @@ class AnalysisLauncher:
             with log.open("a", encoding="utf-8") as stream:
                 self.process = self.popen(
                     [str(self.root / ".venv/bin/python"), "-m", "daily_analyzer", "run",
-                     "--tickers", symbol, "--force"],
+                     "--tickers", ",".join(symbols), "--force"],
                     cwd=self.root, env=environment, stdin=subprocess.DEVNULL,
                     stdout=stream, stderr=subprocess.STDOUT,
                 )
             self.symbol = symbol
+            self.symbols = symbols
             self.started_at = now.isoformat()
             return self._snapshot()
 
@@ -127,12 +135,12 @@ class AnalysisLauncher:
         code = self.process.poll() if self.process is not None else None
         if busy or (self.process is not None and code is None):
             status = "running"
-            message = f"{self.symbol} 正在分析，请稍候" if self.symbol else "已有分析批次运行中"
+            message = f"{self.symbol or '全部订阅'} 正在分析，请稍候" if self.process is not None else "已有分析批次运行中"
         elif self.process is None:
             status, message = "idle", ""
         else:
             status = "completed" if code == 0 else "failed"
-            message = f"{self.symbol} 分析完成" if code == 0 else f"{self.symbol} 分析失败，请查看运行状态或 logs/manual-analysis.log"
+            message = f"{self.symbol or '全部订阅'} 分析完成" if code == 0 else f"{self.symbol or '全部订阅'} 分析失败，请查看运行状态或 logs/manual-analysis.log"
         result = {"status": status, "busy": status == "running", "symbol": self.symbol,
                   "started_at": self.started_at, "message": message, "active_symbols": [], "items": {}}
         run_started = last_run.get("started_at")
@@ -149,6 +157,6 @@ class AnalysisLauncher:
                         result["message"] = "、".join(result["active_symbols"]) + " 正在处理，请稍候"
             if last_run.get("last_error"):
                 result["message"] += "：" + str(last_run["last_error"])
-        if result["busy"] and not result["active_symbols"] and self.symbol:
-            result["active_symbols"] = [self.symbol]
+        if result["busy"] and not result["active_symbols"] and not result["items"] and self.symbols:
+            result["active_symbols"] = self.symbols
         return result

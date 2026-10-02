@@ -362,15 +362,16 @@ function makeButton(symbol){
     addEventListener(event,handler){this.click=handler;}};
 }
 const buttons=[makeButton("NVDA"),makeButton("TSLA")];
+const allButton={disabled:false,textContent:"全部分析一次",addEventListener(event,handler){this.click=handler;}};
 let value={busy:false,items:{},active_symbols:[]};
 let reloads=0;
 const delays=[];
-const global={document:{getElementById(){return message;},querySelectorAll(){return buttons;}},
+const global={document:{getElementById(id){return id==="analyze-all"?allButton:message;},querySelectorAll(){return buttons;}},
   clearTimeout(){},setTimeout(fn,delay){delays.push(delay);return delays.length;},location:{reload(){reloads++;}}};
 async function api(data){
   if(data){
     if(value.busy)throw new Error("已有分析批次运行中");
-    value={busy:true,symbol:data.symbol,active_symbols:[data.symbol],message:"正在分析",
+    value={busy:true,symbol:data.symbol,active_symbols:data.scope==="all"?["NVDA","TSLA"]:[data.symbol],message:"正在分析",
       items:{NVDA:{stage:"新闻分析",estimated_percent:50,elapsed_seconds:300,remaining_seconds:300,estimate_samples:3,estimate_source:"其他配置参考"}}};
   }
   return value;
@@ -381,6 +382,7 @@ async function api(data){
   const clicking=buttons[0].click();
   assert.equal(buttons[0].disabled,true);
   assert.equal(buttons[1].disabled,false);
+  assert.equal(allButton.disabled,true);
   await clicking;
   await new Promise(setImmediate);
   assert.equal(buttons[0].disabled,true);
@@ -398,6 +400,16 @@ async function api(data){
   await analysisStatus();
   assert.ok(buttons.every(button=>!button.disabled && button.box.hidden && !button.summary.hidden));
   assert.equal(reloads,1);
+  assert.equal(allButton.disabled,false);
+  await allButton.click();
+  await new Promise(setImmediate);
+  assert.equal(allButton.disabled,true);
+  assert.ok(buttons.every(button=>button.disabled && !button.box.hidden));
+  value={busy:true,active_symbols:["TSLA"],items:{TSLA:{stage:"新闻分析",elapsed_seconds:10}}};
+  await analysisStatus();
+  assert.equal(buttons[0].disabled,false);
+  assert.equal(buttons[1].disabled,true);
+  assert.equal(allButton.disabled,true);
   assert.ok(delays.every(delay=>delay===3000));
   console.log("按钮和进度验证通过");
 })().catch(error=>{console.error(error);process.exitCode=1;});
@@ -432,7 +444,7 @@ def test_date_selection_navigates_to_overview_and_symbol_to_detail(tmp_path: Pat
         "const listeners = {};\n"
         "function makeSelect(){let html='';return {value:'',options:[],set innerHTML(value){html=value;this.options=[];},get innerHTML(){return html;},appendChild(value){this.options.push(value);},addEventListener(name,fn){listeners[name]=fn;}};}\n"
         "const dateSelect=makeSelect();const symbolSelect=makeSelect();\n"
-        "const document={getElementById(id){return id==='date-select'?dateSelect:(id==='symbol-select'?symbolSelect:null);},createElement(){return {value:'',textContent:''};}};\n"
+        "const document={querySelectorAll(){return [];},getElementById(id){return id==='date-select'?dateSelect:(id==='symbol-select'?symbolSelect:null);},createElement(){return {value:'',textContent:''};}};\n"
         "const window={document,location:{href:''},setTimeout(){}};\n"
         + scripts[-1]
         + "\ndateSelect.value='2026-09-30';listeners.change();const overview=window.location.href;\n"
@@ -477,7 +489,7 @@ def test_home_tracks_enabled_subscriptions_and_relative_units(tmp_path):
         sector_excess_20d=0.025, sector_excess_60d=None)
     _write_json(path, result)
     html = render_home(tmp_path, managed=True)
-    table = html.split('aria-label="自选建议与相对板块强弱"')[1].split("</table>")[0]
+    table = html.split('aria-label="自选建议与相对基准强弱"')[1].split("</table>")[0]
     assert "英伟达" in table and "AAPL" in table and "待分析" in table
     assert "^NDX" not in table and "MSFT" not in table
     assert "+2.50" in table and "-1.10" in table and "强于板块" in table
@@ -514,6 +526,55 @@ def test_summary_is_bounded_and_does_not_render_scripts():
     assert "alert" not in _advice_summary("<script>alert(1)</script>继续观察。")
 
 
+def test_home_price_plans_and_standard_allocation_are_explicit(tmp_path):
+    from daily_analyzer.site import _summary_row, render_home
+    result = _result("TSLA", "2026-10-01")
+    result["final_trade_decision"] = (
+        "**Executive Summary**: 减配。目标为标准配置的60%，只减超额部分。\n\n"
+        "**建仓点位**: 不新建仓；价格区间不适用。\n\n"
+        "**加仓点位**: 暂不加仓；等待技术数据。\n\n"
+    )
+    result["trader_investment_plan"] = "**减仓点位**: 98–100 USD；跌破97后减仓；依据支撑。"
+    row = _summary_row(result, None, "")
+    assert "目标配置 60%" in row["allocation"]
+    assert "不新建仓" in row["plans"][0]["text"] and "98–100" in row["plans"][2]["text"]
+    _write_json(tmp_path / "data/runs/2026-10-01/current/TSLA.json", result)
+    html = render_home(tmp_path, managed=True)
+    assert "标准仓位 100% 是什么" in html and "6000 元" in html
+    assert "不是卖出现有持仓" in html and 'id="analyze-all"' in html
+    result["final_trade_decision"] = "目标为账户总资产60%。\n\n**目标配置（标准仓位=100%）**: 0%"
+    assert "目标配置 0%" in _summary_row(result, None, "")["allocation"]
+    result["final_trade_decision"] = "目标为账户总资产60%。"
+    result["trader_investment_plan"] = ""
+    assert "未提供" in _summary_row(result, None, "")["allocation"]
+    assert _summary_row(result, None, "")["plans"][2]["text"] == "本报告未提供"
+
+
+def test_strength_supplement_matches_symbol_date_and_preserves_report(tmp_path):
+    from daily_analyzer.site import _summary_row
+    result = _result("TSLA", "2026-10-01")
+    path = tmp_path / "data/cache/relative_strength/2026-09-30/TSLA.json"
+    supplement = {"symbol": "TSLA", "as_of": "2026-09-30", "benchmark_symbol": "QQQ",
+                  "benchmark_kind": "index", "benchmark_reason": "指数成员已核验", "benchmark_excess_20d": 0.03}
+    before = json.dumps(result)
+    _write_json(path, supplement)
+    row = _summary_row(result, None, "", tmp_path)
+    assert row["strength"] == "强于指数" and row["benchmark"] == "QQQ"
+    assert row["relative"]["20"]["text"] == "+3.00" and row["strength_supplement"] is True
+    assert row["sector_rank"] == "—" and json.dumps(result) == before
+    _write_json(path, {**supplement, "symbol": "NVDA"})
+    assert _summary_row(result, None, "", tmp_path)["strength"] == "数据不足"
+    _write_json(path, {**supplement, "as_of": "2026-09-29"})
+    assert _summary_row(result, None, "", tmp_path)["strength"] == "数据不足"
+    _write_json(path, supplement)
+    result["context_blocks"]["sector_strength"]["data"] = {"symbol": "TSLA", "sector_etf": "XLY", "sector_excess_20d": -0.02}
+    row = _summary_row(result, None, "", tmp_path)
+    assert row["benchmark"] == "XLY" and row["strength_supplement"] is False
+    result["context_blocks"]["sector_strength"]["data"] = {}
+    _write_json(path, {**supplement, "benchmark_kind": "sector", "benchmark_symbol": "XLY", "sector_rank": 6})
+    assert _summary_row(result, None, "", tmp_path)["sector_rank"] == "6"
+
+
 def test_context_tables_and_structured_debates_render_readable_html():
     from daily_analyzer.site import _markdown, _debate_text
     html = str(_markdown("数据来源：Alpaca\n| 标的 | 收盘 |\n|---|---:|\n| NVDA | 100 |"))
@@ -533,3 +594,47 @@ def test_home_distinguishes_running_today_from_prior_report(tmp_path):
     _write_json(tmp_path / "data/runs/2026-10-02/batches/active/batch.json", {"items": {"NVDA": {"status": "running"}}})
     html = render_home(tmp_path, managed=True)
     assert "今日分析中" in html and "2026-10-01 报告" in html
+
+
+def test_dual_comparison_charts_render_offline_and_keep_common_origin(tmp_path):
+    from daily_analyzer.site import _summary_row, _comparison_chart, render_home
+    result = _result("TSLA", "2026-10-01")
+    chart = {"dates": ["2026-09-28", "2026-09-29", "2026-09-30"],
+             "stock": [100, 120, 90], "benchmark": [100, 95, 110], "sources": ["固定复权样本"]}
+    comparisons = [{"symbol": code, "kind": kind, "excess_20d": 0.02, "chart": chart} for code, kind in [("XLY", "sector"), ("QQQ", "index")]]
+    result["context_blocks"]["sector_strength"]["data"] = {"symbol": "TSLA", "sector_etf": "XLY", "comparisons": comparisons}
+    row = _summary_row(result, None, "")
+    assert [c["name"] for c in row["comparisons"]] == ["消费可选", "纳斯达克100"]
+    plot = row["comparisons"][0]["chart"]
+    assert plot["series"][0]["dots"][0]["y"] == plot["series"][1]["dots"][0]["y"]
+    assert _comparison_chart(None, "TSLA", "QQQ") is None
+    _write_json(tmp_path / "data/runs/2026-10-01/current/TSLA.json", result)
+    html = render_home(tmp_path)
+    assert html.count('<polyline class=') == 4
+    assert 'aria-label="查看TSLA相对XLY归一化走势"' in html
+    assert 'aria-label="查看TSLA相对QQQ归一化走势"' in html
+    assert "共同首日100" in html and "固定复权样本" in html
+    assert "fetch(" not in html and "cdn" not in html.lower()
+
+
+def test_comparison_dialog_click_script_needs_no_network(tmp_path):
+    from daily_analyzer.site import render_home
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("当前环境没有node")
+    _fixture(tmp_path)
+    html = render_home(tmp_path)
+    script = re.search(r'(  global.document.querySelectorAll\("\[data-comparison\]"\).*?)(?=\n\s*if \(site.refresh_seconds)', html, re.DOTALL).group(1)
+    harness = '''
+const assert=require("node:assert/strict");
+const dialog={open:false,showModal(){this.open=true;},close(){this.open=false;}};
+const trigger={addEventListener(event,fn){this.click=fn;},closest(){return {querySelector(){return dialog;}};}};
+const closer={addEventListener(event,fn){this.click=fn;},closest(){return dialog;}};
+const global={document:{querySelectorAll(selector){return selector==="[data-comparison]"?[trigger]:[closer];}}};
+'''+script+'''
+trigger.click();assert.equal(dialog.open,true);closer.click();assert.equal(dialog.open,false);
+'''
+    path = tmp_path / "comparison-dialog.js"
+    path.write_text(harness)
+    result = subprocess.run([node, str(path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

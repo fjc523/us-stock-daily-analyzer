@@ -78,6 +78,13 @@ def test_main_project_has_no_direct_alpaca_http_client() -> None:
                 names = {node.module or ""}
             else:
                 continue
+            if path.name == "index_metadata.py":
+                # 发行方持仓允许独立HTTP读取，不允许把Alpaca入口混入此例外。
+                assert not names.intersection(forbidden_imports - {"requests"}), path
+                from urllib.parse import urlsplit
+                from daily_analyzer.data_sources.index_metadata import HOLDINGS_URLS
+                assert {urlsplit(url).hostname for url in HOLDINGS_URLS.values()} == {"dng-api.invesco.com", "www.ssga.com"}
+                continue
             assert not names.intersection(forbidden_imports), path
         content = path.read_text(encoding="utf-8")
         assert "data.alpaca.markets" not in content

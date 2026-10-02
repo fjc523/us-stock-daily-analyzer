@@ -230,7 +230,7 @@ def create_server(project_root: str | Path, *, port: int = PORT, resolver=None, 
                 if not isinstance(command, dict):
                     raise ConfigurationError("请求必须是 JSON 对象")
                 if path == "/api/analysis":
-                    self._json(202, launcher.start(command.get("symbol")))
+                    self._json(202, launcher.start(command.get("symbol"), scope=command.get("scope", "symbol")))
                 elif path == "/api/settings":
                     self._json(200, settings_store.update(command))
                 else:
