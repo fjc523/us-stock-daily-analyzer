@@ -160,7 +160,7 @@
 - **THEN** 市场分析师与组合经理的提示中都包含“附加市场上下文”段落，且内容与结果 JSON 中保存的一致
 
 ### Requirement: 决策节点前补抓经济数据
-`live` 模式下，当某标的的 `macro_releases` 块构建成功时，系统 SHALL 在研究经理和组合经理节点开始前，通过共享 Alpaca 客户端重新拉取“D 当日 00:00 ET 至当前时刻”的经济类标题（已解析的发布值、前值修订及其他 `USA ` 开头的标题）。新标题 MUST 与初始上下文中已有的经济类标题、以及此前已纳入的标题**按标题去重**，MUST NOT 按“发布时间晚于上次查询”筛选，因为数据源存在收录延迟。每只标的最多纳入 20 条。研究阶段补抓的数据 SHALL 提供给研究经理及之后的角色；组合经理阶段才出现的 MUST 标为“上游未评估”，并要求组合经理逐条说明对评级、目标配置和点位的影响。结果 SHALL 保存 `late_macro` 与 `late_macro_errors`，`information_through` SHALL 不早于最后一次补抓时刻。补抓失败只记录数据限制，不中断分析；`backfill` 模式、补抓开关关闭或宏观块构建失败时 MUST NOT 补抓。经济数据标题解析 SHALL 接受 “Est” 之后不带句点的写法。
+`live` 模式下，当某标的的 `macro_releases` 块构建成功时，系统 SHALL 在研究经理和组合经理节点开始前，通过共享 Alpaca 客户端重新拉取“D 当日 00:00 ET 至当前时刻”的经济类标题（已解析的发布值、前值修订及其他 `USA ` 开头的标题）。新标题 MUST 与初始上下文中已有的经济类标题、以及此前已纳入的标题**按标题去重**，MUST NOT 按“发布时间晚于上次查询”筛选，因为数据源存在收录延迟。每只标的最多纳入 20 条。研究阶段补抓的数据 SHALL 提供给研究经理及之后的角色；组合经理阶段才出现的 MUST 标为“上游未评估”，并要求组合经理逐条说明对评级、目标配置和点位的影响。结果 SHALL 保存 `late_macro` 与 `late_macro_errors`，`information_through` SHALL 不早于最后一次补抓时刻。补抓失败只记录数据限制，不中断分析；`backfill` 模式、补抓开关关闭或宏观块构建失败时 MUST NOT 补抓。经济数据标题解析 SHALL 接受 “Est” 之后不带句点的写法，并 SHALL 把不带 `USA ` 前缀、实际值与预期值均为纯数值、以 “Expected” 结尾、且不以 “Reported Earlier” 开头的标题解析为美国经济数据。
 
 #### Scenario: 开始时尚未收录、决策前补到
 - **WHEN** 08:30:12 ET 发布的 `USA Nonfarm Payrolls For Sept. 29K Vs 89K Est.` 在 08:31:02 开始分析时尚未被数据源收录，08:40 研究经理开始前已可查询到
@@ -169,6 +169,10 @@
 #### Scenario: 组合经理阶段新增
 - **WHEN** 某条经济数据标题只在组合经理开始前才首次出现
 - **THEN** 交易员的提示中没有该条，组合经理的提示中有该条并带“上游未评估”的逐条处置要求
+
+#### Scenario: Expected 格式
+- **WHEN** 标题为 `Average Hourly Earnings MoM For Sept. 0.1% Vs 0.3% Expected`
+- **THEN** 解析出指标“Average Hourly Earnings MoM For Sept.”、实际 0.1%、预期 0.3%；`U.K. Gross Domestic Product (QoQ) For Q2 0.5% Vs. 0.4% Est.; 0.6% Prior` 与 `Jabil Sees Q1 Adj EPS $3.80-$4.20 Vs $3.60 Expected` 均不被解析为美国经济数据
 
 #### Scenario: 回放不补抓
 - **WHEN** 以 `--date` 回放历史交易日

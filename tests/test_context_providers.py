@@ -889,3 +889,26 @@ def test_context_manager_refresh_macro_requires_prepared_provider() -> None:
     manager = ContextManager([], services=_services(alpaca=FakeAlpaca(news={"articles": [], "truncated": False})))
     with pytest.raises(RuntimeError, match="macro_releases 未启用"):
         manager.refresh_macro_releases(WatchlistItem(symbol="NVDA", type="stock"), datetime(2026, 10, 2, 8, 40, tzinfo=EASTERN))
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Average Hourly Earnings MoM For Sept. 0.1% Vs 0.3% Expected", ("Average Hourly Earnings MoM For Sept.", "0.1%", "0.3%")),
+        ("GDP QoQ 2.2% Vs 1.5% Expected", ("GDP QoQ", "2.2%", "1.5%")),
+        ("GDP Price Index QoQ 6.1% Vs 6.4% Expected", ("GDP Price Index QoQ", "6.1%", "6.4%")),
+        # 以下真实标题不属于美国经济数据或格式不同，不得按 Expected 格式解析
+        ("U.K. Gross Domestic Product (QoQ) For Q2 0.5% Vs. 0.4% Est.; 0.6% Prior", None),
+        ("Reported Earlier, Japan Tokyo Core Consumer Price Index (YoY) For September 2.7% Vs. 2.4% Est.; 1.8% Prior", None),
+        ("Cardinal Health Affirms FY2027 Adj EPS Of $12.40-$12.60 vs $12.04 Est", None),
+        ("Jabil Sees Q1 Adj EPS $3.80-$4.20 Vs $3.60 Expected", None),
+    ],
+)
+def test_macro_expected_format_parses_only_us_style_titles(title, expected) -> None:
+    from daily_analyzer.context.providers import _classify_macro_articles
+
+    releases, _, _, _ = _classify_macro_articles([_article(title, "2026-10-02T12:30:05Z")])
+    if expected is None:
+        assert releases == []
+    else:
+        assert [(row["name"], row["actual"], row["estimate"], row["prior"]) for row in releases] == [(*expected, None)]

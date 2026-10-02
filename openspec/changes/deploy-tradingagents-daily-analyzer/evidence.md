@@ -469,3 +469,16 @@ README与fork说明已同步；本轮实现由主代理直接完成和复核，�
 **10.3 仍未勾选**：需在下一个有 08:30 数据发布的交易日观察真实定时批次，确认 `late_macro` 在研究阶段或组合经理阶段取得实际值。这项观察并入 10.7 一周观察。
 
 **遗留观察**：`Average Hourly Earnings MoM For Sept. 0.1% Vs 0.3% Expected` 不以 `USA ` 开头、用 “Expected”，目前不会被识别为经济数据。属于标题格式的另一变体，未在本次改动中处理。
+
+### 补充：Expected 格式标题（2026-10-02，用户要求补上）
+- **真实标题调研**（2026-09-30 至 10-02，00:00–11:00 ET，只读查询 Alpaca，共 1,434 条）：
+  - Expected 格式只出现在美国数据上：`GDP QoQ`、`GDP Price Index QoQ`、`Average Hourly Earnings MoM`；
+  - 外国数据带国家前缀（`Reported Earlier, Japan`、`U.K.`、`Germany`、`China`）且写作 `Vs.`；
+  - 公司指引为小写 `vs` 并带 `$`。
+- **规则**：新增 `MACRO_EXPECTED_RE`，要求首字母大写、不以 Reported Earlier 开头、`Vs` 不带句点、实际值与预期值为纯数值（可带 `% K M B`）、以 Expected 结尾。初始上下文与决策前补抓共用这一规则。
+- **测试**：新增 7 个参数化用例（3 种 Expected 写法与 4 类真实反例），上下文测试 42 项通过，主项目全量通过。
+- **真实数据检查**（不调用模型）：
+  - 09-30 截至 09:29 ET 解析出 9 条，含 GDP QoQ 2.2%（预期 1.5%）、GDP Price Index QoQ 6.1%（预期 6.4%）；
+  - 10-02 解析出 5 条，含 Average Hourly Earnings MoM 0.1%（预期 0.3%）；
+  - 均未误收外国数据或公司指引。
+- **仍未覆盖**：不带 USA 前缀、但以 Est. 结尾的美国数据，例如 `ISM Manufacturing PMI For September 54.5 Vs 54.8 Est.`、`EIA Weekly Distillates Stocks ... Est.`。它们在 10:00 ET 之后发布，不影响盘前分析，仍按原文列入“未解析”或不收录，暂未处理。

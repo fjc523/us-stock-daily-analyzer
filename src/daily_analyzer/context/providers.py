@@ -34,6 +34,11 @@ SECTOR_TO_ETF = {
 MACRO_TITLE_RE = re.compile(
     r"^USA (?P<name>.+?) (?P<actual>\S+) Vs (?P<est>\S+) Est\.?(?:; (?P<prior>\S+) Prior)?"
 )
+# Benzinga 部分美国数据不带 USA 前缀、以 Expected 结尾，例如 “GDP QoQ 2.2% Vs 1.5% Expected”。
+# 外国数据带国家前缀且写作 “Vs.”，公司指引写作小写 “vs” 并带 $，均不匹配本式。
+MACRO_EXPECTED_RE = re.compile(
+    r"^(?!Reported Earlier)(?P<name>[A-Z][^$]*?) (?P<actual>-?[\d.,]+[%KMB]?) Vs (?P<est>-?[\d.,]+[%KMB]?) Expected\.?$"
+)
 
 
 def _value(obj: Any, key: str, default: Any = None) -> Any:
@@ -847,13 +852,13 @@ def _classify_macro_articles(articles: Sequence[Any]) -> tuple[list, list, list,
         if "Prior Revised" in title:
             revised.append(row)
             continue
-        match = MACRO_TITLE_RE.match(title)
+        match = MACRO_TITLE_RE.match(title) or MACRO_EXPECTED_RE.match(title)
         if match:
             releases.append({
                 "name": match.group("name"),
                 "actual": match.group("actual"),
                 "estimate": match.group("est"),
-                "prior": match.group("prior"),
+                "prior": match.groupdict().get("prior"),
                 **row,
             })
         elif title.startswith("USA "):
