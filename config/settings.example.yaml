@@ -21,6 +21,7 @@ tradingagents:
   max_risk_discuss_rounds: 1
   # StockTwits 公共接口目前被 Cloudflare 拦截，缺省关闭；开启后照常请求，失败记为失败
   stocktwits_enabled: false
+  late_news_refresh: true
 
 context_providers:
   - market_regime

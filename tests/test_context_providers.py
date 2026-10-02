@@ -776,3 +776,77 @@ def test_extended_alpaca_overnight_previous_close_is_listed_not_compared():
     assert segment["source"] == "Alpaca feed=overnight" and segment["source_previous_close"] == 103
     assert "不一致" not in (segment.get("warning") or "")
     assert "仅列示，不参与核对" in block.markdown
+
+
+def test_context_extend_keeps_batch_and_isolates_new_ticker_failure():
+    calls = []
+    class BatchProvider:
+        scope = 'batch'
+        def prepare(self, batch): calls.append(('market', batch['items']))
+        def build(self, item, cutoff): return ContextBlock('市场', '固定市场', {}, cutoff, ['fixture'])
+    class TickerProvider:
+        scope = 'ticker'
+        def prepare(self, batch):
+            self.symbols = [item['symbol'] for item in batch['items']]
+            calls.append(('ticker', self.symbols))
+            if 'FAIL' in self.symbols: raise ValueError('增量失败')
+        def build(self, item, cutoff):
+            assert item['symbol'] in self.symbols
+            return ContextBlock('标的', '增量上下文', {'symbol':item['symbol']}, cutoff, ['fixture'])
+    registry = ProviderRegistry()
+    registry.register('market', lambda _: BatchProvider())
+    registry.register('ticker', lambda _: TickerProvider())
+    manager = ContextManager(['market','ticker'], services=_services(), registry=registry)
+    first = {'symbol':'NVDA'}
+    batch = manager.prepare({'items':[first], 'context_as_of':'2026-10-02T08:30:00-04:00'})
+    manager.extend([{'symbol':'TSLA'}, {'symbol':'FAIL'}])
+    blocks = manager.build({'symbol':'TSLA'}, '2026-10-02T08:40:00-04:00')
+    assert blocks['market'] is batch['market']
+    assert blocks['ticker'].data == {'symbol':'TSLA'}
+    assert blocks['ticker'].as_of == '2026-10-02T08:40:00-04:00'
+    assert manager.build(first,'2026-10-02T08:41:00-04:00')['ticker'].data == {'symbol':'NVDA'}
+    assert 'ValueError' in manager.build({'symbol':'FAIL'},'2026-10-02T08:42:00-04:00')['ticker'].markdown
+    assert [row for row in calls if row[0] == 'market'] == [('market',[first])]
+    assert ('ticker',['TSLA']) in calls and ('ticker',['FAIL']) in calls
+    manager.close()
+
+
+def test_context_extend_prepares_new_quotes_and_earnings_only(monkeypatch):
+    from types import SimpleNamespace
+    from tradingagents.dataflows import router
+    calls = []
+    class Calendars:
+        def calendars(self, start, end, symbols, cutoff):
+            calls.append(list(symbols))
+            return {'earnings':[{'security':'US.'+symbol} for symbol in symbols], 'economics':[], 'warnings':[]}
+    monkeypatch.setattr(router, 'route_to_vendor', lambda *args: '固定宏观数据')
+    services = _services(futu=FakeFutu(), prices=FakePrices())
+    services.futu_data = Calendars()
+    services.clock = lambda: datetime(2026,10,2,8,40,tzinfo=EASTERN)
+    manager = ContextManager(['extended_hours','macro_releases'], services=services)
+    nvda, tsla = WatchlistItem(symbol='NVDA',type='stock'), WatchlistItem(symbol='TSLA',type='stock')
+    manager.prepare({'items':[nvda], 'trade_date':date(2026,10,2), 'price_data_end_date':date(2026,10,1),
+                     'mode':'live','context_as_of':datetime(2026,10,2,8,30,tzinfo=EASTERN)})
+    original_symbols = list(services.futu.start_symbols)
+    manager.extend([tsla])
+    extension = manager._extensions['TSLA']
+    assert 'TSLA' in extension.services.futu.start_symbols
+    assert 'NVDA' not in extension.services.futu.start_symbols
+    assert services.futu.start_symbols == original_symbols
+    assert calls == [['NVDA'],['TSLA']]
+    assert extension._providers['macro_releases'].calendars['earnings'] == [{'security':'US.TSLA'}]
+    manager.close()
+
+
+def test_after_open_live_premarket_reuses_history_and_excludes_opening_bar():
+    alpaca = FakeAlpaca(snapshots={'iex':{'NVDA':{'latestTrade':{'p':110,'t':'2026-10-01T13:31:00Z'}}}},
+                         minute_bars={'NVDA':[{'t':'2026-10-01T13:29:00Z','c':101,'h':102,'l':100,'v':10},
+                                              {'t':'2026-10-01T13:30:00Z','c':110,'h':110,'l':110,'v':100}]})
+    provider, _ = _extended_provider(FakeFutu(mode='unavailable'),alpaca)
+    block = provider.build(WatchlistItem(symbol='NVDA',type='stock'),'2026-10-01T09:31:00-04:00')
+    pre=block.data['NVDA']['pre']
+    assert pre['price']==101 and pre['volume']==10
+    assert pre['status']=='可用' and '历史分钟线' in pre['source']
+    assert pre['quote_time']=='2026-10-01T09:29:00-04:00'
+    assert pre['warning']=='IEX 覆盖不完整'
+    assert [row for row in alpaca.calls if row[0]=='minutes'][0][3]==datetime(2026,10,1,9,30,tzinfo=EASTERN)

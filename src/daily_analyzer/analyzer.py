@@ -142,6 +142,9 @@ class AnalyzerGraph(TradingAgentsGraph):
         self._clock = clock
         self._portfolio = portfolio
         callback_list = [self.tool_trace]
+        if config.get('late_news_refresh'):
+            config = {**config, '_late_news_clock': lambda: clock(),
+                      '_late_news_initial_as_of': context_as_of.isoformat()}
         super().__init__(
             selected_analysts=list(item.analysts),
             config=config,
@@ -293,6 +296,7 @@ def build_upstream_config(
             "max_debate_rounds": settings.tradingagents.max_debate_rounds,
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
+            "late_news_refresh": settings.tradingagents.late_news_refresh,
             "checkpoint_enabled": False,
             "decision_horizon_trading_days": list(settings.decision.horizon_trading_days),
             "decision_plan_validity_trading_days": settings.decision.plan_validity_trading_days,

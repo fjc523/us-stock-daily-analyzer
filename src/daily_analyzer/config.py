@@ -198,6 +198,7 @@ class TradingAgentsSettings(ConfigModel):
     max_debate_rounds: int = 1
     max_risk_discuss_rounds: int = 1
     stocktwits_enabled: bool = False
+    late_news_refresh: bool = True
 
     @field_validator("output_language")
     @classmethod

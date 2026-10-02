@@ -919,3 +919,102 @@ def test_runner_passes_fund_type_for_etf_and_index(tmp_path, monkeypatch):
     result = _run(root, clock=lambda: datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK), force=True)
     assert result.exit_code == 0
     assert _FakeGraph.asset_types == ["stock", "etf", "etf"]
+
+
+def test_running_batch_accepts_append_in_parallel_and_keeps_single_writer(tmp_path, monkeypatch):
+    """模拟查看器追加，结果汇总和动态进度仍由运行主线程写入。"""
+    import daily_analyzer.runner as runner
+    from daily_analyzer.manual_analysis import AnalysisLauncher, AnalysisBusyError
+    from daily_analyzer.storage import read_json
+    root = _project(tmp_path)
+    monkeypatch.setattr(runner, '_codex_version', lambda _: 'test')
+    monkeypatch.setattr(runner, '_fork_state', lambda _: {})
+    first_started, second_started = threading.Event(), threading.Event()
+    manager = _ContextManager()
+    def extend(items):
+        assert read_json(root / 'data/status.json')['last_run']['progress']['total'] == 2
+    manager.extend = extend
+    main_thread = threading.get_ident()
+    original_write = runner.atomic_write_json
+    writes = []
+    def record(path, value):
+        writes.append((str(path), threading.get_ident()))
+        return original_write(path, value)
+    monkeypatch.setattr(runner, 'atomic_write_json', record)
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    launcher = AnalysisLauncher(root, clock=lambda: now)
+    observations = []
+    class BlockingGraph(_FakeGraph):
+        def propagate(self, *args, **kwargs):
+            if self.item.symbol == 'NVDA':
+                first_started.set()
+                assert second_started.wait(5)
+            else:
+                second_started.set()
+            return super().propagate(*args, **kwargs)
+    def append():
+        assert first_started.wait(5)
+        snapshot = launcher.start('SPY')
+        observations.append(snapshot)
+        with pytest.raises(AnalysisBusyError, match='已包含'):
+            launcher.start('SPY')
+    thread = threading.Thread(target=append)
+    thread.start()
+    result = _run(root, clock=lambda: now, tickers='NVDA', context_manager=manager, analyzer_factory=BlockingGraph)
+    thread.join(5)
+    assert result.exit_code == 0
+    assert observations[0]['items']['SPY']['stage'] == '排队中'
+    directory = root / 'data/runs/2026-10-02/batches' / result.run_id
+    batch = read_json(directory / 'batch.json')
+    assert batch['accepting_appends'] is False
+    assert batch['items']['SPY']['source'] == 'append'
+    assert batch['requested_tickers'] == 'NVDA,SPY'
+    assert read_json(root / 'data/status.json')['last_run']['progress']['total'] == 2
+    assert read_json(directory / 'results/SPY.json')['appended'] is True
+    assert read_json(directory / 'context.json')['batch']['data'] == {'market': '稳定'}
+    assert all(tid == main_thread for path, tid in writes if path.endswith(('batch.json', 'status.json', 'manifest.json')) or '/current/' in path)
+
+
+@pytest.mark.parametrize('stop', ['skipped_quota', 'skipped_fatal', 'skipped_timeout', None])
+def test_append_rejected_after_stop_and_closing(tmp_path, monkeypatch, stop):
+    """停止派发与关闭入口时，未受理请求都有明确记录。"""
+    import daily_analyzer.runner as runner
+    from daily_analyzer.append_requests import append_lock, write_request
+    from daily_analyzer.storage import read_json
+    monkeypatch.setattr(runner, '_codex_version', lambda _: 'test')
+    monkeypatch.setattr(runner, '_fork_state', lambda _: {})
+    root = _project(tmp_path)
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    original_close = runner._close_appends
+    def close(directory, batch, offset):
+        with append_lock(directory):
+            write_request(directory, {'request_id':'residual','symbol':'SPY','trade_date':'2026-10-02'})
+        return original_close(directory, batch, offset)
+    monkeypatch.setattr(runner, '_close_appends', close)
+    original_wait = runner.wait
+    timer = [100.0]
+    def wait(*args, **kwargs):
+        done = original_wait(*args, **kwargs)
+        directory = next((root / 'data/runs/2026-10-02/batches').iterdir())
+        with append_lock(directory):
+            write_request(directory, {'request_id':'stopped','symbol':'SPY','trade_date':'2026-10-02'})
+        if stop == 'skipped_timeout': timer[0] = 1000.0
+        return done
+    monkeypatch.setattr(runner, 'wait', wait)
+    from tradingagents.llm_clients.codex_exec.errors import CodexQuotaError, CodexFatalConfigError
+    class StoppedGraph(_FakeGraph):
+        def propagate(self, *args, **kwargs):
+            if stop == 'skipped_quota': raise CodexQuotaError('额度不足')
+            if stop == 'skipped_fatal': raise CodexFatalConfigError('配置错误')
+            return super().propagate(*args, **kwargs)
+    manager = _ContextManager()
+    manager.extend = lambda items: None
+    result = _run(root, clock=lambda: now, tickers='NVDA', context_manager=manager,
+                  analyzer_factory=StoppedGraph, monotonic=lambda: timer[0])
+    batch = read_json(root / 'data/runs/2026-10-02/batches' / result.run_id / 'batch.json')
+    reasons = {row['request_id']: row['reason'] for row in batch['append_rejections']}
+    assert reasons['residual'] == '本批已结束，请重新点击'
+    if stop:
+        assert '停止派发' in reasons['stopped'] or '最长运行时间' in reasons['stopped']
+    else:
+        assert batch['items']['SPY']['status'] == 'success'

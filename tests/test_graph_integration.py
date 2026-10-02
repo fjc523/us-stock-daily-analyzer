@@ -75,6 +75,7 @@ def _project_settings():
             "codex": {"binary": "unused-codex"},
             "tradingagents": {
                 "output_language": "Chinese",
+                "late_news_refresh": False,
                 "max_debate_rounds": 1,
                 "max_risk_discuss_rounds": 1,
             },
@@ -390,6 +391,79 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
     assert replay_pm_prompt["role"] == "deep"
     assert memory_path.read_bytes() == memory_before_replay
     assert _home_tradingagents_metadata() == home_before
+
+    # 在同一离线 LLM 环境中运行完整批次，模拟查看器追加第二只股票。
+    from daily_analyzer.runner import run_analysis
+    from daily_analyzer.manual_analysis import AnalysisLauncher
+    import daily_analyzer.runner as runner_module
+    from daily_analyzer.storage import read_json
+    root = tmp_path / 'append-project'
+    (root / 'config').mkdir(parents=True)
+    (root / 'config/settings.yaml').write_text('context_providers: []\nrun:\n  max_parallel_tickers: 2\n')
+    (root / 'config/watchlist.yaml').write_text('items:\n  - symbol: NVDA\n    type: stock\n    analysts: [market, news]\n  - symbol: AAPL\n    type: stock\n    analysts: [market, news]\n')
+    first, second = threading.Event(), threading.Event()
+    append_clock = FixtureClock(LIVE_CONTEXT_TIME)
+    news_counts = {}
+    def refresh_route(name, *args, **kwargs):
+        assert name == 'get_news'
+        ticker = args[0]
+        news_counts[ticker] = news_counts.get(ticker, 0) + 1
+        published = (append_clock.value - timedelta(seconds=1)).isoformat()
+        return f"### {ticker}交付消息{news_counts[ticker]} (source: fixture, created_at: {published})\n季度交付数据\nLink: https://example.test/{ticker}/{news_counts[ticker]}"
+    monkeypatch.setattr(tools_module, 'route_to_vendor', refresh_route)
+    class BlockingGraph(AnalyzerGraph):
+        def propagate(self, *args, **kwargs):
+            if self.analysis_symbol == 'NVDA':
+                first.set()
+                assert second.wait(5)
+            else:
+                second.set()
+            return super().propagate(*args, **kwargs)
+    class Manager:
+        def prepare(self, batch): return {}
+        def extend(self, items): pass
+        def build(self, item, cutoff): return _context(item.symbol, cutoff)
+        def close(self): pass
+    main_thread = threading.get_ident()
+    writes = []
+    original_write = runner_module.atomic_write_json
+    def write(path, payload):
+        if '/current/' in str(path): writes.append(threading.get_ident())
+        original_write(path, payload)
+    monkeypatch.setattr(runner_module, 'atomic_write_json', write)
+    monkeypatch.setattr(runner_module, '_codex_version', lambda _: 'fixture')
+    def append():
+        assert first.wait(5)
+        AnalysisLauncher(root, clock=lambda: LIVE_CONTEXT_TIME).start('AAPL')
+    thread = threading.Thread(target=append)
+    thread.start()
+    site_threads = []
+    def build(root, **kwargs):
+        from daily_analyzer.site import build_site
+        site_threads.append(threading.get_ident())
+        return build_site(root, **kwargs)
+    outcome = run_analysis(root, tickers='NVDA', force=True, clock=append_clock,
+                           context_manager_factory=lambda *args: Manager(), analyzer_factory=BlockingGraph,
+                           site_builder=build)
+    thread.join(5)
+    assert outcome.exit_code == 0
+    directory = root / 'data/runs/2026-10-02'
+    assert read_json(directory / 'current/AAPL.json')['appended'] is True
+    assert read_json(directory / 'current/NVDA.json')['status'] == 'success'
+    assert writes == [main_thread, main_thread]
+    assert site_threads and set(site_threads) == {main_thread}
+    assert 'AAPL' in (root / 'site/index.html').read_text()
+    for ticker in ('NVDA','AAPL'):
+        result = read_json(directory / f'current/{ticker}.json')
+        assert len(result['late_news']) == 2
+        assert [row['stage'] for row in result['late_news']] == ['research','portfolio']
+        assert len([row for row in result['data_queries'] if row['name'] == 'get_news']) == 3
+        assert result['information_through'] >= result['late_news'][-1]['fetched_at']
+        prompts = [row['text'] for row in llm_calls if f'CONTEXT_{ticker}_UNIQUE' in row['text']]
+        trader = next(row['text'] for row in llm_calls if row['stage'] == '交易员' and f'{ticker}交付消息2' in row['text'])
+        assert f'{ticker}交付消息2' in trader and f'{ticker}交付消息3' not in trader
+        assert any(f'{ticker}交付消息3' in text and '上游未评估' in text for text in prompts)
+
 
 
 def test_upstream_config_carries_custom_decision_and_price_rules(tmp_path):

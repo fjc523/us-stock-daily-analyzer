@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from daily_analyzer.append_requests import append_lock, read_requests, STOP_MESSAGES
 from daily_analyzer.analyzer import AnalyzerGraph, build_upstream_config, write_progress
 from daily_analyzer.config import (
     ConfigurationError,
@@ -25,6 +26,7 @@ from daily_analyzer.config import (
     Settings,
     apply_llm_overrides,
     load_project_config,
+    load_watchlist,
     to_tradingagents_portfolio,
 )
 from daily_analyzer.context import ProviderServices, create_context_manager, serialize_blocks
@@ -461,6 +463,7 @@ def _analyze_item(
     secrets: Sequence[str],
     analyzer_factory: Callable[..., Any],
     source_seed: Sequence[Mapping[str, Any]] = (),
+    appended: bool = False,
 ) -> AttemptOutcome:
     from daily_analyzer.source_status import SourceStatusCollector
     from tradingagents.dataflows.vendor_observer import set_vendor_observer, reset_vendor_observer
@@ -516,7 +519,8 @@ def _analyze_item(
         information_through = (
             window.news_cutoff_utc.isoformat()
             if window.mode == "backfill" and window.news_cutoff_utc
-            else max(started_at.isoformat(timespec="seconds"), last_query or "")
+            else max(started_at.isoformat(timespec="seconds"), last_query or "",
+                     *(row.get("fetched_at", "") for row in final_state.get("late_news", [])))
         )
         open_time, _ = session_bounds(window.trade_date)
         started_after_open = window.mode == "live" and started_at > open_time
@@ -553,6 +557,8 @@ def _analyze_item(
             "final_rating": str(rating),
             "rating_cn": _rating_cn(rating),
             "final_trade_decision": final_state.get("final_trade_decision"),
+            "late_news": final_state.get("late_news", []),
+            "late_news_errors": final_state.get("late_news_errors", []),
             "trader_investment_plan": final_state.get("trader_investment_plan"),
             "investment_plan": final_state.get("investment_plan"),
             "reports": reports,
@@ -582,6 +588,8 @@ def _analyze_item(
             "llm_usage": calls,
         }
         result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
+        if appended:
+            result["appended"] = True
         result_path = batch_dir / "results" / f"{symbol_slug(item.symbol)}.json"
         atomic_write_json(result_path, result)
         return AttemptOutcome(item, result, None, True)
@@ -639,6 +647,8 @@ def _analyze_item(
             except Exception:
                 pass
         result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
+        if appended:
+            result["appended"] = True
         atomic_write_json(
             batch_dir / "results" / f"{symbol_slug(item.symbol)}.json", result
         )
@@ -1035,6 +1045,7 @@ def run_analysis(
     batch_dir: Path | None = None
     batch: dict[str, Any] | None = None
     current: dict[str, dict[str, Any]] = {}
+    append_offset = 0
     try:
         current_now = _clock_now(clock)
         run_started_mono = monotonic()
@@ -1114,6 +1125,8 @@ def run_analysis(
             "scheduled": scheduled,
             "force": force,
             "requested_tickers": tickers,
+            "accepting_appends": window.mode == "live",
+            "append_rejections": [],
             "status": "running",
             "started_at": current_now.isoformat(timespec="seconds"),
             "finished_at": None,
@@ -1160,7 +1173,7 @@ def run_analysis(
         try:
             context_manager = context_manager_factory(settings, root, window.mode, clock)
             batch_context = {
-                "items": items,
+                "items": list(items),
                 "trade_date": window.trade_date,
                 "price_data_end_date": window.price_data_end_date,
                 "mode": window.mode,
@@ -1179,7 +1192,6 @@ def run_analysis(
             if scheduled:
                 _wait_until_first_start(settings, window, clock, sleeper)
 
-            lock = threading.Lock()
             build_lock = threading.Lock()
             pending = deque(items)
             futures: dict[Future, Any] = {}
@@ -1187,6 +1199,51 @@ def run_analysis(
             fatal_seen = False
             outcomes: dict[str, AttemptOutcome] = {}
             secret_values = _secret_values(project)
+
+            append_seeds = {}
+
+            def receive_appends():
+                nonlocal append_offset
+                accepted = []
+                with append_lock(batch_dir):
+                    requests, append_offset = read_requests(batch_dir, append_offset)
+                    enabled = {item.symbol: item for item in load_watchlist(root).active_items} if requests else {}
+                    for request in requests:
+                        symbol = request.get("symbol")
+                        slug = symbol_slug(symbol)
+                        reason = STOP_MESSAGES.get(stop_reason)
+                        if reason is None and monotonic() - run_started_mono >= settings.run.max_duration_minutes * 60:
+                            reason = STOP_MESSAGES["skipped_timeout"]
+                        if reason is None and request.get("trade_date") != batch["trade_date"]:
+                            reason = "点击日期与当前批次交易日不同，请等待本批结束"
+                        if reason is None and symbol not in enabled:
+                            reason = "该标的已停用或不在订阅列表"
+                        if reason is None and slug in batch["items"]:
+                            reason = "本批已包含该标的"
+                        if reason:
+                            batch["append_rejections"].append({**request, "reason": reason})
+                            continue
+                        item = enabled[symbol]
+                        batch["items"][slug] = {"symbol": symbol, "status": "pending", "source": "append",
+                            "appended_at": _clock_now(clock).isoformat(), "request_id": request["request_id"]}
+                        items.append(item)
+                        pending.append(item)
+                        accepted.append(item)
+                    if requests:
+                        batch["requested_tickers"] = ",".join(row["symbol"] for row in batch["items"].values())
+                        atomic_write_json(batch_dir / "batch.json", batch)
+                if requests:
+                    _write_status(root, last_run=_last_run_state(batch, _clock_now(clock)))
+                for item in accepted:
+                    collector = SourceStatusCollector(secret_values, batch_source_collector.events)
+                    token = set_vendor_observer(collector.observe)
+                    try:
+                        with build_lock:
+                            context_manager.extend([item])
+                    finally:
+                        reset_vendor_observer(token)
+                    append_seeds[item.symbol] = collector.events
+
 
             try:
                 from tradingagents.llm_clients.codex_exec.runner import reset_abort
@@ -1199,7 +1256,8 @@ def run_analysis(
                 max_workers=settings.run.max_parallel_tickers,
                 thread_name_prefix="daily-analyzer",
             ) as executor:
-                while pending or futures:
+                while True:
+                    receive_appends()
                     while pending and len(futures) < settings.run.max_parallel_tickers and stop_reason is None:
                         if monotonic() - run_started_mono >= settings.run.max_duration_minutes * 60:
                             stop_reason = "skipped_timeout"
@@ -1222,10 +1280,12 @@ def run_analysis(
                             monotonic=monotonic,
                             secrets=secret_values,
                             analyzer_factory=analyzer_factory,
-                            source_seed=batch_source_collector.events,
+                            source_seed=append_seeds.get(item.symbol, batch_source_collector.events),
+                            appended=batch["items"][symbol_slug(item.symbol)].get("source") == "append",
                         )
                         futures[future] = item
                     if not futures:
+                        append_offset = _close_appends(batch_dir, batch, append_offset)
                         break
                     done, _ = wait(futures, timeout=0.5, return_when=FIRST_COMPLETED)
                     if not done:
@@ -1259,6 +1319,8 @@ def run_analysis(
                             atomic_write_json(
                                 batch_dir / "results" / f"{slug}.json", outcome.result
                             )
+                        if stop_reason:
+                            batch["append_stop_reason"] = stop_reason
                         outcomes[slug] = outcome
                         current_now = _clock_now(clock)
                         _record_attempt(
@@ -1400,10 +1462,22 @@ def run_analysis(
     finally:
         try:
             if batch_dir is not None:
+                if batch is not None and batch.get("accepting_appends"):
+                    _close_appends(batch_dir, batch, append_offset)
                 from daily_analyzer.data_sources.futu import get_shared_data_source
                 get_shared_data_source().close_batch()
         finally:
             lock_context.__exit__(None, None, None)
+
+
+def _close_appends(batch_dir, batch, offset):
+    """与查看器共享锁，先关入口，再拒绝尚未派发的请求。"""
+    with append_lock(batch_dir):
+        batch["accepting_appends"] = False
+        requests, offset = read_requests(batch_dir, offset)
+        batch["append_rejections"].extend({**request, "reason": "本批已结束，请重新点击"} for request in requests)
+        atomic_write_json(batch_dir / "batch.json", batch)
+    return offset
 
 
 def _read_usage_rows(path: Path) -> list[dict[str, Any]]:

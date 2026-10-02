@@ -177,6 +177,8 @@ class ContextManager:
         self._prepare_errors: dict[str, Exception] = {}
         self._batch_blocks: dict[str, ContextBlock] = {}
         self._prepared = False
+        self._batch = None
+        self._extensions = {}
 
     def _ensure_provider(self, name: str) -> ContextProvider:
         if name not in self._providers:
@@ -184,6 +186,7 @@ class ContextManager:
         return self._providers[name]
 
     def prepare(self, batch: Any) -> dict[str, ContextBlock]:
+        self._batch = batch
         batch_items = _value(batch, "items")
         if batch_items is None:
             configured = _item_provider_names(batch)
@@ -196,6 +199,8 @@ class ContextManager:
         names = list(dict.fromkeys(names))
         for name in names:
             provider = self._ensure_provider(name)
+            if getattr(provider, 'scope', None) == 'batch' and name in self._batch_blocks:
+                continue
             try:
                 provider.prepare(batch)
                 self._prepare_errors.pop(name, None)
@@ -216,9 +221,40 @@ class ContextManager:
         self._prepared = True
         return dict(self._batch_blocks)
 
+    def extend(self, items):
+        """新标的使用独立逐标的提供器，批次块和已有提供器保持不变。"""
+        from copy import copy
+        from dataclasses import replace
+        for item in items:
+            symbol = _value(item, 'symbol')
+            futu = self.services.futu
+            if isinstance(futu, FutuQuoteManager):
+                futu = FutuQuoteManager(host=futu.host, port=futu.port,
+                    max_subscriptions=futu.max_subscriptions, context_factory=futu.context_factory,
+                    quote_subtype=futu.quote_subtype, clock=futu.clock, sleep=futu.sleep)
+            else:
+                futu = copy(futu)
+            services = replace(self.services, futu=futu)
+            extension = ContextManager(self.provider_names, services=services, registry=self.registry)
+            extension._batch_blocks = dict(self._batch_blocks)
+            extension._providers = {name: provider for name, provider in self._providers.items()
+                                   if getattr(provider, 'scope', None) == 'batch'}
+            self._extensions[symbol] = extension
+            batch = {**self._batch, 'items': [item], 'context_as_of': self.services.clock()}
+            try:
+                extension.prepare(batch)
+            except Exception as exc:
+                names = _explicit_item_provider_names(item)
+                extension._prepare_errors.update({name: exc for name in (names if names is not None else self.provider_names)
+                                                 if name not in extension._batch_blocks})
+                extension._prepared = True
+
     def build(
         self, item: Any, cutoff: datetime | date | str
     ) -> dict[str, ContextBlock]:
+        extension = self._extensions.get(_value(item, 'symbol'))
+        if extension is not None:
+            return extension.build(item, cutoff)
         if not self._prepared:
             self.prepare({"items": [item], "context_as_of": cutoff})
         names = _item_provider_names(item)
@@ -226,10 +262,10 @@ class ContextManager:
             names = self.provider_names
         blocks: dict[str, ContextBlock] = {}
         for name in names:
-            provider = self._ensure_provider(name)
             if name in self._prepare_errors:
                 blocks[name] = _unavailable_block(name, self._prepare_errors[name], cutoff)
                 continue
+            provider = self._ensure_provider(name)
             if getattr(provider, "scope", None) == "batch":
                 block = self._batch_blocks.get(name)
             else:
@@ -247,6 +283,8 @@ class ContextManager:
         close = getattr(self.services.futu, "close", None)
         if callable(close):
             close()
+        for extension in self._extensions.values():
+            extension.close()
 
 
 def _item_provider_names(value: Any) -> list[str] | None:

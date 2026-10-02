@@ -357,8 +357,9 @@ function makeButton(symbol){
   const fields={"[data-stage]":{textContent:""},"[data-remaining]":{textContent:""},"[data-estimate-note]":{textContent:""},"progress":bar};
   const box={hidden:true,querySelector(key){return fields[key];}};
   const summary={hidden:false};
-  return {dataset:{analyze:symbol},disabled:false,textContent:"分析一次",box,summary,fields,
-    closest(){return {querySelector(key){return key==="[data-analysis-progress]"?box:summary;}};},
+  const error={hidden:true,textContent:""};
+  return {dataset:{analyze:symbol},disabled:false,textContent:"分析一次",box,summary,fields,error,
+    closest(){return {querySelector(key){return key==="[data-analysis-progress]"?box:key==="[data-analysis-error]"?error:summary;}};},
     addEventListener(event,handler){this.click=handler;}};
 }
 const buttons=[makeButton("NVDA"),makeButton("TSLA")];
@@ -382,7 +383,7 @@ async function api(data){
   const clicking=buttons[0].click();
   assert.equal(buttons[0].disabled,true);
   assert.equal(buttons[1].disabled,false);
-  assert.equal(allButton.disabled,true);
+  assert.equal(allButton.disabled,false);
   await clicking;
   await new Promise(setImmediate);
   assert.equal(buttons[0].disabled,true);
@@ -395,7 +396,14 @@ async function api(data){
   await buttons[1].click();
   assert.equal(buttons[0].disabled,true);
   assert.equal(buttons[1].disabled,false);
-  assert.match(message.textContent,/已有分析批次/);
+  assert.match(buttons[1].error.textContent,/已有分析批次/);
+  await analysisStatus();
+  assert.match(buttons[1].error.textContent,/已有分析批次/);
+  value.items.TSLA={status:"pending",stage:"排队中",elapsed_seconds:0};
+  value.active_symbols.push("TSLA");
+  await analysisStatus();
+  assert.equal(buttons[1].textContent,"排队中");
+  assert.equal(buttons[1].disabled,true);
   value={busy:false,active_symbols:[],items:{}};
   await analysisStatus();
   assert.ok(buttons.every(button=>!button.disabled && button.box.hidden && !button.summary.hidden));
@@ -403,13 +411,13 @@ async function api(data){
   assert.equal(allButton.disabled,false);
   await allButton.click();
   await new Promise(setImmediate);
-  assert.equal(allButton.disabled,true);
+  assert.equal(allButton.disabled,false);
   assert.ok(buttons.every(button=>button.disabled && !button.box.hidden));
   value={busy:true,active_symbols:["TSLA"],items:{TSLA:{stage:"新闻分析",elapsed_seconds:10}}};
   await analysisStatus();
   assert.equal(buttons[0].disabled,false);
   assert.equal(buttons[1].disabled,true);
-  assert.equal(allButton.disabled,true);
+  assert.equal(allButton.disabled,false);
   assert.ok(delays.every(delay=>delay===3000));
   console.log("按钮和进度验证通过");
 })().catch(error=>{console.error(error);process.exitCode=1;});
@@ -718,3 +726,88 @@ def test_market_panel_hides_extended_hours_without_changing_context():
     assert '大盘环境与扩展时段' not in rendered and '大盘环境' in rendered
     assert '市场偏强' in rendered and '扩展时段明细样本' not in rendered
     assert context['extended_hours']['markdown']=='扩展时段明细样本'
+
+
+def test_premarket_cell_shows_price_with_change_and_quote_source():
+    from daily_analyzer.site import _summary_row
+    result = _result("TSLA", "2026-10-02")
+    result.pop("premarket_change_pct")
+    result["context_blocks"]["extended_hours"] = {"data": {"TSLA": {"pre": {
+        "price": 357.13, "change_pct": 0.8528, "status": "可用", "source": "富途快照",
+        "quote_time": "2026-10-02T06:39:39-04:00"}}}}
+    row = _summary_row(result, None, "")
+    assert row["premarket_price"] == "357.13 美元" and row["premarket"] == "+0.85%"
+    assert "富途快照" in row["premarket_title"] and "06:39:39 美东" in row["premarket_title"]
+
+
+def test_stale_premarket_quote_hides_price_and_legacy_change_only():
+    from daily_analyzer.site import _summary_row
+    result = _result("TSLA", "2026-10-02")
+    legacy = _summary_row(result, None, "")
+    assert legacy["premarket"] == "+1.25%" and legacy["premarket_price"] == ""
+    result.pop("premarket_change_pct")
+    result["context_blocks"]["extended_hours"] = {"data": {"TSLA": {"pre": {
+        "price": 350.0, "change_pct": None, "status": "过期"}}}}
+    row = _summary_row(result, None, "")
+    assert row["premarket"] == "—" and row["premarket_price"] == ""
+
+
+def test_report_status_shows_start_clock_after_date(tmp_path):
+    from daily_analyzer.site import _summary_row
+    result = _result("TSLA", "2026-10-02")
+    result["_date"] = "2026-10-02"
+    result["started_at"] = "2026-10-02T08:31:02-04:00"
+    row = _summary_row(result, None, "")
+    assert row["start_clock"] == "开始 20:31 北京 / 08:31 美东"
+    result.pop("started_at")
+    assert _summary_row(result, None, "")["start_clock"] == ""
+
+
+def test_home_row_renders_premarket_price_and_start_clock(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/watchlist.yaml").write_text("items:\n  - {symbol: NVDA, type: stock}\n", encoding="utf-8")
+    path = tmp_path / "data/runs/2026-10-01/current/NVDA.json"
+    result = json.loads(path.read_text())
+    result.pop("premarket_change_pct")
+    result["context_blocks"]["extended_hours"] = {"data": {"NVDA": {"pre": {
+        "price": 101.0, "change_pct": 1.0, "status": "可用", "source": "富途快照",
+        "quote_time": "2026-10-01T08:29:00-04:00"}}}}
+    _write_json(path, result)
+    table = render_home(tmp_path).split('aria-label="自选建议与相对基准强弱"')[1].split("</table>")[0]
+    assert '<span class="premarket-price">101.00 美元</span>+1.00%' in table
+    assert "2026-10-01 报告 · 开始 20:31 北京 / 08:31 美东" in table
+    assert 'title="来源 富途快照；报价时间' in table
+
+
+def test_home_late_news_and_bound_cutoff_watch_render_and_hide_stale(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    now = datetime(2026,10,2,10,tzinfo=ZoneInfo('America/New_York'))
+    result = _result('TSLA','2026-10-02')
+    result['late_news'] = [{'title':'分析期间交付数据'}]
+    (tmp_path/'config').mkdir(exist_ok=True)
+    (tmp_path/'config/watchlist.yaml').write_text('items:\n  - symbol: TSLA\n    type: stock\n')
+    _write_json(tmp_path/'data/runs/2026-10-02/current/TSLA.json',result)
+    articles = [{'title':f'季度交付{i}', 'published_at':'2026-10-02T13:04:19Z',
+                 'url':'https://example.test/news', 'major':True} for i in range(5)]
+    watch = {'trade_date':'2026-10-02', 'checked_at':'2026-10-02T13:10:00Z',
+             'items':{'TSLA':{'run_id':result['run_id'], 'information_through':result['information_through'],
+                              'count':5,'major':True,'articles':articles}}}
+    _write_json(tmp_path/'data/news_watch.json',watch)
+    html=render_home(tmp_path,now=now)
+    assert '分析期间纳入 1 条新增消息' in html
+    assert '截止后新增 5 条消息' in html
+    assert 'data-news-watch' in html and '未自动重跑' in html
+    assert len(re.findall(r'<span class="subline source-degraded">',html))==3
+    assert all(article['title'] in html for article in articles)
+    build_site(tmp_path,now=now)
+    assert '截止后新增 5 条消息' in (tmp_path/'site/index.html').read_text()
+    watch['items']['TSLA']['run_id']='旧报告'
+    _write_json(tmp_path/'data/news_watch.json',watch)
+    assert 'data-news-watch' not in render_home(tmp_path,now=now)
+    watch['items']['TSLA']['run_id']=result['run_id']
+    watch['items']['TSLA']['count']=0
+    _write_json(tmp_path/'data/news_watch.json',watch)
+    assert 'data-news-watch' not in render_home(tmp_path,now=now)

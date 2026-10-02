@@ -451,3 +451,11 @@ def test_example_settings_file_parses_with_stocktwits_disabled() -> None:
     settings = parse_settings(data)
     assert settings.tradingagents.stocktwits_enabled is False
     assert "price_anchors" in settings.context_providers
+
+
+def test_late_news_refresh_default_and_toggle():
+    from daily_analyzer.config import parse_settings, ConfigurationError
+    import pytest
+    assert parse_settings({}).tradingagents.late_news_refresh is True
+    assert parse_settings({'tradingagents':{'late_news_refresh':False}}).tradingagents.late_news_refresh is False
+    with pytest.raises(ConfigurationError): parse_settings({'tradingagents':{'late_news_refresh':'非法布尔值'}})

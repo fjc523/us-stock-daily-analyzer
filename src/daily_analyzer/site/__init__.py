@@ -20,6 +20,7 @@ import markdown
 import nh3
 from markupsafe import Markup
 
+from daily_analyzer.storage import read_json
 from daily_analyzer.config import load_settings, load_watchlist
 from daily_analyzer.site.templates import BASE, DETAIL, HISTORY, HOME, OVERVIEW
 from daily_analyzer.context.providers import BENCHMARK_NAMES
@@ -294,6 +295,7 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None) -> list[str]:
     macro_truncated = _block_data(_provider_block(result, "macro_releases")).get("truncated") is True
     if result.get("news_truncated") is True or macro_truncated:
         marks.append("新闻已截断")
+    marks.extend(str(error) for error in result.get("late_news_errors", []))
     return marks
 
 
@@ -386,13 +388,14 @@ def _sector_data(
     return rows, Markup(table.group(0)) if table else None
 
 
-def _summary_premarket(result: Mapping[str, Any]) -> str:
+def _summary_premarket(result: Mapping[str, Any]) -> dict[str, str]:
+    """盘前价格与涨跌幅取自同一时段；没有涨跌幅（过期、非本时段）时不显示价格。"""
     direct = _first(
         result,
         ("premarket_change_pct", "pre_market_change_pct", "premarket_pct_change", "premarket_return"),
     )
     if direct is not None:
-        return _percentage(direct)
+        return {"change": _percentage(direct), "price": "", "title": ""}
     block = _provider_block(result, "extended_hours")
     data = _block_data(block)
     symbols = [str(result.get("symbol") or ""), str(result.get("analyzed_symbol") or "")]
@@ -401,8 +404,31 @@ def _summary_premarket(result: Mapping[str, Any]) -> str:
         premarket = _as_mapping(quote.get("pre"))
         value = premarket.get("change_pct")
         if value is not None:
-            return _percentage(value)
-    return "—"
+            price = premarket.get("price")
+            try:
+                price_text = f"{float(price):.2f} 美元" if price is not None else ""
+            except (TypeError, ValueError):
+                price_text = ""
+            title = "；".join(filter(None, [
+                f"{symbol} 盘前" if symbol != symbols[0] else "",
+                f"来源 {premarket['source']}" if premarket.get("source") else "",
+                f"报价时间 {_pretty_timestamp(premarket['quote_time'])}" if premarket.get("quote_time") else "",
+            ]))
+            return {"change": _percentage(value), "price": price_text, "title": title}
+    return {"change": "—", "price": "", "title": ""}
+
+
+def _start_clock(value: Any) -> str:
+    """开始分析时间只取时分，沿用北京/美东双时区。"""
+    try:
+        instant = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return ""
+    if instant.tzinfo is None:
+        return ""
+    beijing = instant.astimezone(_BEIJING_TZ).strftime("%H:%M")
+    new_york = instant.astimezone(ZoneInfo(_MARKET_TZ)).strftime("%H:%M")
+    return f"开始 {beijing} 北京 / {new_york} 美东"
 
 
 def _summary_sector_rank(result: Mapping[str, Any]) -> Any:
@@ -564,6 +590,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         plans.append({"label": label, "text": summary if full_text else "本报告未提供",
                       "full_text": full_text})
     error = result.get("error") or _safe_retry_error(retry)
+    premarket = _summary_premarket(result)
     duration = result.get("duration_seconds")
     duration_text = "耗时未记录"
     if isinstance(duration, (int, float)) and math.isfinite(duration) and duration >= 0:
@@ -577,7 +604,8 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "rating": rating, "rating_class": rating_class,
         "advice": _advice_summary(advice),
         "plans": plans, "allocation": _allocation_summary(result),
-        "premarket": _summary_premarket(result),
+        "premarket": premarket["change"], "premarket_price": premarket["price"],
+        "premarket_title": premarket["title"],
         "sector_rank": _display(sector.get("sector_rank") if sector.get("sector_rank") is not None
                                 else _summary_sector_rank(result)) if benchmark_kind == "sector" else "—",
         "sector_etf": sector.get("sector_etf") or "—",
@@ -590,8 +618,10 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "information_through": _pretty_timestamp(result.get("information_through")),
         "status": _status(result), "error": _display(error) if error else None,
         "duration": duration_text,
+        "late_news_count": len(result.get("late_news") or []),
         "source_status": _source_status(result),
         "started_at": _pretty_timestamp(result.get("started_at")),
+        "start_clock": _start_clock(result.get("started_at")) if result.get("started_at") else "",
         "finished_at": _pretty_timestamp(result.get("finished_at")),
         "marks": _marks(result, retry), "path": detail_path,
     }
@@ -849,6 +879,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         batch_path = root / "data/runs" / str(last_run["trade_date"]) / "batches" / str(last_run["run_id"]) / "batch.json"
         if batch_path.is_file():
             batch_items = _as_mapping(_load_json(batch_path).get("items"))
+    news_watch = read_json(root / "data/news_watch.json", {})
     rows = []
     for item in items:
         result = latest_by_symbol.get(item.symbol)
@@ -859,6 +890,13 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
             day = result["_date"]
             row = _summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / day), result),
                                f"days/{day}/{result['_slug']}.html", root)
+        watch = news_watch.get('items', {}).get(item.symbol, {})
+        if (watch.get('run_id') == result.get('run_id') and
+            watch.get('information_through') == result.get('information_through') and
+            news_watch.get('trade_date') == local_today.isoformat() and watch.get('count')):
+            row['news_watch'] = {**watch, 'checked_at':_pretty_timestamp(news_watch.get('checked_at')),
+                                 'articles':[{**article, 'time':_pretty_timestamp(article['published_at'])}
+                                             for article in watch.get('articles', [])]}
         row["name"] = item.name or row["name"]
         attempt_status = _as_mapping(batch_items.get(symbol_slug(item.symbol))).get("status")
         if attempt_status in {"running", "pending"}:

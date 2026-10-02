@@ -6,10 +6,12 @@ import fcntl
 import os
 import subprocess
 import threading
+import uuid
 from datetime import datetime
 from pathlib import Path
 from statistics import median
 
+from daily_analyzer.append_requests import append_lock, read_requests, write_request, STOP_MESSAGES
 from daily_analyzer.config import ConfigurationError, load_settings, load_watchlist
 from daily_analyzer.deployment.schedule import _codex_binary, _environment_path
 from daily_analyzer.instruments import normalize_code
@@ -19,7 +21,7 @@ from daily_analyzer.time_utils import NEW_YORK, select_run_window
 
 
 class AnalysisBusyError(RuntimeError):
-    """当前已有批次，避免点击创建等待队列。"""
+    """当前批次不能接受该请求。"""
 
 
 def analysis_busy(root: Path) -> bool:
@@ -68,14 +70,14 @@ def _item_progress(root: Path, batch_dir: Path, batch: dict, now: datetime) -> d
         expected = median(row["duration_seconds"] for row in reference) if reference else None
         running = status in {"pending", "running"}
         if running:
-            stage = progress.get("stage") or ("准备批次数据" if status == "pending" else "分析中（旧任务未记录阶段）")
+            stage = progress.get("stage") or ("排队中" if status == "pending" else "分析中（旧任务未记录阶段）")
         else:
             stage = "已完成" if status == "success" else "分析失败" if status == "failed" else "已结束"
             elapsed = item.get("duration_seconds") or elapsed
         result[symbol] = {
             "status": status, "stage": stage, "elapsed_seconds": int(elapsed),
-            "estimated_percent": min(95, int(elapsed / expected * 100)) if running and expected else 100 if status == "success" else None,
-            "remaining_seconds": max(0, int(expected - elapsed)) if running and expected else None,
+            "estimated_percent": min(95, int(elapsed / expected * 100)) if status == "running" and expected else 100 if status == "success" else None,
+            "remaining_seconds": max(0, int(expected - elapsed)) if status == "running" and expected else None,
             "overdue": bool(running and expected and elapsed >= expected),
             "estimate_samples": len(reference),
             "estimate_source": "同模型与强度" if matching else "其他配置参考" if samples else "无历史样本",
@@ -99,8 +101,6 @@ class AnalysisLauncher:
             raise ConfigurationError("分析范围只能为单标的或全部订阅")
         symbol = normalize_code(value) if scope == "symbol" else None
         with self.lock:
-            if (self.process is not None and self.process.poll() is None) or analysis_busy(self.root):
-                raise AnalysisBusyError("已有分析批次运行中，请等完成后再试")
             enabled = [item.symbol for item in load_watchlist(self.root).active_items]
             if scope == "symbol" and symbol not in enabled:
                 raise ConfigurationError("只能分析当前启用的订阅")
@@ -108,7 +108,9 @@ class AnalysisLauncher:
             if not symbols:
                 raise ConfigurationError("当前没有启用的订阅")
             now = self.clock()
-            select_run_window(None, now)
+            window = select_run_window(None, now)
+            if (self.process is not None and self.process.poll() is None) or analysis_busy(self.root):
+                return self._append(symbols, window.trade_date, now)
             settings = load_settings(self.root)
             environment = {**os.environ, "PATH": _environment_path(_codex_binary(settings), self.root)}
             log = self.root / "logs/manual-analysis.log"
@@ -124,6 +126,35 @@ class AnalysisLauncher:
             self.symbols = symbols
             self.started_at = now.isoformat()
             return self._snapshot()
+
+    def _append(self, symbols, trade_date, now):
+        last = read_json(self.root / "data/status.json", {}).get("last_run", {})
+        if not last.get("trade_date") or not last.get("run_id"):
+            raise AnalysisBusyError("旧批次不支持追加，或新批次正在初始化，请稍后重试")
+        batch_dir = self.root / "data/runs" / last["trade_date"] / "batches" / last["run_id"]
+        with append_lock(batch_dir):
+            batch = read_json(batch_dir / "batch.json", {})
+            if "accepting_appends" not in batch:
+                raise AnalysisBusyError("旧批次不支持追加，请等完成后再试")
+            if not batch["accepting_appends"] or batch.get("status") != "running":
+                raise AnalysisBusyError("本批正在收尾，请等完成后重新点击")
+            if batch.get("append_stop_reason"):
+                raise AnalysisBusyError(STOP_MESSAGES[batch["append_stop_reason"]])
+            if batch["trade_date"] != trade_date.isoformat():
+                raise AnalysisBusyError("点击日期与当前批次交易日不同，请等待本批结束")
+            requests, _ = read_requests(batch_dir)
+            rejected = {row["request_id"] for row in batch.get("append_rejections", [])}
+            included = {row["symbol"] for row in batch["items"].values()}
+            included.update(row["symbol"] for row in requests if row["request_id"] not in rejected)
+            missing = [symbol for symbol in symbols if symbol not in included]
+            if not missing:
+                raise AnalysisBusyError("本批已包含全部所选订阅，无需重复追加")
+            for symbol in missing:
+                write_request(batch_dir, {"request_id": uuid.uuid4().hex, "symbol": symbol,
+                    "trade_date": trade_date.isoformat(), "clicked_at": now.isoformat()})
+        result = self._snapshot()
+        result["message"] = "已加入当前批次"
+        return result
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -150,6 +181,16 @@ class AnalysisLauncher:
             batch = read_json(batch_dir / "batch.json", {}) if batch_dir else {}
             if batch and (busy or self.process is not None):
                 result["items"] = _item_progress(self.root, batch_dir, batch, self.clock())
+                result["accepting_appends"] = batch.get("accepting_appends", False)
+                result["append_rejections"] = batch.get("append_rejections", [])
+                if result["busy"]:
+                    with append_lock(batch_dir):
+                        requests, _ = read_requests(batch_dir)
+                    rejected = {row["request_id"] for row in result["append_rejections"]}
+                    for request in requests:
+                        if request["request_id"] not in rejected:
+                            result["items"].setdefault(request["symbol"], {"status": "pending", "stage": "排队中",
+                                "elapsed_seconds": 0, "estimated_percent": None, "remaining_seconds": None})
                 if result["busy"]:
                     result["active_symbols"] = [symbol for symbol, item in result["items"].items() if item["status"] in {"running", "pending"}]
                     if result["active_symbols"]:

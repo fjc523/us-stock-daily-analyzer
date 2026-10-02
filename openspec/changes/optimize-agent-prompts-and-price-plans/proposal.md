@@ -60,6 +60,13 @@
 - 每只标的的结果记录 `data_source_status`。首页与详情页通过独立可点击的汇总入口打开状态弹窗，用颜色加文字展示各数据类别的状态（绿：正常；橙：降级；红：失败；灰：未配置或未使用），汇总入口按最差状态着色；详情不放在“时间与质量”折叠中。
 - 面板“大盘环境”只显示市场环境，扩展时段明细继续供模型分析使用，不在该面板展示。
 
+**用户补充（2026-10-02）：运行中追加标的**
+- 批次运行时，首页“分析一次”与“全部分析一次”把标的追加到当前批次，由 runner 主线程受理并按现有并行数派发；拒绝原因在对应行显示，不被轮询覆盖。
+
+**用户补充（2026-10-02）：分析期间与截止后新增消息**
+- 起因：TSLA 三季度交付新闻在新闻抓取 4 分钟后发布，组合经理开始时已可获取却未纳入。
+- 实时分析在研究经理与组合经理前补抓新增新闻（fork 配置 `late_news_refresh`，主项目缺省开启）；首页提示报告截止后新增的重大消息，只提示不自动重跑。
+
 ## Capabilities
 
 ### New Capabilities
@@ -68,9 +75,11 @@
 - `price-plan-anchors`：价位锚点上下文提供器、ATR 止损距离与盈亏比约束、价格方案首句格式、相关参数配置，以及点位的取用规则（交易员与组合经理）。
 - `market-data-source-chain`：按数据类别确定的来源链，fork 内可注册的日线来源与工具实现，富途各接口的接入与额度保护，CBOE VIX，FRED 密钥配置与工具过滤，OpenD 版本检查。
 - `data-source-status-display`：每次分析的数据源状态记录，以及在首页与详情页独立状态弹窗中的红、橙、绿、灰展示与旧报告兼容。
+- `manual-analysis-append`：首页手动分析在批次运行中追加到当前批次（不启动新进程），批次关闭与追加的竞态控制，追加标的的上下文补齐，以及忙碌与拒绝原因的行内提示。
+- `late-news-awareness`：实时分析在研究经理与组合经理前补抓新增新闻并交给下游角色；查看器在分析截止后检查新增新闻，并在首页提示重大消息（不自动重跑）。
 
 ### Modified Capabilities
-（无。`openspec/specs/` 目前为空；本变更扩展的是仍在进行中的 `deploy-tradingagents-daily-analyzer` 中 `daily-analysis-run`「有依据的建仓、加仓与减仓方案」、`market-data-sources`、`market-context-providers` 的相关要求。归档时应先归档该变更，再归档本变更。）
+（无。另：`manual-analysis-append` 把 `deploy-tradingagents-daily-analyzer` 中 `html-report-viewer`“遇锁说明忙碌、不暗中排队”的口径改为“追加到当前批次”。`openspec/specs/` 目前为空；本变更扩展的是仍在进行中的 `deploy-tradingagents-daily-analyzer` 中 `daily-analysis-run`「有依据的建仓、加仓与减仓方案」、`market-data-sources`、`market-context-providers` 的相关要求。归档时应先归档该变更，再归档本变更。）
 
 ## Impact
 

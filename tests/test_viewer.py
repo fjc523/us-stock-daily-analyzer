@@ -383,3 +383,64 @@ def test_progress_no_history_and_other_config_reference(tmp_path):
     batch["items"]["NVDA"].update(status="success", duration_seconds=650)
     item = _item_progress(root, batch_dir, batch, now)["NVDA"]
     assert item["estimated_percent"] == 100 and item["elapsed_seconds"] == 650
+
+
+@pytest.mark.parametrize('accepting,stop,reason', [(False,None,'正在收尾'), (None,None,'旧批次'),
+                                                  (True,'skipped_quota','额度'), (True,'skipped_fatal','配置错误'),
+                                                  (True,'skipped_timeout','最长运行时间')])
+def test_busy_append_reasons(tmp_path, accepting, stop, reason):
+    root = project(tmp_path)
+    directory = root / 'data/runs/2026-10-02/batches/test'
+    batch = {'run_id':'test','trade_date':'2026-10-02','status':'running','items':{}}
+    if accepting is not None: batch['accepting_appends'] = accepting
+    if stop: batch['append_stop_reason'] = stop
+    atomic_write_json(directory / 'batch.json', batch)
+    atomic_write_json(root / 'data/status.json', {'last_run':{'trade_date':'2026-10-02','run_id':'test','started_at':'2026-10-02T08:30:00-04:00'}})
+    launcher = AnalysisLauncher(root, clock=lambda: datetime(2026,10,2,10,tzinfo=NEW_YORK))
+    with run_lock(root), pytest.raises(AnalysisBusyError, match=reason):
+        launcher.start('NVDA')
+
+
+def test_busy_http_append_all_only_missing_and_no_batch_write(tmp_path):
+    from daily_analyzer.append_requests import read_requests
+    root = project(tmp_path)
+    WatchlistStore(root).update({'action':'add','item':{'symbol':'QQQ','type':'etf'}})
+    directory = root / 'data/runs/2026-10-02/batches/test'
+    atomic_write_json(directory / 'batch.json', {'run_id':'test','trade_date':'2026-10-02','status':'running',
+        'accepting_appends':True,'items':{'NVDA':{'symbol':'NVDA','status':'running'}}})
+    atomic_write_json(root / 'data/status.json', {'last_run':{'trade_date':'2026-10-02','run_id':'test','started_at':'2026-10-02T08:30:00-04:00'}})
+    original = (directory / 'batch.json').read_bytes()
+    launcher = AnalysisLauncher(root, clock=lambda: datetime(2026,10,2,10,tzinfo=NEW_YORK))
+    server = create_server(root, port=0, launcher=launcher)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with run_lock(root):
+            code, body = request(f'http://127.0.0.1:{server.server_port}/api/analysis', {'scope':'all'})
+            value = json.loads(body)
+            assert code == 202 and value['message'] == '已加入当前批次'
+            assert set(value['active_symbols']) == {'NVDA','QQQ'}
+            assert value['items']['QQQ']['stage'] == '排队中'
+            assert [row['symbol'] for row in read_requests(directory)[0]] == ['QQQ']
+            assert (directory / 'batch.json').read_bytes() == original
+            assert request(f'http://127.0.0.1:{server.server_port}/api/analysis', {'scope':'all'})[0] == 409
+    finally:
+        server.shutdown(); thread.join(); server.server_close()
+
+
+def test_viewer_starts_and_stops_news_watcher(tmp_path, monkeypatch):
+    import daily_analyzer.viewer as viewer
+    import daily_analyzer.news_watch as news_watch
+    events=[]
+    class Watcher:
+        def __init__(self,root): assert root==tmp_path
+        def start(self): events.append('启动')
+        def stop(self): events.append('停止')
+    class Server:
+        def __enter__(self): return self
+        def __exit__(self,*args): pass
+        def serve_forever(self): raise KeyboardInterrupt
+    monkeypatch.setattr(news_watch,'NewsWatcher',Watcher)
+    monkeypatch.setattr(viewer,'create_server',lambda _:Server())
+    viewer.serve(tmp_path)
+    assert events==['启动','停止']

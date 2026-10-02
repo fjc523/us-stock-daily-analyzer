@@ -541,6 +541,13 @@ class ExtendedHoursProvider:
         except Exception:
             premarket = {}
 
+        historical_pre = {}
+        if cutoff.time() >= time(9, 30) and missing_premarket:
+            try:
+                historical_pre, _ = self._backfill(missing_premarket, trade_day, cutoff, end_time=time(9, 30))
+            except Exception:
+                pass
+
         segments: dict[str, dict[str, Any]] = {symbol: {} for symbol in symbols}
         for symbol in symbols:
             close, prior_close = self._recent_closes(symbol, price_end)
@@ -554,6 +561,9 @@ class ExtendedHoursProvider:
                     raw = _alpaca_segment(premarket.get(symbol), "Alpaca feed=iex", trade_day, price_end, cutoff)
                     if raw is not None:
                         raw["warning"] = "IEX 覆盖不完整"
+                    historical = historical_pre.get(symbol, {}).get("pre")
+                    if (raw is None or raw.get("status") != "可用") and historical and historical.get("status") == "可用":
+                        raw = historical
                 if raw is None and entries:
                     raw = entries[0]
                 if raw is None:
@@ -577,10 +587,10 @@ class ExtendedHoursProvider:
         return segments, source_names
 
     def _backfill(
-        self, symbols: list[str], trade_day: date, cutoff: datetime
+        self, symbols: list[str], trade_day: date, cutoff: datetime, *, end_time: time = time(8, 31)
     ) -> tuple[dict[str, Any], list[str]]:
         start = datetime.combine(trade_day, time(4, 0), EASTERN)
-        end = min(cutoff, datetime.combine(trade_day, time(8, 31), EASTERN))
+        end = min(cutoff, datetime.combine(trade_day, end_time, EASTERN))
         response = self.services.alpaca.iex_minute_bars(symbols, start, end)
         payload: dict[str, Any] = {}
         for symbol in symbols:
@@ -590,7 +600,7 @@ class ExtendedHoursProvider:
                 timestamp = _parse_datetime(_row_get(row, "t", "timestamp"), timezone.utc)
                 if timestamp is None or timestamp.date() != trade_day:
                     continue
-                if not (time(4, 0) <= timestamp.timetz().replace(tzinfo=None) < time(8, 31)):
+                if not (time(4, 0) <= timestamp.timetz().replace(tzinfo=None) < end_time):
                     continue
                 bars.append((timestamp, row))
             bars.sort(key=lambda pair: pair[0])

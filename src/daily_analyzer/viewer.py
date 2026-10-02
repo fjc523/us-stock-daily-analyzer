@@ -254,9 +254,14 @@ def create_server(project_root: str | Path, *, port: int = PORT, resolver=None, 
 
 
 def serve(project_root: str | Path) -> None:
+    from daily_analyzer.news_watch import NewsWatcher
+    watcher = NewsWatcher(Path(project_root).resolve())
     with create_server(project_root) as server:
+        watcher.start()
         print(f"本机报告与订阅管理：{URL}", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             pass
+        finally:
+            watcher.stop()
