@@ -32,17 +32,37 @@ fork SHALL 提供两个注册接口，且 MUST NOT 依赖 `futu-api`：
 - **THEN** 跳过 `futu` 并记录告警，按 Alpaca → Yahoo 的顺序读取
 
 ### Requirement: 富途接入与额度保护
-富途日线来源 SHALL 使用历史 K 线接口（日 K、前复权），不建立行情订阅；只有 Alpaca 失败时才会请求，从而消耗富途历史 K 线额度。富途的各类接口在以下情况下 MUST 抛出“来源不可用”类错误，以便来源链继续往下：
+富途日线来源只在 Alpaca 失败时请求。它 SHALL 默认采用“订阅日 K → `get_cur_kline` → 退订”的方式读取，不消耗历史 K 线额度（30 天 100 只，与其他项目共用）：
+- 订阅 `K_DAY`（`subscribe_push=False`），用 `get_cur_kline` 读取最近不超过 1000 根前复权日 K，再在本地按请求的 `[start, end]` 截取，并排除未完成的当日 K 线；
+- 订阅前 SHALL 查询剩余订阅额度。剩余额度不足时，该来源视为不可用，MUST NOT 为腾出额度而退订其他连接或其他项目的订阅；
+- 订阅满 60 秒后 SHALL 退订（富途规定订阅至少保持 1 分钟才能退订）。等待退订 MUST NOT 阻塞分析线程；批次结束（含异常）SHALL 统一清理本批次订阅与连接，已满60秒的立即释放，尚未满60秒的由原后台定时器到期释放；
+- 同一批次内，同一标的只订阅、读取一次，不同时间窗口复用同一份结果。
+
+只有请求的起始日期早于这 1000 根中最早的一根时（例如回放较早的历史日期），才 SHALL 改用历史 K 线接口 `request_history_kline`（日 K、前复权、处理分页），并在日志中注明“消耗历史 K 线额度”。
+
+富途的各类接口在以下情况下 MUST 抛出“来源不可用”类错误，以便来源链继续往下：
 - OpenD 未运行或未登录；
 - 无行情权限；
-- 历史 K 线额度不足；
+- 订阅额度或历史 K 线额度不足；
 - 接口限频；
 - 返回“未知的协议ID”（OpenD 版本过低）。
 
 同一批次内，对同一接口、同一参数的结果 SHALL 复用缓存，避免重复请求。
 
+#### Scenario: 实时分析走订阅读取
+- **WHEN** Alpaca 失败，分析 TSLA，需要最近 300 个交易日的日线
+- **THEN** 富途通过订阅日 K 与 `get_cur_kline` 取得数据，历史 K 线额度不变；订阅满 60 秒后被退订
+
+#### Scenario: 回放超出最近 1000 根
+- **WHEN** Alpaca 失败，回放日期需要 5 年前的日线
+- **THEN** 改用 `request_history_kline` 读取，日志注明消耗历史 K 线额度
+
+#### Scenario: 订阅额度不足
+- **WHEN** 其他项目已占满订阅额度
+- **THEN** 富途日线来源被视为不可用，来源链改用 Yahoo，不退订他人订阅，日志中记录订阅额度不足
+
 #### Scenario: 额度用尽
-- **WHEN** 富途返回历史 K 线额度不足
+- **WHEN** 回放走历史 K 线接口时，富途返回历史 K 线额度不足
 - **THEN** 该来源被视为不可用，来源链改用 Yahoo，日志中记录额度不足
 
 ### Requirement: 按数据类别的来源链
@@ -56,7 +76,7 @@ fork SHALL 提供两个注册接口，且 MUST NOT 依赖 `futu-api`：
 | 财报报表 | SEC EDGAR → 富途财务报表 → Yahoo |
 | 财报日历 | 富途财报日历（每次查询不超过 7 天，按周分段覆盖决策周期）→ Yahoo |
 | 经济日历 | 富途经济日历（只保留美国事件，含前值、预期、实际、重要性）→ Yahoo |
-| 宏观指标 | 富途宏观指标历史 → FRED（已配置密钥时）|
+| 宏观指标 | FRED公开CSV（仅美债，实时分析无需密钥；其他指标不适用，直接跳过且不计失败）→ 富途 → FRED API（已配置密钥时）|
 | VIX | CBOE 官方日线 CSV → FRED `VIXCLS`（已配置密钥时）→ Yahoo |
 | 板块映射 | 手工指定 → 官方 ETF 持仓（SPY、DIA、QQQ，新增 IWM）→ Yahoo 行业映射缓存 |
 | 标的身份 | 自选清单名称＋富途基础信息与公司资料 → Yahoo |
@@ -90,6 +110,19 @@ fork SHALL 提供两个注册接口，且 MUST NOT 依赖 `futu-api`：
 - **WHEN** `config/secrets.env` 中有 `FRED_API_KEY`
 - **THEN** 分析期间进程环境中可以读到该变量，宏观指标与 VIX 的来源链中启用 FRED
 
+### Requirement: 社交情绪来源的停用与限速
+StockTwits 预取 SHALL 由 `tradingagents.stocktwits_enabled` 控制，缺省为 false（公共接口被 Cloudflare 拦截）。关闭时 MUST NOT 发起请求，数据源状态 SHALL 为“未配置”并写明停用原因，情绪分析师的输入 MUST 表述为“未启用”而不是“没有讨论”。系统 MUST NOT 尝试绕过 Cloudflare 挑战。
+
+Reddit 公共 RSS 请求 SHALL 在同一进程内按时间串行，相邻请求间隔不少于 60 秒（只向上抖动）；429 退避后的重试不再额外等待。抓取失败时，数据源状态 SHALL 写明 HTTP 状态码或异常类型。
+
+#### Scenario: StockTwits 缺省停用
+- **WHEN** 使用缺省配置分析 TSLA
+- **THEN** 不请求 StockTwits，数据源状态为灰色“未配置”，原因含 Cloudflare
+
+#### Scenario: Reddit 失败原因可见
+- **WHEN** Reddit RSS 返回 HTTP 403
+- **THEN** Reddit 状态为“失败”，原因含“HTTP 403”
+
 ### Requirement: Yahoo 最低优先级与批次内熔断
 Yahoo SHALL 只出现在各来源链的末尾。同一批次内，Yahoo 第一次出现连接级失败（TLS 握手被断开、连接重置、超时）或 HTTP 429 后，系统 SHALL 在该批次剩余时间内跳过所有 Yahoo 请求，直接视为“来源不可用”，不再重试或等待；数据源状态中记录熔断原因与触发时间。Yahoo 请求的单次超时 SHALL 不超过 10 秒。新批次开始时熔断状态重置。
 
@@ -107,3 +140,15 @@ Yahoo SHALL 只出现在各来源链的末尾。同一批次内，Yahoo 第一�
 #### Scenario: OpenD 版本过低
 - **WHEN** OpenD 报告的 `server_ver` 为 1003
 - **THEN** `doctor` 输出 OpenD 版本过低的告警，并列出受影响的数据类别
+
+
+### Requirement: 10年期收益率的期货代理
+富途宏观实现 SHALL 对`10y_treasury`与`DGS10`使用`US.10Ymain`的已完成日K，输出收益率百分数单位、P日期、期货代理与主连续列说明。MUST NOT 将以价格报价的债券期货解释为收益率。该来源不可用时，实时分析 SHALL 回退FRED官方公开CSV DGS10，再尝试已配置密钥的FRED API。公开CSV不要求API密钥，按P过滤并保留实际观测日；历史回放 MUST NOT 使用未核验历史版本的公开CSV。宏观上下文 SHALL 主动注入10年期收益率，不仅依赖工具查询。
+
+#### Scenario: 收益率主连可用
+- **WHEN** 请求10年期收益率，富途返回P日收盘4.240与D日未完成K线
+- **THEN** 只输出P及以前的记录，4.240表示4.240%，注明主连期货代理
+
+#### Scenario: 无CME行情权限
+- **WHEN** 富途拒绝US.10Ymain行情请求
+- **THEN** 状态记录真实权限失败，实时模式尝试FRED公开CSV；所有来源失败时不虚构收益率

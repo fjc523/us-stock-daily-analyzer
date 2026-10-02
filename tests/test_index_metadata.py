@@ -61,7 +61,7 @@ def test_official_sector_precedes_index_and_stops_unneeded_queries():
 def test_unavailable_membership_differs_from_verified_absence():
     source, _ = _source(["AAPL"], ["MSFT"], ["IBM"])
     row = source.lookup(["TSLA"])["TSLA"]
-    assert row["benchmark_symbol"] == "SPY" and "名单无记录" in row["benchmark_reason"]
+    assert row["benchmark_symbol"] == "SPY" and "未核验" in row["benchmark_reason"]
     source, _ = _source([], [], [], fail=["QQQ", "SPY", "DIA"])
     row = source.lookup(["TSLA"])["TSLA"]
     assert row["benchmark_kind"] == "default" and "未核验" in row["benchmark_reason"]
@@ -71,3 +71,11 @@ def test_partial_holdings_are_not_treated_as_verified_absence():
     payload = {"holdings": [{"ticker": "AAPL"}], "totalNumberOfHoldings": 100, "effectiveDate": "2026-09-30"}
     source = IndexMetadataSource(get=lambda *a, **kw: SimpleNamespace(raise_for_status=lambda: None, json=lambda: payload))
     assert "未核验" in source.lookup(["TSLA"])["TSLA"]["benchmark_reason"]
+
+
+def test_iwm_official_csv_supplies_sector_without_changing_three_index_priority():
+    text='iShares Russell 2000 ETF\nFund Holdings as of,"Sep 30, 2026"\nTicker,Name,Sector,Asset Class\nTWST,TWIST,Health Care,Equity\n'
+    source=IndexMetadataSource(get=lambda *args,**kwargs:SimpleNamespace(raise_for_status=lambda:None,text=text))
+    source.cache.update({'QQQ':None,'SPY':None,'DIA':None})
+    row=source.lookup(['TWST'])['TWST']
+    assert row['benchmark_symbol']=='XLV' and row['index_symbol'] is None and 'IWM' in row['benchmark_reason']

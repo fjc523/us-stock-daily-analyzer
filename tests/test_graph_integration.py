@@ -25,7 +25,7 @@ REPLAY_DATE = "2026-10-01"
 LIVE_CONTEXT_TIME = datetime(2026, 10, 2, 8, 31, tzinfo=EASTERN)
 REPLAY_CONTEXT_TIME = datetime(2026, 10, 1, 8, 31, tzinfo=EASTERN)
 MEMORY_SENTINEL = "REPLAY_MEMORY_SENTINEL"
-MARKET_PROMPT_MARKER = "You are a trading assistant tasked with analyzing financial markets."
+MARKET_PROMPT_MARKER = "你是市场分析师。"
 PORTFOLIO_PROMPT_MARKER = "As the Portfolio Manager, synthesize"
 
 
@@ -168,6 +168,13 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
     monkeypatch, tmp_path: Path
 ) -> None:
     fixed_today = lambda: LIVE_DATE
+    from daily_analyzer.data_sources.futu import FutuDataSource
+    monkeypatch.setattr(FutuDataSource, "identity", lambda *args: {})
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    def no_futu_daily(*args, **kwargs):
+        raise VendorUnavailableError("离线测试不连接OpenD")
+    monkeypatch.setattr(FutuDataSource, "daily_bars", no_futu_daily)
+    monkeypatch.setattr(FutuDataSource, "_call", no_futu_daily)
     monkeypatch.setattr(date_window, "get_current_date", fixed_today)
     monkeypatch.setattr(trading_graph_module, "get_current_date", fixed_today)
     monkeypatch.setattr(
@@ -383,3 +390,26 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
     assert replay_pm_prompt["role"] == "deep"
     assert memory_path.read_bytes() == memory_before_replay
     assert _home_tradingagents_metadata() == home_before
+
+
+def test_upstream_config_carries_custom_decision_and_price_rules(tmp_path):
+    settings = parse_settings({"decision": {"horizon_trading_days": [7, 15], "plan_validity_trading_days": 3},
+                               "price_plan": {"min_reward_risk": 2.0}})
+    config = build_upstream_config(settings, trade_date="2026-10-02", price_data_end_date="2026-10-01",
+                                  mode="live", news_cutoff_utc=None, batch_dir=tmp_path / "batch",
+                                  project_root=tmp_path, has_alpha_vantage=False)
+    assert config["decision_horizon_trading_days"] == [7, 15]
+    assert config["decision_plan_validity_trading_days"] == 3
+    assert config["price_plan_min_reward_risk"] == 2.0
+    assert config["price_plan_stop_atr_normal"] == (1.5, 2.0)
+
+
+def test_upstream_config_carries_stocktwits_toggle_and_macro_chain(tmp_path):
+    def build(settings):
+        return build_upstream_config(settings, trade_date="2026-10-02", price_data_end_date="2026-10-01",
+                                     mode="live", news_cutoff_utc=None, batch_dir=tmp_path / "batch",
+                                     project_root=tmp_path, has_alpha_vantage=False)
+    config = build(parse_settings({}))
+    assert config["stocktwits_enabled"] is False
+    assert config["tool_vendors"]["get_macro_indicators"] == "fred_public,futu,fred"
+    assert build(parse_settings({"tradingagents": {"stocktwits_enabled": True}}))["stocktwits_enabled"] is True

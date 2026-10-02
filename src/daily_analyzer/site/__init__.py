@@ -78,6 +78,10 @@ def _markdown(value: Any) -> Markup:
         return Markup("<p class=\"muted\">暂无内容。</p>")
     # 提供器的表格可能紧接元数据说明，Markdown 表格需要空行分隔。
     text = re.sub(r"(?<=\S)\n(?=\|[^\n]+\|\n\|[-:| ]+\|)", "\n\n", str(value))
+    text = re.sub(
+        r"(?m)^\*\*Action\*\*\s*[:：]\s*(Buy|Overweight|Hold|Underweight|Sell)\b",
+        lambda match: f"**动作**: {_RATING[match[1].upper()][0]}（{match[1]}）", text,
+    )
     rendered = markdown.markdown(text, extensions=["tables", "fenced_code"])
     cleaned = nh3.clean(
         rendered,
@@ -206,6 +210,8 @@ def _rows(value: Any, kind: str) -> list[dict[str, str]]:
                     "sector": _display(sector_symbol),
                     "symbol": _display(_first(item, ("stock_symbol", "ticker"))),
                     "performance": _display(performance if performance is not None else item.get("score")),
+                    "performance_5d": _relative_metric(item.get("excess_return_5d"))["text"],
+                    "performance_60d": _relative_metric(item.get("excess_return_60d"))["text"],
                     "note": _display(_first(item, ("note", "description", "status", "source"))),
                 }
             )
@@ -345,7 +351,7 @@ def _provider_block(value: Mapping[str, Any], name: str) -> Any:
 
 def _context_cards(context: Mapping[str, Any], results: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     cards = []
-    for name, title in (("market_regime", "市场环境"), ("extended_hours", "扩展时段")):
+    for name, title in (("market_regime", "市场环境"),):
         block = context.get(name)
         if block is None:
             block = _latest_result_block(results, name)
@@ -375,7 +381,9 @@ def _sector_data(
         return [], None
     rows = _rows(block, "sector")
     text = _provider_text(block)
-    return rows, _markdown(text) if text else None
+    html = str(_markdown(text)) if text else ""
+    table = re.search(r"<table\b[^>]*>.*?</table>", html, re.DOTALL)
+    return rows, Markup(table.group(0)) if table else None
 
 
 def _summary_premarket(result: Mapping[str, Any]) -> str:
@@ -551,7 +559,9 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
     for label in ("建仓点位", "加仓点位", "减仓点位"):
         full_text = next((section for key in ("final_trade_decision", "trader_investment_plan")
                           if (section := _decision_section(result.get(key), label))), "")
-        plans.append({"label": label, "text": _advice_summary(full_text, 100) if full_text else "本报告未提供",
+        first = re.match(r"区间[^\n。]+?（依据：[^）]*）", full_text)
+        summary = _advice_summary(first.group(0), len(first.group(0)) + 1) if first else _advice_summary(full_text, 200 if full_text.startswith("不适用：") else 100)
+        plans.append({"label": label, "text": summary if full_text else "本报告未提供",
                       "full_text": full_text})
     error = result.get("error") or _safe_retry_error(retry)
     duration = result.get("duration_seconds")
@@ -580,10 +590,22 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "information_through": _pretty_timestamp(result.get("information_through")),
         "status": _status(result), "error": _display(error) if error else None,
         "duration": duration_text,
+        "source_status": _source_status(result),
         "started_at": _pretty_timestamp(result.get("started_at")),
         "finished_at": _pretty_timestamp(result.get("finished_at")),
         "marks": _marks(result, retry), "path": detail_path,
     }
+
+
+def _source_status(result):
+    records = result.get("data_source_status")
+    tones = {"正常": "normal", "降级": "degraded", "失败": "failed", "未配置": "inactive", "未使用": "inactive"}
+    if not isinstance(records, list):
+        return {"legacy": True, "tone": "inactive", "rows": []}
+    rows = [{**row, "tone": tones.get(row.get("status"), "inactive")} for row in records if isinstance(row, Mapping)]
+    statuses = {row.get("status") for row in rows}
+    tone = "failed" if "失败" in statuses else "degraded" if "降级" in statuses else "normal" if "正常" in statuses else "inactive"
+    return {"legacy": False, "tone": tone, "rows": rows, "normal": sum(row.get("status") == "正常" for row in rows), "total": len(rows)}
 
 
 def _timestamp_rows(result: Mapping[str, Any]) -> list[dict[str, str]]:
@@ -694,6 +716,7 @@ def _detail_values(
         "risk_debate": _markdown(_debate_text(result.get("risk_debate"))),
         "injected_context": _markdown(result.get("injected_context")),
         "timestamps": _timestamp_rows(result),
+        "source_status": _source_status(result),
         "data_queries": [
             {
                 "name": _display(_as_mapping(query).get("name") or _as_mapping(query).get("tool")),

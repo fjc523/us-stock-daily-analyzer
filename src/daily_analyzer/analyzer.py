@@ -124,7 +124,20 @@ class AnalyzerGraph(TradingAgentsGraph):
         self.state_log_dir = Path(state_log_dir)
         self.context_blocks = dict(context_blocks)
         self.context_as_of = context_as_of
-        self.injected_context = render_context(self.context_blocks, context_as_of)
+        horizon = config.get("decision_horizon_trading_days", (5, 20))
+        validity = config.get("decision_plan_validity_trading_days", 5)
+        cutoff = config.get("news_cutoff_utc") or "实时工具数据以各次查询记录为准，未冻结"
+        framework = (
+            "## 决策框架\n"
+            f"运行时点：{_timestamp(clock)}；附加上下文截至：{context_as_of.isoformat()}；信息截止：{cutoff}。\n"
+            f"最新完整日线日期P：{config.get('price_data_end_date') or '未提供'}。\n"
+            f"方向与目标配置周期：未来{horizon[0]}–{horizon[1]}个交易日；"
+            f"点位方案有效期：分析当日起{validity}个交易日。\n"
+            "单标的标准仓位=100%，是该标的计划持仓量，不是账户总资产比例或现有持仓买卖比例。"
+        )
+        if item.type == "index":
+            framework += f"\n订阅为指数{item.symbol}，以代理ETF {item.analysis_symbol}的价格给出点位。"
+        self.injected_context = framework + "\n\n" + render_context(self.context_blocks, context_as_of)
         self.tool_trace = ToolTraceCallback(clock, progress_path=self.state_log_dir.parent / "progress.json")
         self._clock = clock
         self._portfolio = portfolio
@@ -147,7 +160,21 @@ class AnalyzerGraph(TradingAgentsGraph):
         asset_type: str = "stock",
         trade_date: str | None = None,
     ) -> str:
-        base = super().resolve_instrument_context(ticker, asset_type, trade_date)
+        from tradingagents.agents.context import build_instrument_context
+        from daily_analyzer.data_sources.futu import get_shared_data_source
+        identity = {"company_name": self.item.name} if self.item.name else {}
+        try:
+            details = get_shared_data_source().identity(ticker)
+            identity = {**details, **identity}
+        except Exception:
+            pass
+        if identity.get("company_name"):
+            base = build_instrument_context(ticker, asset_type, identity, trade_date)
+            from tradingagents.dataflows.date_window import is_historical
+            if asset_type == "stock" and identity.get("business") and not is_historical(trade_date):
+                base += "\n富途公司简介（当前资料）：" + identity["business"][:240]
+        else:
+            base = super().resolve_instrument_context(ticker, asset_type, trade_date)
         return f"{base}\n\n{self.injected_context}" if self.injected_context else base
 
     def create_run_state(
@@ -254,6 +281,7 @@ def build_upstream_config(
             "codex_usage_log_path": str(batch / "llm_calls.jsonl"),
             "codex_prompt_log_dir": str(batch / "prompts") if settings.llm.log_prompts else None,
             "market_timezone": "America/New_York",
+            "futu_enabled": settings.futu.enabled,
             "trade_date": trade_date,
             "price_data_end_date": price_data_end_date,
             "news_cutoff_utc": news_cutoff_utc.isoformat() if news_cutoff_utc else None,
@@ -264,11 +292,35 @@ def build_upstream_config(
             "output_language": settings.tradingagents.output_language,
             "max_debate_rounds": settings.tradingagents.max_debate_rounds,
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
+            "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "checkpoint_enabled": False,
+            "decision_horizon_trading_days": list(settings.decision.horizon_trading_days),
+            "decision_plan_validity_trading_days": settings.decision.plan_validity_trading_days,
         }
     )
+    for key, value in settings.price_plan.model_dump().items():
+        config[f"price_plan_{key}"] = value
+    from daily_analyzer.data_sources.futu import get_shared_data_source
+    from tradingagents.dataflows.ohlcv_sources import register_ohlcv_source
+    source = get_shared_data_source()
+    source.host, source.port = settings.futu.host, settings.futu.port
+    register_ohlcv_source("futu", source.daily_bars)
+    from tradingagents.dataflows.router import register_vendor_method
+    from functools import partial
+    for method, impl in {"get_fundamentals": source.fundamentals, "get_insider_transactions": source.insiders,
+                         "get_news": source.news, "get_macro_indicators": source.macro,
+                         "get_balance_sheet": partial(source.statements, 2),
+                         "get_income_statement": partial(source.statements, 1),
+                         "get_cashflow": partial(source.statements, 3)}.items():
+        register_vendor_method(method, "futu", impl)
+    from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
+    register_vendor_method('get_macro_indicators', 'fred_public', TREASURY_SOURCE.macro)
+    config["tool_vendors"].update({"get_fundamentals":"futu,yfinance", "get_insider_transactions":"futu,yfinance",
+         "get_news":"alpaca,futu,yfinance", "get_macro_indicators":"fred_public,futu,fred",
+         **{key:"sec_edgar,futu,yfinance" for key in ("get_balance_sheet", "get_income_statement", "get_cashflow")}})
     config.setdefault("data_vendors", {})["news_data"] = "alpaca,yfinance"
     config["data_vendors"]["core_stock_apis"] = (
-        "yfinance,alpha_vantage" if has_alpha_vantage else "yfinance"
+        "alpaca,futu,yfinance,alpha_vantage" if has_alpha_vantage else "alpaca,futu,yfinance"
     )
+    config["data_vendors"]["technical_indicators"] = config["data_vendors"]["core_stock_apis"]
     return config

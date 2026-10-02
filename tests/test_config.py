@@ -426,3 +426,28 @@ def test_settings_and_watchlist_files_must_stay_inside_project(tmp_path: Path) -
     (root / "config" / "watchlist.yaml").symlink_to(outside)
     with pytest.raises(ConfigurationError):
         load_watchlist(root)
+
+
+def test_decision_and_price_plan_defaults_and_constraints():
+    settings = parse_settings({})
+    assert settings.decision.horizon_trading_days == (5, 20)
+    assert settings.decision.plan_validity_trading_days == 5
+    assert settings.price_plan.stop_atr_normal == (1.5, 2.0)
+    assert settings.price_plan.min_reward_risk == 1.5
+    for value in ({"stop_atr_min": 3}, {"stop_atr_normal": [2, 1.5]},
+                  {"stop_atr_max": 1}, {"min_reward_risk": 0}, {"stop_atr_min": float("nan")}):
+        with pytest.raises(ConfigurationError):
+            parse_settings({"price_plan": value})
+    for value in ({"horizon_trading_days": [0, 20]}, {"horizon_trading_days": [20, 5]},
+                  {"plan_validity_trading_days": 0}):
+        with pytest.raises(ConfigurationError):
+            parse_settings({"decision": value})
+
+
+def test_example_settings_file_parses_with_stocktwits_disabled() -> None:
+    import yaml
+
+    data = yaml.safe_load((PROJECT_ROOT / "config" / "settings.example.yaml").read_text(encoding="utf-8"))
+    settings = parse_settings(data)
+    assert settings.tradingagents.stocktwits_enabled is False
+    assert "price_anchors" in settings.context_providers

@@ -91,6 +91,7 @@ class _FakeGraph:
     errors_by_symbol: dict[str, BaseException] = {}
     configs: list[dict[str, object]] = []
     analyzed: list[str] = []
+    asset_types: list[str] = []
     key_ids: list[str | None] = []
     context_as_of_values: list[datetime] = []
     report_threads: list[int] = []
@@ -106,6 +107,7 @@ class _FakeGraph:
 
     def propagate(self, company_name: str, trade_date: str, **kwargs: object):
         self.analyzed.append(self.item.symbol)
+        self.asset_types.append(kwargs["asset_type"])
         if self.item.symbol in self.errors_by_symbol:
             raise self.errors_by_symbol[self.item.symbol]
         if self.item.symbol in self.fail_symbols:
@@ -146,6 +148,7 @@ def _run(
 ):
     _FakeGraph.configs = []
     _FakeGraph.analyzed = []
+    _FakeGraph.asset_types = []
     _FakeGraph.key_ids = []
     _FakeGraph.context_as_of_values = []
     _FakeGraph.report_threads = []
@@ -232,6 +235,9 @@ def test_prepare_failure_finalizes_batch_instead_of_leaving_it_running(
     monkeypatch.setattr(runner, "_fork_state", lambda root: {})
     manager = _ContextManager()
     manager.prepare_error = RuntimeError("fixture prepare failure")
+    from daily_analyzer.data_sources.futu import get_shared_data_source
+    released = []
+    monkeypatch.setattr(get_shared_data_source(), "close_batch", lambda: released.append(True))
     root = _project(tmp_path, ("NVDA",))
     now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
 
@@ -239,6 +245,7 @@ def test_prepare_failure_finalizes_batch_instead_of_leaving_it_running(
 
     assert result.exit_code == 1
     assert manager.closed
+    assert released == [True]
     batch = json.loads(
         (root / "data" / "runs" / "2026-10-02" / "batches" / result.run_id / "batch.json").read_text(encoding="utf-8")
     )
@@ -901,3 +908,14 @@ def test_subscription_changes_apply_only_to_next_batch(tmp_path, monkeypatch):
     assert _run(root, clock=lambda: now + timedelta(minutes=2), force=True).exit_code == 0
     assert set(_FakeGraph.analyzed) == {"SPY", "AAPL"}
     assert (root / "data/runs/2026-10-02/current/NVDA.json").is_file()
+
+
+def test_runner_passes_fund_type_for_etf_and_index(tmp_path, monkeypatch):
+    import daily_analyzer.runner as runner
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: "test")
+    root = _project(tmp_path, symbols=("TSLA", "SPY"), parallelism=1)
+    with (root / "config/watchlist.yaml").open("a") as stream:
+        stream.write("  - symbol: ^GSPC\n    type: index\n    proxy: SPY\n")
+    result = _run(root, clock=lambda: datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK), force=True)
+    assert result.exit_code == 0
+    assert _FakeGraph.asset_types == ["stock", "etf", "etf"]

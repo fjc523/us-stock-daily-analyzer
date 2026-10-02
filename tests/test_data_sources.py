@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import ast
 import sys
 from datetime import date, datetime
@@ -78,12 +79,12 @@ def test_main_project_has_no_direct_alpaca_http_client() -> None:
                 names = {node.module or ""}
             else:
                 continue
-            if path.name == "index_metadata.py":
+            if path.name in {"index_metadata.py", "vix.py"}:
                 # 发行方持仓允许独立HTTP读取，不允许把Alpaca入口混入此例外。
                 assert not names.intersection(forbidden_imports - {"requests"}), path
                 from urllib.parse import urlsplit
                 from daily_analyzer.data_sources.index_metadata import HOLDINGS_URLS
-                assert {urlsplit(url).hostname for url in HOLDINGS_URLS.values()} == {"dng-api.invesco.com", "www.ssga.com"}
+                assert {urlsplit(url).hostname for url in HOLDINGS_URLS.values()} == {"dng-api.invesco.com", "www.ssga.com", "www.ishares.com"}
                 continue
             assert not names.intersection(forbidden_imports), path
         content = path.read_text(encoding="utf-8")
@@ -270,7 +271,7 @@ def test_yfinance_daily_adjustment_and_end_date_filter() -> None:
 
     assert rows == [{"Date": "2026-09-30", "Close": 100}]
     assert ticker.history_calls == [
-        {"start": "2026-09-01", "end": "2026-10-01", "auto_adjust": True}
+        {"start": "2026-09-01", "end": "2026-10-01", "auto_adjust": True, "timeout": 10}
     ]
 
 
@@ -296,3 +297,147 @@ def test_yfinance_rate_limit_and_optional_calendar_fail_as_unavailable(tmp_path)
     assert source.daily_bars("NVDA", "2026-09-01", "2026-09-30") is None
     assert source.sector_etf("NVDA") is None
     assert source.economic_calendar("2026-10-01", "2026-10-01") is None
+
+
+def test_futu_daily_loader_paginates_and_closes():
+    import pandas as pd
+    from daily_analyzer.data_sources.futu import FutuDataSource
+    closed = []
+    calls = []
+    class Quote:
+        def __init__(self, **kwargs): pass
+        def request_history_kline(self, **kwargs):
+            calls.append(kwargs)
+            day = "2026-09-30" if kwargs['page_req_key'] is None else "2026-10-01"
+            return 0, pd.DataFrame([{'time_key': day, 'open': 1, 'high': 2, 'low': 1, 'close': 2, 'volume': 10}]), b'next' if kwargs['page_req_key'] is None else None
+        def close(self): closed.append(True)
+    source = FutuDataSource(context_factory=Quote)
+    data = source._history_daily_bars('TSLA', '2026-09-01', '2026-10-01')
+    assert len(data) == 2 and len(closed) == 2 and calls[1]['page_req_key'] == b'next'
+    assert calls[0]['autype'] == 'qfq' and data.columns.tolist() == ['Date','Open','High','Low','Close','Volume']
+
+
+@pytest.mark.parametrize('failure', ['quota exceeded', '未知的协议ID', '没有权限'])
+def test_futu_loader_classifies_vendor_failure(failure):
+    from daily_analyzer.data_sources.futu import FutuDataSource
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    class Quote:
+        def __init__(self, **kwargs): pass
+        def request_history_kline(self, **kwargs): return -1, failure
+        def close(self): pass
+    with pytest.raises(VendorUnavailableError, match='富途'):
+        FutuDataSource(context_factory=Quote)._history_daily_bars('TSLA', '2026-09-01', '2026-10-01')
+
+
+def test_futu_loader_connection_failure_is_vendor_unavailable():
+    from daily_analyzer.data_sources.futu import FutuDataSource
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    def broken(**kwargs): raise ConnectionError('断线')
+    with pytest.raises(VendorUnavailableError, match='ConnectionError'):
+        FutuDataSource(context_factory=broken).daily_bars('TSLA', '2026-09-01', '2026-10-01')
+
+
+@pytest.fixture
+def daily_subscription_source():
+    from daily_analyzer.data_sources.futu import FutuDataSource
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = datetime.now(ZoneInfo('America/New_York')).date().isoformat()
+    state = {'now': 0, 'remain': 5, 'subscribe': [], 'read': [], 'release': [], 'closed': 0, 'timers': [], 'history': []}
+    def row(day):
+        return {'time_key':day + ' 00:00:00','open':1,'high':2,'low':1,'close':2,'volume':10}
+    state['rows'] = [row('2026-09-29'), row('2026-09-30'), row('2026-10-01'), row(today)]
+    class Timer:
+        def __init__(self, delay, callback):
+            self.delay, self.callback, self.cancelled = delay, callback, False
+            state['timers'].append(self)
+        def start(self): pass
+        def cancel(self): self.cancelled = True
+    class Quote:
+        def __init__(self, **kwargs): pass
+        def query_subscription(self, **kwargs): return 0, {'remain':state['remain']}
+        def subscribe(self, codes, types, **kwargs):
+            state['subscribe'].append((codes, types))
+            return 0, ''
+        def get_cur_kline(self, code, **kwargs):
+            state['read'].append((code,kwargs))
+            return state.get('read_ret',0), state['rows']
+        def unsubscribe(self, codes, types):
+            state['release'].extend(codes)
+            return 0, ''
+        def close(self): state['closed'] += 1
+        def request_history_kline(self, **kwargs):
+            state['history'].append(kwargs)
+            return 0, [row(kwargs['start']), row(kwargs['end'])], None
+    return FutuDataSource(context_factory=Quote, clock=lambda:state['now'], timer_factory=Timer), state, today
+
+
+def test_futu_subscription_window_today_filter_and_batch_cache(daily_subscription_source):
+    source, state, today = daily_subscription_source
+    frame = source.daily_bars('TSLA','2026-09-30', today)
+    assert frame.Date.tolist() == ['2026-09-30','2026-10-01']
+    frame.loc[0,'Close'] = 999
+    narrow = source.daily_bars('US.TSLA','2026-10-01','2026-10-01')
+    assert narrow.Close.tolist() == [2]
+    assert len(state['subscribe']) == len(state['read']) == 1
+    assert state['read'][0][1] == {'num':1000,'ktype':'K_DAY','autype':'qfq'}
+    assert not state['history'] and not state['release']
+
+
+def test_futu_subscription_timer_releases_only_owned_codes(daily_subscription_source):
+    source, state, _ = daily_subscription_source
+    source.daily_bars('TSLA','2026-09-30','2026-10-01')
+    state['now'] = 30
+    source.daily_bars('SPY','2026-09-30','2026-10-01')
+    state['now'] = 60
+    state['timers'][0].callback()
+    assert state['release'] == ['US.TSLA'] and state['closed'] == 0
+    state['now'] = 90
+    state['timers'][1].callback()
+    assert state['release'] == ['US.TSLA','US.SPY'] and state['closed'] == 1
+    source.close_batch()
+    assert state['closed'] == 1
+
+
+def test_futu_batch_end_does_not_wait_or_unsubscribe_early(daily_subscription_source):
+    source, state, _ = daily_subscription_source
+    source.daily_bars('TSLA','2026-09-30','2026-10-01')
+    source.close_batch()
+    assert not state['release'] and not state['closed']
+    assert state['timers'][0].delay == 60
+    state['now'] = 61
+    source.close_batch()
+    assert state['release'] == ['US.TSLA'] and state['closed'] == 1
+    assert state['timers'][0].cancelled
+
+
+def test_futu_subscription_quota_failure_never_touches_other_subscriptions(daily_subscription_source):
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    source, state, _ = daily_subscription_source
+    state['remain'] = 0
+    with pytest.raises(VendorUnavailableError,match='额度不足'):
+        source.daily_bars('TSLA','2026-09-30','2026-10-01')
+    assert not state['subscribe'] and not state['release'] and not state['history']
+    assert state['closed'] == 1
+
+
+def test_futu_outside_current_coverage_uses_history_quota(daily_subscription_source, caplog):
+    import logging
+    source, state, _ = daily_subscription_source
+    with caplog.at_level(logging.INFO):
+        frame = source.daily_bars('TSLA','2020-01-01','2026-09-30')
+    assert frame.Date.tolist() == ['2020-01-01','2026-09-30']
+    assert len(state['subscribe']) == 1 and len(state['history']) == 1
+    assert '消耗历史K线额度' in caplog.text
+
+
+def test_futu_read_failure_keeps_timer_cleanup_without_history_fallback(daily_subscription_source):
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    source, state, _ = daily_subscription_source
+    state['read_ret'] = -1
+    with pytest.raises(VendorUnavailableError,match='读取不可用'):
+        source.daily_bars('TSLA','2026-09-30','2026-10-01')
+    assert not state['history']
+    state['now'] = 60
+    state['timers'][0].callback()
+    assert state['release'] == ['US.TSLA'] and state['closed'] == 1

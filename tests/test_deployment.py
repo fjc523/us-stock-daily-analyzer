@@ -1,4 +1,5 @@
 import json
+import pytest
 import importlib
 import os
 import plistlib
@@ -150,6 +151,7 @@ def _probe_set(ping: dict | None = None) -> dict:
         "alpaca": lambda: {"ok": True, "detail": "历史日线可用", "remaining": 187},
         "futu": lambda: {"ok": True, "detail": "OpenD 已连接", "remaining": 88},
         "yfinance": lambda: {"ok": True, "detail": "Yahoo 可用"},
+        "cboe": lambda: {"ok": True, "detail": "CBOE可用"},
     }
     if ping is not None:
         values["ping"] = lambda: ping
@@ -376,6 +378,9 @@ def test_default_external_probes_use_mock_clients_and_close_futu(tmp_path: Path,
         def __init__(self, **kwargs):
             calls.append(("futu-open", kwargs))
 
+        def get_global_state(self):
+            return 0, {"server_ver":"1011"}
+
         def query_subscription(self):
             calls.append(("futu-query",))
             return 0, {"remain": 74}
@@ -509,3 +514,16 @@ def test_schedule_weekdays_follow_anchor_date_across_midnight():
     assert len(beijing) == 10 and {point["Weekday"] for point in beijing} == {1, 2, 3, 4, 5}
     tokyo = schedule_calendar_intervals("15:30 America/New_York", local_timezone="Asia/Tokyo", year=2026)
     assert {point["Weekday"] for point in tokyo} == {2, 3, 4, 5, 6}
+
+
+@pytest.mark.parametrize('version,warning', [('1009',True),('1011',False)])
+def test_doctor_checks_opend_server_version(monkeypatch,version,warning):
+    module=importlib.import_module('daily_analyzer.deployment.doctor')
+    class Quote:
+        def __init__(self,**kwargs):pass
+        def query_subscription(self):return 0,{'remain':10}
+        def get_global_state(self):return 0,{'server_ver':version}
+        def close(self):pass
+    monkeypatch.setitem(sys.modules,'futu',SimpleNamespace(OpenQuoteContext=Quote,RET_OK=0))
+    result=module._probe_futu(SimpleNamespace(futu=SimpleNamespace(enabled=True,host='127.0.0.1',port=11111)))
+    assert result['warning'] is warning and result['server_ver']==int(version)

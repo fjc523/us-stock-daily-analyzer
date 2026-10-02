@@ -247,6 +247,7 @@ class SectorStrengthProvider:
         symbols = [*SECTOR_ETFS, "SPY"]
         unresolved = []
         stock_symbols = []
+        official = self.services.index_metadata.lookup([_symbol(item) for item in _items(batch) if _item_type(item) == "stock"]) if str(_value(batch, "mode", "live")) != "backfill" else {}
         for item in _items(batch):
             if _item_type(item) != "stock":
                 continue
@@ -261,15 +262,18 @@ class SectorStrengthProvider:
                 self.stock_sector_etfs[symbol] = (sector_etf, True)
                 symbols.append(sector_etf)
             else:
-                self._sector_source_used = True
-                sector_etf = self.services.yahoo.sector_etf(symbol)
+                metadata = official.get(symbol, {})
+                sector_etf = metadata.get("benchmark_symbol") if metadata.get("benchmark_kind") == "sector" else None
+                if not sector_etf:
+                    self._sector_source_used = True
+                    sector_etf = self.services.yahoo.sector_etf(symbol)
                 self.stock_sector_etfs[symbol] = (sector_etf, False)
                 if sector_etf:
                     symbols.append(sector_etf)
             sector_etf, manual = self.stock_sector_etfs[symbol]
             if sector_etf:
                 self.benchmarks[symbol] = {"benchmark_symbol": sector_etf, "benchmark_kind": "sector",
-                                           "benchmark_reason": "手工指定板块" if manual else "Yahoo板块映射"}
+                                           "benchmark_reason": "手工指定板块" if manual else official[symbol]["benchmark_reason"] if official.get(symbol, {}).get("benchmark_kind") == "sector" else "Yahoo板块映射"}
             else:
                 unresolved.append(symbol)
         if stock_symbols:
@@ -277,7 +281,7 @@ class SectorStrengthProvider:
                 self.index_memberships = {s: {"benchmark_symbol": "SPY", "benchmark_kind": "default", "index_symbol": None,
                                                "benchmark_reason": "回放未核验历史指数成员，默认SPY"} for s in stock_symbols}
             else:
-                self.index_memberships = self.services.index_metadata.lookup(stock_symbols)
+                self.index_memberships = official
             symbols.extend(row.get("index_symbol") or "SPY" for row in self.index_memberships.values())
             for symbol in unresolved:
                 self.benchmarks[symbol] = self.index_memberships[symbol]
@@ -450,7 +454,7 @@ class ExtendedHoursProvider:
         target_change = _number(payload.get(target_symbol, {}).get("pre", {}).get("change_pct"))
         relative = target_change - spy_change if target_change is not None and spy_change is not None else None
         payload["premarket_relative_to_spy_pct"] = relative
-        lines = ["| 标的 | 时段 | 最新价 | 相对 P 收盘 | 成交量 | 最高 | 最低 | 报价时间 | 来源 | 状态 |", "|---|---|---:|---:|---:|---:|---:|---|---|---|"]
+        lines = ["| 标的 | 时段 | 最新价 | 来源前收盘 | 相对 P 收盘 | 成交量 | 最高 | 最低 | 报价时间 | 来源 | 状态 |", "|---|---|---:|---:|---:|---:|---:|---:|---|---|---|"]
         for symbol in symbols:
             for session, label in (("after", "上一交易日盘后"), ("overnight", "夜盘"), ("pre", "盘前")):
                 segment = payload.get(symbol, {}).get(session, {})
@@ -459,6 +463,7 @@ class ExtendedHoursProvider:
                     status = f"{status}（{segment['warning']}）"
                 lines.append(
                     f"| {symbol} | {label} | {_format_number(segment.get('price'))} | "
+                    f"{_format_number(segment.get('source_previous_close'))} | "
                     f"{_format_pct(_number(segment.get('change_pct')) / 100 if _number(segment.get('change_pct')) is not None else None)} | "
                     f"{segment.get('volume') if segment.get('volume') is not None else '—'} | "
                     f"{_format_number(segment.get('high'))} | {_format_number(segment.get('low'))} | "
@@ -467,6 +472,16 @@ class ExtendedHoursProvider:
                 )
         if futu_warning:
             lines.insert(0, f"数据源说明：{futu_warning}。")
+        conventions = {
+            segment.get("previous_close_convention")
+            for symbol in symbols
+            for segment in payload.get(symbol, {}).values()
+            if isinstance(segment, Mapping)
+        }
+        if "futu_prior_session" in conventions:
+            lines.append(f"\n注：富途来源前收盘为 P 前一交易日收盘（新交易日开盘前口径），涨跌幅统一按 P（{price_end.isoformat()}）官方收盘计算。")
+        if "alpaca_overnight" in conventions:
+            lines.append("\n注：Alpaca 夜盘来源前收盘与常规时段收盘口径不同，仅列示，不参与核对。")
         lines.append(f"\n{target_symbol} 相对 SPY 的盘前涨跌幅差：{_format_pct(relative / 100 if relative is not None else None)}。")
         return ContextBlock(self.name, "\n".join(lines), payload, as_of, _source_list(sources))
 
@@ -528,7 +543,8 @@ class ExtendedHoursProvider:
 
         segments: dict[str, dict[str, Any]] = {symbol: {} for symbol in symbols}
         for symbol in symbols:
-            close = self._previous_close(symbol, price_end)
+            close, prior_close = self._recent_closes(symbol, price_end)
+            benchmark_verified = close is not None
             for segment in ("after", "overnight", "pre"):
                 entries = candidates[symbol][segment]
                 raw = next((entry for entry in entries if entry["status"] == "可用"), None)
@@ -542,18 +558,18 @@ class ExtendedHoursProvider:
                     raw = entries[0]
                 if raw is None:
                     raw = _empty_segment("数据不可用")
-                if close is None:
-                    close = _number(raw.get("previous_close"))
-                    if close is None:
-                        close = next(
-                            (
-                                _number(candidate.get("previous_close"))
-                                for entries in candidates[symbol].values()
-                                for candidate in entries
-                                if _number(candidate.get("previous_close")) is not None
-                            ),
-                            None,
-                        )
+                raw["source_previous_close"] = _number(raw.get("previous_close"))
+                raw["benchmark_verified"] = benchmark_verified
+                raw["official_previous_close"] = close if benchmark_verified else None
+                warning = raw.get("warning", "")
+                if not benchmark_verified:
+                    raw["warning"] = "；".join(filter(None, [warning, "基准未核验"]))
+                else:
+                    convention = _previous_close_convention(raw, close, prior_close)
+                    if convention == "mismatch":
+                        raw["warning"] = "；".join(filter(None, [warning, "来源前收盘与P官方收盘不一致（超过0.1%）"]))
+                    elif convention:
+                        raw["previous_close_convention"] = convention
                 raw["change_pct"] = _change_pct(raw.get("price"), close) if raw.get("status") not in {"非本时段数据", "过期"} else None
                 segments[symbol][segment] = raw
                 if raw.get("source"):
@@ -605,7 +621,13 @@ class ExtendedHoursProvider:
         end_day = _price_end(self.batch)
         for symbol in symbols:
             close = self._previous_close(symbol, end_day)
-            payload[symbol]["pre"]["change_pct"] = _change_pct(payload[symbol]["pre"].get("price"), close)
+            pre = payload[symbol]["pre"]
+            pre["source_previous_close"] = None
+            pre["official_previous_close"] = close
+            pre["benchmark_verified"] = close is not None
+            if close is None:
+                pre["warning"] = "；".join(filter(None, [pre.get("warning"), "基准未核验"]))
+            pre["change_pct"] = _change_pct(pre.get("price"), close)
         return payload, ["Alpaca feed=iex 历史分钟线"]
 
     def _previous_close(self, symbol: str, end: date) -> float | None:
@@ -613,6 +635,18 @@ class ExtendedHoursProvider:
         from .market_data import calculate_window_metrics
 
         return _number(calculate_window_metrics(rows, end, (1,)).get("close"))
+
+    def _recent_closes(self, symbol: str, end: date) -> tuple[float | None, float | None]:
+        """返回 P 官方收盘与 P 前一交易日收盘；P 收盘缺失时两者都不用于核对。"""
+        close = self._previous_close(symbol, end)
+        if close is None:
+            return None, None
+        rows, _source = self.services.prices.bars(symbol, end)
+        from .market_data import normalize_closes
+
+        closes = normalize_closes(rows, end)
+        earlier = [day for day in closes if day < end]
+        return close, _number(closes[max(earlier)]) if earlier else None
 
 
 class MacroReleasesProvider:
@@ -622,18 +656,64 @@ class MacroReleasesProvider:
     def __init__(self, services: ProviderServices) -> None:
         self.services = services
         self.batch: Any = None
+        self.calendars = {}
+        self.treasury = ''
 
     def prepare(self, batch: Any) -> None:
         self.batch = batch
+        source = self.services.futu_data
+        if source is not None:
+            start = _trade_date(batch)
+            horizon = _value(batch, "decision_horizon_trading_days", (5, 20))
+            import exchange_calendars as xcals
+            calendar = xcals.get_calendar("XNYS")
+            first = calendar.date_to_session(start.isoformat(), direction="next")
+            end = calendar.session_offset(first, int(horizon[1])).date()
+            self.calendars = source.calendars(start, end, [_symbol(item) if _item_type(item) != "index" else _value(item, "proxy", _symbol(item)) for item in _items(batch)], _cutoff_datetime(_value(batch, "context_as_of")))
+            from tradingagents.dataflows.vendor_observer import observed_call
+            from tradingagents.dataflows.yahoo_breaker import check_yahoo_breaker
+            from tradingagents.dataflows.errors import VendorUnavailableError
+            warnings = self.calendars['warnings']
+            for category, key, prefix in [('财报日历','earnings','财报日历不可用'), ('经济日历','economics','经济日历不可用')]:
+                if not any(warning.startswith(prefix) for warning in warnings):
+                    continue
+                def fallback():
+                    check_yahoo_breaker()
+                    if key == 'earnings':
+                        return [row for item in _items(batch) for row in self.services.yahoo.earnings_calendar(
+                            _symbol(item) if _item_type(item) != 'index' else _value(item,'proxy',_symbol(item)), start, end)]
+                    rows = self.services.yahoo.economic_calendar(start, end)
+                    if rows is None:
+                        raise VendorUnavailableError('Yahoo经济日历不可用')
+                    return rows
+                try:
+                    rows = observed_call('get_earnings_calendar' if key == 'earnings' else 'get_economic_calendar', 'yfinance', fallback)
+                    self.calendars[key].extend(rows)
+                    warnings.append(category+'已尝试Yahoo兜底；覆盖不保证完整')
+                except Exception as exc:
+                    warnings.append(category+'的Yahoo兜底不可用：'+str(exc))
+            from tradingagents.dataflows.config import run_config
+            from tradingagents.dataflows.router import route_to_vendor
+            with run_config({'price_data_end_date':str(_price_end(batch)),
+                             'news_cutoff_utc':_cutoff_datetime(_value(batch,'context_as_of')).isoformat() if _value(batch,'mode','live') == 'backfill' else None,
+                             'tool_vendors':{'get_macro_indicators':'fred_public,futu,fred'}}):
+                self.treasury = route_to_vendor('get_macro_indicators','10y_treasury',start.isoformat(),90)
 
     def build(self, item: Any, cutoff: datetime | date | str) -> ContextBlock:
-        del item
         if self.batch is None:
             raise ValueError("macro_releases 尚未准备")
         trade_day = _trade_date(self.batch)
         as_of = _cutoff_datetime(cutoff)
         start = datetime.combine(trade_day, time.min, EASTERN)
-        result = self.services.alpaca.news(None, start, as_of, limit=None, max_pages=20)
+        news_warning = []
+        try:
+            from tradingagents.dataflows.vendor_observer import observed_call
+            result = observed_call("get_news", "Alpaca Benzinga 新闻", self.services.alpaca.news, None, start, as_of, limit=None, max_pages=20)
+        except Exception as exc:
+            if not self.calendars:
+                raise
+            result = {"articles": [], "truncated": False}
+            news_warning.append("宏观新闻不可用：" + type(exc).__name__)
         articles = list(result.get("articles", []))
         start_utc = start.astimezone(timezone.utc)
         end_utc = as_of.astimezone(timezone.utc)
@@ -691,7 +771,7 @@ class MacroReleasesProvider:
             }
             for article in reversed(articles[-20:])
         ]
-        calendar_rows = self.services.yahoo.economic_calendar(trade_day, trade_day)
+        calendar_rows = None if self.calendars else self.services.yahoo.economic_calendar(trade_day, trade_day)
         upcoming = _upcoming_events(calendar_rows or [], trade_day, as_of)
 
         lines = ["#### 今日经济数据"]
@@ -725,6 +805,8 @@ class MacroReleasesProvider:
         data = {
             "trade_date": trade_day.isoformat(),
             "as_of": as_of.isoformat(),
+            "warnings": news_warning,
+            "treasury_yield": self.treasury,
             "releases": releases,
             "prior_revised": revised,
             "unparsed_economic_titles": unparsed,
@@ -733,7 +815,23 @@ class MacroReleasesProvider:
             "truncated": truncated,
             "post_cutoff_revisions": post_cutoff_revisions,
         }
-        return ContextBlock(self.name, "\n".join(lines), data, as_of, ("Alpaca Benzinga 新闻", *(["Yahoo Finance 经济日历"] if upcoming else [])))
+        sources = ["Alpaca Benzinga 新闻", *(["Yahoo Finance 经济日历"] if upcoming else [])]
+        if self.treasury:
+            lines.extend(['', '#### 美债宏观因素', self.treasury])
+            if self.treasury.startswith(('DATA_UNAVAILABLE','NO_DATA_AVAILABLE')):
+                data['warnings'].append('美债收益率不可用')
+            else:
+                sources.append('FRED公开CSV收益率' if 'FRED公开CSV' in self.treasury else '富途/FRED美债收益率')
+        if self.calendars:
+            import json
+            earnings = [row for row in self.calendars["earnings"] if row.get("security") == futu_symbol(_symbol(item) if _item_type(item) != "index" else _value(item, "proxy", _symbol(item)))]
+            data["calendars"] = {**self.calendars, "earnings": earnings}
+            lines.extend(["", "#### 决策周期日历（富途）", json.dumps(earnings, ensure_ascii=False, default=str) if earnings else "日历中未找到已确认的财报日",
+                          "美国经济事件：", json.dumps(self.calendars["economics"], ensure_ascii=False, default=str)])
+            sources.append("Futu 财报与美国经济日历")
+            if any('已尝试Yahoo兜底' in warning for warning in self.calendars['warnings']):
+                sources.append('Yahoo日历兜底')
+        return ContextBlock(self.name, "\n".join(lines), data, as_of, sources)
 
 
 def _row_get(row: Any, *keys: str) -> Any:
@@ -760,6 +858,21 @@ def _empty_segment(status: str) -> dict[str, Any]:
         "status": status,
         "session_verified": False,
     }
+
+
+def _previous_close_convention(raw: Mapping[str, Any], close: float, prior_close: float | None) -> str | None:
+    """判定来源自带前收盘的口径：一致返回 None，口径差异返回说明键，真正不一致返回 mismatch。"""
+    source_close = _number(raw.get("source_previous_close"))
+    if not source_close:
+        return None
+    if raw.get("source") == "Alpaca feed=overnight":
+        # 夜盘行情自带的前收盘与常规时段收盘口径不同，只列示不核对。
+        return "alpaca_overnight"
+    if abs(source_close / close - 1) <= 0.001:
+        return None
+    if "富途" in str(raw.get("source", "")) and prior_close and abs(source_close / prior_close - 1) <= 0.001:
+        return "futu_prior_session"
+    return "mismatch"
 
 
 def _change_pct(price: Any, close: Any) -> float | None:
@@ -904,7 +1017,10 @@ def _upcoming_events(rows: Sequence[Mapping[str, Any]], trade_day: date, cutoff:
     return output
 
 
+from .price_anchors import PriceAnchorsProvider
+
 PROVIDER_CLASSES = {
+    "price_anchors": PriceAnchorsProvider,
     "market_regime": MarketRegimeProvider,
     "sector_strength": SectorStrengthProvider,
     "extended_hours": ExtendedHoursProvider,

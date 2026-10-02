@@ -131,35 +131,44 @@ def calculate_window_metrics(
 
 
 class DailyPriceService:
-    """优先 Alpaca SIP 复权日线，失败时回退至 Yahoo auto_adjust。"""
+    """日线来源按Alpaca、富途、Yahoo顺序降级。"""
 
-    def __init__(self, alpaca: Any, yahoo: Any) -> None:
+    def __init__(self, alpaca: Any, yahoo: Any, futu: Any = None, vix: Any = None) -> None:
         self.alpaca = alpaca
         self.yahoo = yahoo
+        self.futu = futu
+        self.vix = vix
         self._cache: dict[tuple[str, date], tuple[list[dict[str, Any]], str]] = {}
 
     def bars(self, symbol: str, end: date) -> tuple[list[dict[str, Any]], str]:
         key = (symbol.upper(), end)
         if key in self._cache:
             return self._cache[key]
+        from tradingagents.dataflows.vendor_observer import observed_call
+        from tradingagents.dataflows.errors import NoMarketDataError
         start = end - timedelta(days=500)
-        rows: list[dict[str, Any]] = []
+        rows = []
         source = "不可用"
         if symbol.upper() == "^VIX":
-            rows = self.yahoo.daily_bars(symbol, start, end) or []
-            source = "yfinance auto_adjust=True" if rows else "不可用"
+            chain = [] if self.vix is None else [("CBOE VIX", lambda: self.vix.cboe(start, end)), ("FRED VIXCLS", lambda: self.vix.fred(start, end))]
+            chain.append(("yfinance auto_adjust=True", lambda: self.yahoo.daily_bars(symbol, start, end)))
         else:
+            chain = [("Alpaca SIP adjustment=all", lambda: list(self.alpaca.daily_bars([symbol], start, end).get(symbol, [])))]
+            if self.futu is not None:
+                chain.append(("Futu QFQ", lambda: self.futu.daily_bars(symbol, start, end).to_dict(orient="records")))
+            chain.append(("yfinance auto_adjust=True", lambda: self.yahoo.daily_bars(symbol, start, end)))
+        for name, loader in chain:
+            def valid_rows():
+                values = loader() or []
+                if normalize_closes(values, end).get(end) is None:
+                    raise NoMarketDataError(symbol, symbol, "没有P日完整日线")
+                return values
             try:
-                response = self.alpaca.daily_bars([symbol], start, end)
-                rows = list(response.get(symbol, []))
-                if rows:
-                    source = "Alpaca SIP adjustment=all"
+                rows = observed_call("vix" if symbol.upper() == "^VIX" else "daily_bars", name, valid_rows, observation_symbol=symbol)
+                source = name
+                break
             except Exception:
                 rows = []
-            if not rows:
-                rows = self.yahoo.daily_bars(symbol, start, end) or []
-                if rows:
-                    source = "yfinance auto_adjust=True"
         result = (rows, source)
         self._cache[key] = result
         return result

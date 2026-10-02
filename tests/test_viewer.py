@@ -300,7 +300,7 @@ def test_analyze_all_launches_enabled_subscriptions_with_shared_lock(tmp_path):
 def test_settings_preserve_hidden_values_and_validate_atomically(tmp_path, monkeypatch):
     root = project(tmp_path)
     path = root / "config/settings.yaml"
-    path.write_text("llm:\n  call_timeout_seconds: 720\nrun:\n  max_duration_minutes: 160\nfutu:\n  port: 12345\n")
+    path.write_text("llm:\n  call_timeout_seconds: 720\nrun:\n  max_duration_minutes: 160\nfutu:\n  port: 12345\ndecision:\n  horizon_trading_days: [7, 15]\nprice_plan:\n  min_reward_risk: 2.0\n")
     store = SettingsStore(root)
     store.update({"llm": {"quick": {"model": "gpt-6.1-sol", "reasoning_effort": "medium"},
                           "deep": {"model": "gpt-6.1-sol", "reasoning_effort": "xhigh"},
@@ -308,6 +308,8 @@ def test_settings_preserve_hidden_values_and_validate_atomically(tmp_path, monke
     raw = yaml.safe_load(path.read_text())
     assert raw["llm"]["call_timeout_seconds"] == 720 and raw["futu"]["port"] == 12345
     assert raw["run"]["max_duration_minutes"] == 160
+    assert raw["decision"]["horizon_trading_days"] == [7, 15]
+    assert raw["price_plan"]["min_reward_risk"] == 2.0
     original = path.read_bytes()
     for command in ({"run": {"max_parallel_tickers": 0}}, {"llm": {"deep": {"reasoning_effort": "bad"}}},
                     {"llm": {"provider": "bad"}}, {"futu": {"enabled": False}},

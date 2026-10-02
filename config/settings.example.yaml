@@ -19,12 +19,25 @@ tradingagents:
   output_language: Chinese
   max_debate_rounds: 1
   max_risk_discuss_rounds: 1
+  # StockTwits 公共接口目前被 Cloudflare 拦截，缺省关闭；开启后照常请求，失败记为失败
+  stocktwits_enabled: false
 
 context_providers:
   - market_regime
   - sector_strength
   - extended_hours
   - macro_releases
+  - price_anchors
+
+decision:
+  horizon_trading_days: [5, 20]
+  plan_validity_trading_days: 5
+
+price_plan:
+  stop_atr_min: 1.0
+  stop_atr_normal: [1.5, 2.0]
+  stop_atr_max: 2.5
+  min_reward_risk: 1.5
 
 run:
   max_parallel_tickers: 3

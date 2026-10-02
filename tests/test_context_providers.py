@@ -717,3 +717,62 @@ def test_macro_provider_network_failure_becomes_unavailable_context() -> None:
     block = manager.build(item, "2026-10-01T08:31:00-04:00")["macro_releases"]
 
     assert block.markdown == "该维度数据不可用：RuntimeError；经济数据与要闻不可用。"
+
+
+def test_quality_flags_are_numbered_once_and_referenced():
+    blocks = {"sample": ContextBlock("样本", "IEX 覆盖不完整；IEX 覆盖不完整", {
+        "segments": [{"warning": "IEX 覆盖不完整"}, {"warnings": ["IEX 覆盖不完整"], "status": "过期"}],
+        "truncated": True,
+    }, "2026-10-02", ["Alpaca"])}
+    text = render_context(blocks, "2026-10-02")
+    assert text.count("IEX 覆盖不完整") == 1
+    assert text.count("数据限制#1") == 2
+    assert "1. IEX 覆盖不完整" in text and "2. 过期" in text and "3. 新闻翻页达到上限" in text
+    assert text.index("数据质量与限制") > text.index("### 样本")
+
+
+
+def test_extended_price_base_is_official_and_mismatch_is_visible():
+    row = _futu_row("NVDA")
+    row["prev_close_price"] = 98.0
+    provider, _ = _extended_provider(FakeFutu(rows={"US.NVDA":row}))
+    item = WatchlistItem(symbol="NVDA",type="stock")
+    segment = provider.build(item,"2026-10-01T08:31:00-04:00").data["NVDA"]["pre"]
+    assert segment["source_previous_close"] == 98
+    assert segment["official_previous_close"] == 100
+    assert segment["change_pct"] == pytest.approx(1)
+    assert "不一致" in segment["warning"]
+    provider.services.prices.rows["NVDA"] = []
+    segment = provider.build(item,"2026-10-01T08:31:00-04:00").data["NVDA"]["pre"]
+    assert segment["change_pct"] is None
+    assert "基准未核验" in segment["warning"]
+
+
+def test_extended_futu_prior_session_close_is_convention_not_mismatch():
+    row = _futu_row("NVDA")
+    row["prev_close_price"] = 98.0
+    provider, _ = _extended_provider(FakeFutu(rows={"US.NVDA": row}))
+    provider.services.prices.rows["NVDA"] = [{"t": "2026-09-29", "c": 98.0}, {"t": "2026-09-30", "c": 100.0}]
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+    segment = block.data["NVDA"]["pre"]
+    assert segment["change_pct"] == pytest.approx(1)
+    assert "不一致" not in (segment.get("warning") or "")
+    assert segment["previous_close_convention"] == "futu_prior_session"
+    assert block.markdown.count("新交易日开盘前口径") == 1
+
+    row["prev_close_price"] = 95.0
+    segment = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00").data["NVDA"]["pre"]
+    assert "不一致" in segment["warning"]
+
+
+def test_extended_alpaca_overnight_previous_close_is_listed_not_compared():
+    snapshots = {"overnight": {"NVDA": {
+        "latestTrade": {"p": 100.5, "s": 10, "t": "2026-10-01T07:59:00Z"},
+        "prevDailyBar": {"c": 103.0},
+    }}}
+    provider, _ = _extended_provider(FakeFutu(mode="unavailable"), FakeAlpaca(snapshots=snapshots))
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T08:31:00-04:00")
+    segment = block.data["NVDA"]["overnight"]
+    assert segment["source"] == "Alpaca feed=overnight" and segment["source_previous_close"] == 103
+    assert "不一致" not in (segment.get("warning") or "")
+    assert "仅列示，不参与核对" in block.markdown

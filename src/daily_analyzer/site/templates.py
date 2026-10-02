@@ -14,8 +14,10 @@ BASE = _ENV.from_string(
   <title>{{ title }} · 美股每日分析</title>
   {% if refresh_seconds and not managed %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
   <style>
-    :root { color-scheme:light dark; --bg:#f5f6f8; --panel:#fff; --fg:#202c3b; --muted:#728093; --line:#e5e9ef; --accent:#355edb; --good:#157e63; --bad:#b45441; --soft:#eef2fc; --shadow:0 4px 24px #202c3b06; }
-    @media(prefers-color-scheme:dark) { :root { --bg:#111923; --panel:#1b2532; --fg:#e6edf5; --muted:#9aaabd; --line:#2e3b4b; --accent:#a1b8ff; --good:#65ccaa; --bad:#f6a291; --soft:#27354b; --shadow:none; } }
+    :root { color-scheme:light dark; --bg:#f5f6f8; --panel:#fff; --fg:#202c3b; --muted:#728093; --line:#e5e9ef; --accent:#355edb; --good:#157e63; --warn:#a36b08; --bad:#b45441; --soft:#eef2fc; --shadow:0 4px 24px #202c3b06; }
+    @media(prefers-color-scheme:dark) { :root { --bg:#111923; --panel:#1b2532; --fg:#e6edf5; --muted:#9aaabd; --line:#2e3b4b; --accent:#a1b8ff; --good:#65ccaa; --warn:#e6ba68; --bad:#f6a291; --soft:#27354b; --shadow:none; } }
+    .source-trigger { display:block; border:0; background:none; padding:3px 0; margin-top:3px; text-align:left; } .source-trigger:hover { background:none; text-decoration:underline; } .source-dialog { width:min(900px,94vw); max-width:94vw; }
+    .source-status { font-size:11px; white-space:nowrap; } .source-normal { color:var(--good); } .source-degraded { color:var(--warn); } .source-failed { color:var(--bad); } .source-inactive { color:var(--muted); } .source-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; margin-right:4px; } .source-table { font-size:13px; } .source-table td { overflow-wrap:anywhere; }
     * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
     a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; } button,input,select { font:inherit; } button,a,input,select,summary { outline-offset:4px; }
     .topbar { background:var(--panel); border-bottom:1px solid var(--line); } .topbar-inner { max-width:1280px; margin:auto; min-height:58px; padding:12px 30px; display:flex; align-items:center; justify-content:space-between; gap:18px; }
@@ -172,6 +174,12 @@ BASE = _ENV.from_string(
     button.closest(".comparison").querySelector("dialog").showModal();
   }));
   global.document.querySelectorAll("[data-close-comparison]").forEach(button=>button.addEventListener("click",()=>{
+    button.closest("dialog").close();
+  }));
+  global.document.querySelectorAll("[data-source-open]").forEach(button=>button.addEventListener("click",()=>{
+    global.document.getElementById(button.dataset.sourceOpen).showModal();
+  }));
+  global.document.querySelectorAll("[data-source-close]").forEach(button=>button.addEventListener("click",()=>{
     button.closest("dialog").close();
   }));
   {% if managed %}
@@ -366,8 +374,8 @@ BASE = _ENV.from_string(
     function refresh() {
       const dialog=global.document.getElementById("watchlist-manager");
       const settingsDialog=global.document.getElementById("settings-manager");
-      const chartOpen=global.document.querySelector(".comparison-dialog[open]");
-      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open) || chartOpen) global.setTimeout(refresh, 10000);
+      const detailOpen=global.document.querySelector(".comparison-dialog[open],.source-dialog[open]");
+      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open) || detailOpen) global.setTimeout(refresh, 10000);
       else global.location.reload();
     }
     global.setTimeout(refresh, site.refresh_seconds*1000);
@@ -379,6 +387,20 @@ BASE = _ENV.from_string(
 )
 
 # 汇总表与市场补充共用模板，首页优先显示订阅结论。
+_SOURCE_STATUS = """{% macro source_badge(value) -%}
+<span class="source-status source-{{ value.tone }}">{% if value.legacy %}来源未记录{% else %}<span class="source-dot" aria-hidden="true"></span>数据源 {{ value.normal }}/{{ value.total }} 正常{% endif %}</span>
+{%- endmacro %}
+{% macro source_table(value) -%}
+{% if value.legacy %}<p class="small muted">旧报告未记录数据源状态</p>{% else %}<div class="table-wrap"><table class="source-table"><thead><tr><th>类别</th><th>使用来源</th><th>状态</th><th>说明</th></tr></thead><tbody>{% for source in value.rows %}<tr><td>{{ source.category }}</td><td>{{ source.source }}</td><td><span class="source-status source-{{ source.tone }}"><span class="source-dot" aria-hidden="true"></span>{{ source.status }}</span></td><td>{{ source.reason or '—' }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{%- endmacro %}
+{% macro source_details(value, id) -%}
+<button type="button" class="source-trigger" data-source-open="{{ id }}" aria-haspopup="dialog">{{ source_badge(value) }} <span aria-hidden="true">›</span></button>
+{%- endmacro %}
+{% macro source_dialog(value, id) -%}
+<dialog id="{{ id }}" class="source-dialog" aria-labelledby="{{ id }}-title"><div class="section-heading" style="margin-top:0"><h2 id="{{ id }}-title">数据源使用详情</h2><button type="button" data-source-close>关闭</button></div>{{ source_table(value) }}</dialog>
+{%- endmacro %}
+"""
+
 _ROWS = """
 {% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对基准强弱"><thead><tr><th>订阅标的</th><th>总体建议与点位</th><th>相对基准 · 百分点</th><th>盘前</th><th>报告状态</th><th></th></tr></thead><tbody>
 {% for row in rows %}<tr>
@@ -388,19 +410,19 @@ _ROWS = """
     <dialog class="comparison-dialog"><div class="section-heading" style="margin-top:0"><h2>{{ row.symbol }} / {{ comp.name }} {{ comp.symbol }}</h2><button type="button" data-close-comparison>关闭</button></div>
     {% if comp.chart %}<p class="small muted">最近60个交易日 · {{ comp.chart.start }} 至 {{ comp.chart.end }} · {{ comp.chart.count }}个共同有效收盘点。两条复权曲线从共同首日100开始，显示累计相对表现。这里的100是价格指数，不是仓位比例。</p><div class="chart-legend"><span class="stock-line">{{ row.symbol }}</span><span class="benchmark-line">{{ comp.symbol }}</span></div><svg class="relative-chart" viewBox="0 0 640 295" role="img" aria-label="{{ row.symbol }}与{{ comp.symbol }}复权归一化走势图"><title>共同首日为100的复权收盘价对比</title>{% for tick in comp.chart.ticks %}<line class="chart-grid" x1="58" x2="618" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text x="48" y="{{ tick.y }}" text-anchor="end">{{ tick.text }}</text>{% endfor %}<line class="chart-baseline" x1="58" x2="618" y1="{{ comp.chart.baseline_y }}" y2="{{ comp.chart.baseline_y }}"/>{% for series in comp.chart.series %}<polyline class="{{ series.color }}" points="{{ series.points }}"/>{% for dot in series.dots %}<circle class="chart-dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="6"><title>{{ dot.tip }}</title></circle>{% endfor %}{% endfor %}<text x="58" y="280">{{ comp.chart.start }}</text><text x="618" y="280" text-anchor="end">{{ comp.chart.end }}</text></svg><p class="small muted">来源：{{ comp.chart.sources }}。{% if row.comparisons_supplement %}本图为后补比较，原评级未重算。{% endif %}</p>{% else %}<p class="muted">图表数据不足；没有截至该报告日的共同有效日线。旧报告可在下次分析时生成曲线。</p>{% endif %}</dialog></div>{% else %}<span class="muted">{{ row.strength }}</span>{% endfor %}</td>
   <td class="number"><span class="mobile-label subline">盘前</span>{{ row.premarket }}</td>
-  <td><span data-report-summary><span class="small">{{ row.status }}</span><span class="subline">{{ row.duration }}</span></span>{% if managed %}<div class="analysis-progress" data-analysis-progress hidden role="status"><span data-stage></span><progress max="100"></progress><span class="subline" data-remaining></span><span class="subline" data-estimate-note></span></div>{% endif %}<span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
+  <td><span data-report-summary><span class="small">{{ row.status }}</span><span class="subline">{{ row.duration }}</span></span>{% if managed %}<div class="analysis-progress" data-analysis-progress hidden role="status"><span data-stage></span><progress max="100"></progress><span class="subline" data-remaining></span><span class="subline" data-estimate-note></span></div>{% endif %}<span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span>{{ source_details(row.source_status, "source-row-" ~ loop.index) }}<details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
   <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}{% if managed %}<button class="analyze-button" data-analyze="{{ row.symbol }}" title="重新获取数据并分析该标的">分析一次</button>{% endif %}</td>
-</tr>{% endfor %}</tbody></table></div>{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
+</tr>{% endfor %}</tbody></table></div>{% for row in rows %}{{ source_dialog(row.source_status, "source-row-" ~ loop.index) }}{% endfor %}{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
 <aside class="allocation-note" aria-label="标准仓位说明"><strong>标准仓位 100% 是什么？</strong> 它是你为单只股票设定的计划持仓量，只作比较单位。例如计划投入 1 万元为 100%，目标配置 60% 就是持有 6000 元。它不是账户总资产的 60%，也不是卖出现有持仓的 60%；实际买卖量还需结合已有持仓和你的标准金额。当前未设置标准金额，页面仅展示相对比例。</aside>
 """
 _CONTEXT = """
 <div class="section-heading"><h2>市场背景与数据</h2><span class="small muted">展开查看，不影响自选比较</span></div>
-<details><summary>大盘环境与扩展时段</summary>{% if market_cards %}<div class="grid">{% for card in market_cards %}<article class="card"><h3>{{ card.title }}</h3><div class="markdown">{{ card.body|safe }}</div></article>{% endfor %}</div>{% else %}<p class="muted">暂无大盘环境数据。</p>{% endif %}</details>
+<details><summary>大盘环境</summary>{% if market_cards %}<div class="grid">{% for card in market_cards %}<article class="card"><h3>{{ card.title }}</h3><div class="markdown">{{ card.body|safe }}</div></article>{% endfor %}</div>{% else %}<p class="muted">暂无大盘环境数据。</p>{% endif %}</details>
 <details><summary>当日经济数据与市场要闻{% if macro_rows %} · {{ macro_rows|length }} 项{% endif %}</summary>
 {% if macro_rows %}<div class="table-wrap"><table><thead><tr><th>指标</th><th>实际</th><th>预期</th><th>前值</th><th>发布时间</th></tr></thead><tbody>{% for row in macro_rows %}<tr><td>{{ row.metric }}</td><td>{{ row.actual }}</td><td>{{ row.expected }}</td><td>{{ row.prior }}</td><td>{{ row.published_at }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if macro_html %}<div class="markdown">{{ macro_html|safe }}</div>{% else %}<p class="muted">暂无经济数据。</p>{% endif %}</details>
-<details><summary>板块强弱排名 · 相对 SPY 的 20 日收益</summary>{% if sector_rows %}<div class="table-wrap"><table><thead><tr><th>名次</th><th>板块</th><th>20 日超额收益</th><th>说明</th></tr></thead><tbody>{% for row in sector_rows %}<tr><td>{{ row.rank }}</td><td>{{ row.sector }}</td><td class="number">{{ row.performance }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if sector_html %}<div class="markdown">{{ sector_html|safe }}</div>{% else %}<p class="muted">暂无板块数据。</p>{% endif %}</details>
+<details><summary>板块强弱排名 · 相对 SPY</summary>{% if sector_html and '<table' in sector_html %}<div class="markdown">{{ sector_html|safe }}</div>{% else %}{% if sector_rows %}<div class="table-wrap"><table class="sector-ranking"><thead><tr><th>名次</th><th>行业 ETF</th><th>相对 SPY 5日</th><th>20日</th><th>60日</th><th>状态</th></tr></thead><tbody>{% for row in sector_rows %}<tr><td>{{ row.rank }}</td><td>{{ row.sector }}</td><td>{{ row.performance_5d or '—' }}</td><td>{{ row.performance }}</td><td>{{ row.performance_60d or '—' }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if sector_html %}<div class="markdown">{{ sector_html|safe }}</div>{% elif not sector_rows %}<p class="muted">暂无板块数据。</p>{% endif %}{% endif %}</details>
 """
-HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live="polite"><h2></h2><p data-role="detail"></p><p data-role="event" class="muted small"></p></section>
+HOME = _ENV.from_string(_SOURCE_STATUS + """<section id="status-banner" class="banner" aria-live="polite"><h2></h2><p data-role="detail"></p><p data-role="event" class="muted small"></p></section>
 <div class="stats">
   <article class="stat"><span class="stat-label">市场环境</span><strong class="stat-value">{{ market_label }}</strong><span class="stat-caption">VIX {{ vix }} · 最新日期 {{ latest_date or '—' }}</span></article>
   <article class="stat"><span class="stat-label">买入 / 增持</span><strong class="stat-value positive">{{ summary.positive }}</strong></article>
@@ -431,8 +453,8 @@ HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live=
 <div class="form-grid"><label>并行分析标的数<input name="parallel" type="number" min="1" max="4" step="1" required></label><label>并行模型调用数<input name="calls" type="number" min="1" step="1" required></label></div>
 <p class="small muted">模型与推理强度从本机 Codex 模型目录自动载入，保存时再次校验。标的并行数控制同时分析几只；调用并行数控制所有标的共享的模型调用上限。</p><p id="settings-message" class="error toast" role="status"></p><button class="primary" type="submit">保存参数</button></form></dialog>{% endif %}
 """)
-OVERVIEW = _ENV.from_string("""<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对基准收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
-DETAIL = _ENV.from_string("""<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>
+OVERVIEW = _ENV.from_string(_SOURCE_STATUS + """<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对基准收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
+DETAIL = _ENV.from_string(_SOURCE_STATUS + """<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>
 <p class="small muted">附加上下文截至 {{ context_as_of }}；日线截至 {{ price_data_end_date }}；工具数据最晚查询于 {{ last_data_query_at }}。</p>
 <div class="marks">{% for mark in marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section class="panel"><h2>组合经理最终决策（当日操作建议）</h2><div class="markdown">{{ decision|safe }}</div></section>
@@ -442,7 +464,8 @@ DETAIL = _ENV.from_string("""<p><span class="badge {{ rating_class }}">{{ rating
 <details><summary>多空辩论</summary><div class="markdown">{{ investment_debate|safe }}</div></details>
 <details><summary>风控辩论</summary><div class="markdown">{{ risk_debate|safe }}</div></details>
 <details><summary>附加市场上下文</summary><div class="markdown">{{ injected_context|safe }}</div></details>
-<details><summary>时间信息与数据查询记录</summary><div class="time-list">{% for item in times %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div>
+{{ source_details(source_status, "source-detail") }}{{ source_dialog(source_status, "source-detail") }}
+<details><summary>时间与质量 · 数据查询记录</summary><div class="time-list">{% for item in times %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div>
 {% if data_queries %}<h3>数据查询记录</h3><div class="table-wrap"><table><thead><tr><th>工具</th><th>开始</th><th>结束</th></tr></thead><tbody>{% for query in data_queries %}<tr><td>{{ query.name }}</td><td>{{ query.started_at }}</td><td>{{ query.finished_at }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
 <h3>数据时间戳</h3>{% if timestamps %}<div class="table-wrap"><table><thead><tr><th>数据</th><th>时间</th><th>来源</th></tr></thead><tbody>{% for item in timestamps %}<tr><td>{{ item.name }}</td><td>{{ item.time }}</td><td>{{ item.source }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">暂无数据源时间戳。</p>{% endif %}</details>
 <details><summary>运行元数据</summary><div class="time-list">{% for item in metadata %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div></details>

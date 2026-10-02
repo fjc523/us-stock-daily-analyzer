@@ -122,11 +122,12 @@ def _probe_futu(settings: Any) -> Mapping[str, Any]:
         ret, data = context.query_subscription()
         if ret != RET_OK:
             return {"ok": False, "error": str(data)}
-        return {
-            "ok": True,
-            "remaining": int(data["remain"]),
-            "detail": "OpenD 连接成功，已读取订阅剩余额度",
-        }
+        ret, state = context.get_global_state()
+        version = int(state.get("server_ver", 0)) if ret == RET_OK else 0
+        return {"ok": True, "remaining": int(data["remain"]), "server_ver": version,
+                "warning": version < 1011,
+                "detail": f"OpenD服务端{version}，需≥1011；" + ("估值、财报、内部人、宏观和日历可能不可用" if version < 1011 else "版本满足新接口要求")}
+
     except Exception as exc:
         return {"ok": False, "error": _failure_detail(exc)}
     finally:
@@ -553,11 +554,12 @@ def doctor(
             "alpaca": lambda: _probe_alpaca(root, now=current),
             "futu": lambda: _probe_futu(settings),
             "yfinance": _probe_yfinance,
+            "cboe": lambda: _probe_cboe(current),
         }
     else:
         active_probes = {
             name: (lambda: {"ok": True, "skipped": True, "detail": "配置校验失败，跳过外部探针"})
-            for name in ("alpaca", "futu", "yfinance")
+            for name in ("alpaca", "futu", "yfinance", "cboe")
     }
     if ping:
         active_probes["ping"] = (
@@ -576,6 +578,8 @@ def doctor(
         checks[-1]["detail"] = "缺少项目内 Alpaca 凭据，未发起请求"
     _call_probe("富途 OpenD 与订阅剩余额度", active_probes["futu"], "warning", checks)
     _call_probe("Yahoo 连通", active_probes["yfinance"], "warning", checks)
+    _call_probe("CBOE VIX 连通", active_probes["cboe"], "warning", checks)
+    _add(checks, "FRED 可选来源", "info", "已配置" if credentials and credentials.fred_api_key else "未配置；可在config/secrets.env添加FRED_API_KEY，不影响其他来源")
     if ping:
         _call_probe("Codex 极小推理", active_probes["ping"], "fail", checks)
 
@@ -584,3 +588,14 @@ def doctor(
     warnings = sum(item["status"] == "warning" for item in checks)
     summary = f"{len(checks)} 项检查：{failures} 项致命失败，{warnings} 项告警。"
     return {"ok": ok, "exit_code": 0 if ok else 1, "checks": checks, "summary": summary}
+
+
+def _probe_cboe(now):
+    from daily_analyzer.data_sources.vix import VixDataSource
+    from daily_analyzer.context.market_data import previous_trading_day
+    try:
+        end = previous_trading_day(now.astimezone(_NEW_YORK).date())
+        rows = VixDataSource().cboe(end - timedelta(days=7), end)
+        return {"ok": bool(rows), "detail": f"CBOE返回{len(rows)}条VIX日线；要求截至{end}"}
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}

@@ -19,6 +19,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    FiniteFloat,
     SecretStr,
     ValidationError,
     field_validator,
@@ -39,7 +40,7 @@ DEFAULT_INDEX_PROXIES = {
     "^SOX": "SOXX",
 }
 BUILTIN_CONTEXT_PROVIDERS = frozenset(
-    {"market_regime", "sector_strength", "extended_hours", "macro_releases"}
+    {"market_regime", "sector_strength", "extended_hours", "macro_releases", "price_anchors"}
 )
 SUPPORTED_REASONING_EFFORTS = frozenset(
     {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
@@ -196,6 +197,7 @@ class TradingAgentsSettings(ConfigModel):
     output_language: str = "Chinese"
     max_debate_rounds: int = 1
     max_risk_discuss_rounds: int = 1
+    stocktwits_enabled: bool = False
 
     @field_validator("output_language")
     @classmethod
@@ -299,16 +301,48 @@ class AlpacaSettings(ConfigModel):
         return value
 
 
+class DecisionSettings(ConfigModel):
+    """中短期方向周期与点位有效期，单位均为交易日。"""
+
+    horizon_trading_days: tuple[int, int] = (5, 20)
+    plan_validity_trading_days: int = Field(default=5, ge=1)
+
+    @field_validator("horizon_trading_days")
+    @classmethod
+    def validate_horizon(cls, value: tuple[int, int]) -> tuple[int, int]:
+        if not 0 < value[0] <= value[1]:
+            raise ValueError("决策周期必须满足0 < 下沿 ≤ 上沿，单位为交易日")
+        return value
+
+
+class PricePlanSettings(ConfigModel):
+    """价格方案的ATR止损与最低盈亏比规则。"""
+
+    stop_atr_min: FiniteFloat = Field(default=1.0, gt=0)
+    stop_atr_normal: tuple[FiniteFloat, FiniteFloat] = (1.5, 2.0)
+    stop_atr_max: FiniteFloat = Field(default=2.5, gt=0)
+    min_reward_risk: FiniteFloat = Field(default=1.5, gt=0)
+
+    @model_validator(mode="after")
+    def validate_distances(self) -> PricePlanSettings:
+        if not 0 < self.stop_atr_min <= self.stop_atr_normal[0] <= self.stop_atr_normal[1] <= self.stop_atr_max:
+            raise ValueError("ATR距离必须满足0 < stop_atr_min ≤ stop_atr_normal下沿 ≤ 上沿 ≤ stop_atr_max")
+        return self
+
+
 class Settings(ConfigModel):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     codex: CodexSettings = Field(default_factory=CodexSettings)
     tradingagents: TradingAgentsSettings = Field(default_factory=TradingAgentsSettings)
+    decision: DecisionSettings = Field(default_factory=DecisionSettings)
+    price_plan: PricePlanSettings = Field(default_factory=PricePlanSettings)
     context_providers: list[str] = Field(
         default_factory=lambda: [
             "market_regime",
             "sector_strength",
             "extended_hours",
             "macro_releases",
+            "price_anchors",
         ]
     )
     run: RunSettings = Field(default_factory=RunSettings)
@@ -456,6 +490,7 @@ class DataCredentials(BaseModel):
     alpaca_key_id: SecretStr | None = None
     alpaca_secret_key: SecretStr | None = None
     alpha_vantage_api_key: SecretStr | None = None
+    fred_api_key: SecretStr | None = None
 
     @property
     def alpaca_configured(self) -> bool:
@@ -602,6 +637,7 @@ def load_credentials(
         alpaca_key_id=value_for("APCA_API_KEY_ID"),
         alpaca_secret_key=value_for("APCA_API_SECRET_KEY"),
         alpha_vantage_api_key=value_for("ALPHA_VANTAGE_API_KEY"),
+        fred_api_key=value_for("FRED_API_KEY"),
     )
     if require_alpaca and not credentials.alpaca_configured:
         raise ConfigurationError(

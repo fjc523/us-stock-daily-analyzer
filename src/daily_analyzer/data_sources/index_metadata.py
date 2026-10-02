@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 from typing import Any
 
 import requests
@@ -13,6 +14,7 @@ from .yfinance import SECTOR_TO_ETF
 
 
 HOLDINGS_URLS = {
+    "IWM": "https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/latest-holdings.csv",
     "QQQ": "https://dng-api.invesco.com/cache/v1/accounts/en_US/shareclasses/QQQ/holdings/fund?idType=ticker&interval=monthly&productType=ETF",
     "SPY": "https://www.ssga.com/library-content/products/fund-data/etfs/us/holdings-daily-us-en-spy.xlsx",
     "DIA": "https://www.ssga.com/library-content/products/fund-data/etfs/us/holdings-daily-us-en-dia.xlsx",
@@ -47,6 +49,16 @@ class IndexMetadataSource:
                     raise ValueError("发行方持仓名单不完整")
                 data = {"as_of": payload["effectiveDate"],
                         "holdings": {_symbol(row["ticker"]): row.get("sectorName") for row in rows if row.get("ticker")}}
+            elif fund == "IWM":
+                values = list(csv.reader(StringIO(response.text.lstrip("\ufeff"))))
+                header_index = next(i for i, row in enumerate(values) if "Ticker" in row and "Sector" in row)
+                header = values[header_index]
+                tick, sector = header.index("Ticker"), header.index("Sector")
+                holdings = {_symbol(row[tick]): row[sector] for row in values[header_index+1:] if len(row) == len(header) and row[tick] not in {"", "-"}}
+                if not holdings:
+                    raise ValueError("IWM持仓为空")
+                as_of = next(row[1] for row in values[:header_index] if row and "Holdings as of" in row[0])
+                data = {"as_of": datetime.strptime(as_of, "%b %d, %Y").date().isoformat(), "holdings": holdings}
             else:
                 book = load_workbook(BytesIO(response.content), read_only=True, data_only=True)
                 try:
@@ -71,7 +83,7 @@ class IndexMetadataSource:
         pending = list(dict.fromkeys(symbols))
         result = {}
         unavailable = []
-        for fund in ("QQQ", "SPY", "DIA"):
+        for fund in ("QQQ", "SPY", "DIA", "IWM"):
             if not pending:
                 break
             data = self._load(fund)
@@ -86,8 +98,8 @@ class IndexMetadataSource:
                 reason = f"发行方行业映射（{fund}持仓）" if sector else f"指数成员已核验（{fund}持仓）"
                 if unavailable and not sector:
                     reason += "；高优先级名单暂不可用"
-                result[symbol] = {"benchmark_symbol": sector or fund, "benchmark_kind": "sector" if sector else "index",
-                                  "index_symbol": fund,
+                result[symbol] = {"benchmark_symbol": sector or (fund if fund != "IWM" else "SPY"), "benchmark_kind": "sector" if sector else "index",
+                                  "index_symbol": fund if fund != "IWM" else None,
                                   "index_warning": "高优先级名单暂不可用" if unavailable else "",
                                   "benchmark_reason": reason, "membership_as_of": data["as_of"],
                                   "metadata_source": HOLDINGS_URLS[fund]}

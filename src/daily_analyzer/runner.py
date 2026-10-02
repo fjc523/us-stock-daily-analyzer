@@ -460,7 +460,12 @@ def _analyze_item(
     monotonic: Callable[[], float],
     secrets: Sequence[str],
     analyzer_factory: Callable[..., Any],
+    source_seed: Sequence[Mapping[str, Any]] = (),
 ) -> AttemptOutcome:
+    from daily_analyzer.source_status import SourceStatusCollector
+    from tradingagents.dataflows.vendor_observer import set_vendor_observer, reset_vendor_observer
+    source_collector = SourceStatusCollector(secrets, source_seed)
+    source_token = set_vendor_observer(source_collector.observe)
     started_at: datetime | None = None
     ticker_blocks: dict[str, Mapping[str, Any]] = {}
     injected = ""
@@ -490,13 +495,14 @@ def _analyze_item(
             portfolio=portfolio,
             clock=clock,
         )
+        injected = getattr(graph, "injected_context", injected)
         from tradingagents.llm_clients.codex_exec.runner import codex_usage_context
 
         with codex_usage_context(ticker=item.symbol):
             final_state, rating = graph.propagate(
                 graph.analysis_symbol,
                 window.trade_date.isoformat(),
-                asset_type="stock",
+                asset_type="stock" if item.type == "stock" else "etf",
                 portfolio=portfolio,
             )
         reports_path = batch_dir / "reports" / symbol_slug(item.symbol)
@@ -575,6 +581,7 @@ def _analyze_item(
             },
             "llm_usage": calls,
         }
+        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
         result_path = batch_dir / "results" / f"{symbol_slug(item.symbol)}.json"
         atomic_write_json(result_path, result)
         return AttemptOutcome(item, result, None, True)
@@ -631,10 +638,13 @@ def _analyze_item(
                 )
             except Exception:
                 pass
+        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
         atomic_write_json(
             batch_dir / "results" / f"{symbol_slug(item.symbol)}.json", result
         )
         return AttemptOutcome(item, result, category, False)
+    finally:
+        reset_vendor_observer(source_token)
 
 
 def _write_skipped_result(
@@ -930,6 +940,7 @@ def _secret_values(project: ProjectConfig) -> list[str]:
         project.credentials.alpaca_key_id,
         project.credentials.alpaca_secret_key,
         project.credentials.alpha_vantage_api_key,
+        project.credentials.fred_api_key,
     ):
         if secret is not None:
             values.append(secret.get_secret_value())
@@ -942,6 +953,7 @@ def _environment_credentials(project: ProjectConfig) -> dict[str, str]:
         (project.credentials.alpaca_key_id, "APCA_API_KEY_ID"),
         (project.credentials.alpaca_secret_key, "APCA_API_SECRET_KEY"),
         (project.credentials.alpha_vantage_api_key, "ALPHA_VANTAGE_API_KEY"),
+        (project.credentials.fred_api_key, "FRED_API_KEY"),
     ):
         if secret is not None:
             values[name] = secret.get_secret_value()
@@ -1074,6 +1086,12 @@ def run_analysis(
         batch_dir.mkdir(parents=True, exist_ok=False)
         (batch_dir / "results").mkdir()
         (batch_dir / "reports").mkdir()
+        from tradingagents.dataflows.yahoo_breaker import reset_yahoo_breaker
+        from daily_analyzer.data_sources.futu import get_shared_data_source
+        reset_yahoo_breaker()
+        get_shared_data_source().clear_cache()
+        from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
+        TREASURY_SOURCE.clear_cache()
         shared_config = build_upstream_config(
             settings,
             trade_date=window.trade_date.isoformat(),
@@ -1146,9 +1164,17 @@ def run_analysis(
                 "trade_date": window.trade_date,
                 "price_data_end_date": window.price_data_end_date,
                 "mode": window.mode,
+                "decision_horizon_trading_days": list(settings.decision.horizon_trading_days),
                 "context_as_of": current_now,
             }
-            batch_blocks = context_manager.prepare(batch_context)
+            from daily_analyzer.source_status import SourceStatusCollector
+            from tradingagents.dataflows.vendor_observer import set_vendor_observer, reset_vendor_observer
+            batch_source_collector = SourceStatusCollector(_secret_values(project))
+            batch_source_token = set_vendor_observer(batch_source_collector.observe)
+            try:
+                batch_blocks = context_manager.prepare(batch_context)
+            finally:
+                reset_vendor_observer(batch_source_token)
             atomic_write_json(batch_dir / "context.json", serialize_blocks(batch_blocks))
             if scheduled:
                 _wait_until_first_start(settings, window, clock, sleeper)
@@ -1196,6 +1222,7 @@ def run_analysis(
                             monotonic=monotonic,
                             secrets=secret_values,
                             analyzer_factory=analyzer_factory,
+                            source_seed=batch_source_collector.events,
                         )
                         futures[future] = item
                     if not futures:
@@ -1371,7 +1398,12 @@ def run_analysis(
             append_log(root, window.trade_date, now_value, f"批次异常：{message}")
         return RunOutcome(1, f"批次异常：{message}", batch.get("run_id") if batch else None, "failed" if batch else None)
     finally:
-        lock_context.__exit__(None, None, None)
+        try:
+            if batch_dir is not None:
+                from daily_analyzer.data_sources.futu import get_shared_data_source
+                get_shared_data_source().close_batch()
+        finally:
+            lock_context.__exit__(None, None, None)
 
 
 def _read_usage_rows(path: Path) -> list[dict[str, Any]]:

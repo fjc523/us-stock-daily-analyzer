@@ -71,11 +71,13 @@ class YahooDataSource:
         try:
             end_date = date.fromisoformat(end) if isinstance(end, str) else end
             start_date = date.fromisoformat(start) if isinstance(start, str) else start
-            history = self._ticker(symbol).history(
+            from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+            history = yf_retry(lambda: self._ticker(symbol).history(
                 start=start_date.isoformat(),
                 end=(end_date + timedelta(days=1)).isoformat(),
                 auto_adjust=True,
-            )
+                timeout=10,
+            ))
             rows = _frame_records(history)
             return [row for row in rows if _row_date(row) <= end_date]
         except Exception:
@@ -90,7 +92,8 @@ class YahooDataSource:
             if isinstance(cached, str):
                 return cached or None
             try:
-                sector = self._ticker(normalized).info.get("sector")
+                from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+                sector = yf_retry(lambda: self._ticker(normalized).info).get("sector")
             except Exception:
                 return None
             etf = SECTOR_TO_ETF.get(str(sector)) if sector else None
@@ -116,7 +119,8 @@ class YahooDataSource:
             else:
                 factory = self.calendar_factory
             calendar = factory(start=str(start), end=str(end))
-            frame = calendar.get_economic_events_calendar()
+            from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+            frame = yf_retry(calendar.get_economic_events_calendar)
             rows = _frame_records(frame)
             if not rows:
                 return []
@@ -129,6 +133,23 @@ class YahooDataSource:
             return rows
         except Exception:
             return None
+
+    def earnings_calendar(self, symbol: str, start: date, end: date) -> list[dict[str, Any]]:
+        """仅在富途失败时查询单标的财报日期，不把空结果解释为没有财报。"""
+        from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+        from tradingagents.dataflows.errors import VendorUnavailableError
+        frame = yf_retry(lambda: self._ticker(symbol).get_earnings_dates(limit=12))
+        if frame is None:
+            raise VendorUnavailableError('Yahoo未返回可核验的财报日期')
+        rows = []
+        for row in _frame_records(frame):
+            stamp = row.get('Earnings Date')
+            if stamp is None:
+                continue
+            day = stamp.date() if hasattr(stamp, 'date') else date.fromisoformat(str(stamp)[:10])
+            if start <= day <= end:
+                rows.append({'security':'US.'+symbol, '日期':str(day), '来源':'Yahoo财报日期', **row})
+        return rows
 
     @staticmethod
     def _read_sector_cache(path: Path) -> dict[str, Any]:

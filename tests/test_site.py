@@ -245,7 +245,7 @@ def test_sector_ranking_uses_ticker_context_when_batch_context_has_no_sector(tmp
     assert "XLK" in overview
     assert "可用" in overview
     assert "+1.80%" in overview and "+1.20%" in overview
-    assert "NVDA 相对板块：20日 +2.00%" in overview
+    assert "NVDA 相对板块：20日 +2.00%" not in overview
     assert "初请失业金" in home and "非农数据前值修订" in home and "盘前要闻 A" in home
     assert "错误样本宏观数据" not in home
     assert "+1.25%" in overview and "信息截止" in overview
@@ -638,3 +638,83 @@ trigger.click();assert.equal(dialog.open,true);closer.click();assert.equal(dialo
     path.write_text(harness)
     result = subprocess.run([node, str(path)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_new_price_summary_keeps_full_anchor_and_legacy_format():
+    from daily_analyzer.site import _summary_row
+    result = _result("TSLA", "2026-10-02")
+    first = "区间 348.0–352.0 美元（依据：SMA20 与前低" + "，明确来源日期" * 15 + "）"
+    result["final_trade_decision"] = "**建仓点位**: " + first + "。等待回踩企稳后执行。\n\n**加仓点位**: 不适用：缺少确认。等待信号。"
+    result["trader_investment_plan"] = "**减仓点位**: 98–100 USD；依据支撑。"
+    plans = _summary_row(result, None, "")["plans"]
+    assert plans[0]["text"] == first
+    assert plans[1]["text"] == "不适用：缺少确认。"
+    assert "98–100 USD" in plans[2]["text"]
+
+
+@pytest.mark.parametrize("action,name", [("Buy", "买入"), ("Overweight", "增持"), ("Hold", "持有"), ("Underweight", "减持"), ("Sell", "卖出")])
+def test_trader_actions_share_chinese_rating_mapping(action, name):
+    from daily_analyzer.site import _markdown, _decision_section
+    text = "**Action**: " + action + "\n\n**建仓点位**: 区间 100–101 美元（依据：SMA20）\n\nFINAL TRANSACTION PROPOSAL: **" + action.upper() + "**"
+    assert name + "（" + action + "）" in str(_markdown(text))
+    assert _decision_section(text, "建仓点位") == "区间 100–101 美元（依据：SMA20）"
+
+
+def test_source_status_shared_home_detail_and_legacy():
+    from daily_analyzer.site import _source_status
+    from daily_analyzer.site.templates import HOME, DETAIL, BASE
+    record = {"data_source_status": [
+        {"category": "日线", "source": "Alpaca", "status": "正常", "reason": ""},
+        {"category": "VIX", "source": "Yahoo", "status": "降级", "reason": "CBOE失败"},
+        {"category": "StockTwits", "source": "—", "status": "失败", "reason": "HTTP错误"},
+        {"category": "Reddit", "source": "—", "status": "未使用", "reason": ""},
+    ]}
+    value = _source_status(record)
+    assert value["tone"] == "failed"
+    for html in (HOME.render(rows=[{"source_status": value}], summary={}), DETAIL.render(source_status=value)):
+        assert "数据源 1/4 正常" in html
+        assert 'aria-haspopup="dialog"' in html and 'class="source-dialog"' in html
+        assert 'data-source-close' in html
+        if 'class="watch-table"' in html:
+            assert html.index('class="source-dialog"') > html.index('</tbody></table>')
+        import re
+        time_section = re.search(r'<details[^>]*><summary>时间与质量.*?</details>', html, re.S).group()
+        assert 'source-table' not in time_section and '数据源 1/4 正常' not in time_section
+        for text in ("source-normal", "source-degraded", "source-failed", "source-inactive", "CBOE失败"):
+            assert text in html
+    assert "旧报告未记录数据源状态" in DETAIL.render(source_status=_source_status({}))
+    assert "--warn:#a36b08" in BASE.render(ui_data={})
+    assert "--warn:#e6ba68" in BASE.render(ui_data={})
+    assert '.source-dialog[open]' in BASE.render(ui_data={})
+
+
+def test_sector_rank_keeps_only_complete_markdown_table():
+    from daily_analyzer.site.templates import HOME
+    complete = "<table><tr><th>行业 ETF</th><th>相对 SPY 5日</th><th>20日</th><th>60日</th></tr></table>"
+    html = HOME.render(rows=[], summary={}, sector_rows=[{"sector":"XLK","rank":1}], sector_html=complete)
+    assert complete in html
+    assert html.count(complete) == 1
+    assert "<th>20 日超额收益</th>" not in html
+
+
+
+def test_sector_display_omits_ticker_caption_and_twenty_day_title():
+    from daily_analyzer.site import _sector_data
+    from daily_analyzer.site.templates import HOME
+    rows, html = _sector_data({"sector_strength":{"markdown":"| 名次 | 行业 ETF | 相对 SPY 5日 | 20日 | 60日 | 状态 |\n|---|---|---|---|---|---|\n| 1 | XLK | +2% | +7% | +6% | 可用 |\n\nTSLA 比较基准：XLY，重复说明。","data":{}}})
+    rendered = HOME.render(rows=[],summary={},sector_rows=rows,sector_html=html)
+    assert "板块强弱排名 · 相对 SPY" in rendered
+    assert "相对 SPY 的 20 日收益" not in rendered
+    assert "TSLA 比较基准" not in rendered
+    assert "相对 SPY 5日" in rendered and "60日" in rendered
+
+
+def test_market_panel_hides_extended_hours_without_changing_context():
+    from daily_analyzer.site import _context_cards
+    from daily_analyzer.site.templates import HOME
+    context={'market_regime':{'markdown':'市场偏强'},'extended_hours':{'markdown':'扩展时段明细样本'}}
+    cards=_context_cards(context, [])
+    rendered=HOME.render(rows=[],summary={},market_cards=cards)
+    assert '大盘环境与扩展时段' not in rendered and '大盘环境' in rendered
+    assert '市场偏强' in rendered and '扩展时段明细样本' not in rendered
+    assert context['extended_hours']['markdown']=='扩展时段明细样本'

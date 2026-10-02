@@ -94,6 +94,7 @@ class ProviderServices:
     yahoo: Any = None
     prices: Any = None
     index_metadata: Any = None
+    futu_data: Any = None
     project_root: str = "."
     clock: Callable[[], datetime] = datetime.now
     sleep: Callable[[float], None] | None = None
@@ -108,10 +109,14 @@ class ProviderServices:
             self.futu = FutuQuoteManager(**options)
         if self.yahoo is None:
             self.yahoo = YahooDataSource(project_root=self.project_root)
+        if self.futu_data is None and isinstance(self.futu, FutuQuoteManager) and self.futu_enabled:
+            from daily_analyzer.data_sources.futu import get_shared_data_source
+            self.futu_data = get_shared_data_source()
         if self.prices is None:
             from .market_data import DailyPriceService
 
-            self.prices = DailyPriceService(self.alpaca, self.yahoo)
+            from daily_analyzer.data_sources.vix import VixDataSource
+            self.prices = DailyPriceService(self.alpaca, self.yahoo, self.futu_data, VixDataSource())
         if self.index_metadata is None:
             from daily_analyzer.data_sources.index_metadata import IndexMetadataSource
 
@@ -299,14 +304,37 @@ def serialize_blocks(blocks: Mapping[str, ContextBlock]) -> dict[str, dict[str, 
     return {name: block.to_dict() for name, block in blocks.items()}
 
 
+def _quality_flags(data: Any) -> list[str]:
+    """收集提供器已有质量标记，不推断业务结论。"""
+    flags: list[str] = []
+    if isinstance(data, Mapping):
+        for key, value in data.items():
+            if key in {"warning", "warnings", "error", "index_warning"}:
+                values = value if isinstance(value, (list, tuple)) else [value]
+                flags.extend(str(item) for item in values if item)
+            elif key == "status" and isinstance(value, str) and value not in {"可用", "正常", "ok", "success"}:
+                flags.append(value)
+            elif key == "truncated" and value:
+                flags.append("新闻翻页达到上限，数据已截断")
+            elif isinstance(value, (Mapping, list, tuple)):
+                flags.extend(_quality_flags(value))
+        if "sector_etf" in data and not data["sector_etf"]:
+            flags.append("所属板块未映射，使用已标明的指数基准")
+    elif isinstance(data, (list, tuple)):
+        for value in data:
+            flags.extend(_quality_flags(value))
+    return list(dict.fromkeys(flags))
+
+
 def render_context(
     blocks: Mapping[str, ContextBlock] | Mapping[str, Mapping[str, Any]],
     context_as_of: datetime | date | str,
 ) -> str:
     timestamp = _iso(context_as_of)
     lines = [f"## 附加市场上下文（截至 {timestamp}）"]
-    for block in blocks.values():
-        payload = block.to_dict() if isinstance(block, ContextBlock) else block
+    payloads = [block.to_dict() if isinstance(block, ContextBlock) else block for block in blocks.values()]
+    flags = list(dict.fromkeys(flag for payload in payloads for flag in _quality_flags(payload.get("data", {}))))
+    for payload in payloads:
         title = str(payload.get("title") or "市场上下文")
         as_of = payload.get("as_of")
         sources = payload.get("sources") or []
@@ -318,10 +346,18 @@ def render_context(
                 "",
                 f"### {title}",
                 f"数据时间：{as_of or '未注明'}；数据源：{source_text}",
-                str(payload.get("markdown") or ""),
+                _quality_references(str(payload.get("markdown") or ""), flags),
             ]
         )
+    if flags:
+        lines.extend(["", "### 数据质量与限制", *[f"{i}. {flag}" for i, flag in enumerate(flags, 1)]])
     return "\n".join(lines).rstrip()
+
+
+def _quality_references(markdown: str, flags: list[str]) -> str:
+    for index, flag in sorted(enumerate(flags, 1), key=lambda pair: len(pair[1]), reverse=True):
+        markdown = markdown.replace(flag, f"数据限制#{index}")
+    return markdown
 
 
 def context_json(blocks: Mapping[str, ContextBlock]) -> str:
