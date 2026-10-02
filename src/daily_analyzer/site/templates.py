@@ -12,46 +12,38 @@ BASE = _ENV.from_string(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · 美股每日分析</title>
-  {% if refresh_seconds %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
+  {% if refresh_seconds and not managed %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
   <style>
-    :root { color-scheme: light dark; --bg:#f4f6f8; --panel:#fff; --fg:#18212b; --muted:#586574; --line:#d8dee6; --accent:#1769aa; --bad:#a52c2c; --good:#19734a; }
-    @media (prefers-color-scheme: dark) { :root { --bg:#12171d; --panel:#1c242d; --fg:#e6edf3; --muted:#a0adba; --line:#3a4652; --accent:#76b7f2; --bad:#ff9292; --good:#73d3a2; } }
-    * { box-sizing:border-box; }
-    body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    main { max-width:1180px; margin:0 auto; padding:24px 18px 44px; }
-    h1,h2,h3 { line-height:1.25; } h1 { margin:12px 0 22px; font-size:2rem; } h2 { margin-top:28px; font-size:1.35rem; } h3 { font-size:1.08rem; }
-    a { color:var(--accent); } .selectors,.panel,.banner,.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
-    .selectors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 14px; }
-    label { color:var(--muted); font-size:.9rem; } select { color:var(--fg); background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:7px 9px; min-width:145px; }
-    .banner,.panel { padding:17px 19px; margin:14px 0; } .banner h2 { margin:0 0 5px; } .banner p { margin:5px 0; }
-    .banner-running { border-left:5px solid var(--accent); } .banner-failed { border-left:5px solid var(--bad); } .banner-done { border-left:5px solid var(--good); }
-    .muted { color:var(--muted); } .small { font-size:.9rem; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
-    .card { padding:13px 15px; } .card h3 { margin:0 0 7px; } .card p { margin:0; }
-    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
-    table { width:100%; border-collapse:collapse; min-width:760px; } th,td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-    th { background:color-mix(in srgb,var(--panel) 82%,var(--bg)); white-space:nowrap; } tr:last-child td { border-bottom:0; }
-    .badge { display:inline-block; border-radius:999px; padding:2px 9px; font-size:.88rem; font-weight:650; background:#e3e9ef; color:#24313e; }
-    @media (prefers-color-scheme: dark) { .badge { background:#34414d; color:#eef4f8; } }
-    .rating-buy { background:#d9f2e5; color:#12663b; } .rating-overweight { background:#dff0e4; color:#257143; }
-    .rating-hold { background:#e8ebef; color:#4c5966; } .rating-underweight { background:#fff0d5; color:#8c5d00; }
-    .rating-sell { background:#f8dddd; color:#a02020; } .rating-review { background:#e8e1f5; color:#62419a; }
-    @media (prefers-color-scheme: dark) { .rating-buy,.rating-overweight,.rating-hold,.rating-underweight,.rating-sell,.rating-review { color:#101820; } }
-    .marks { display:flex; flex-wrap:wrap; gap:5px; } .mark { display:inline-block; border:1px solid var(--line); border-radius:6px; padding:1px 6px; color:var(--muted); font-size:.8rem; }
-    .markdown { overflow-wrap:anywhere; } .markdown table { min-width:0; } .markdown pre { overflow:auto; padding:12px; background:var(--bg); border-radius:8px; }
-    .markdown code { font-family:ui-monospace,SFMono-Regular,monospace; } .time-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:6px 20px; }
-    details { border:1px solid var(--line); border-radius:9px; padding:10px 13px; margin:10px 0; background:var(--panel); } summary { cursor:pointer; font-weight:650; }
-    footer { max-width:1180px; margin:0 auto; padding:16px 18px 28px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
-    .error { color:var(--bad); } .empty { padding:16px; color:var(--muted); }
+    :root { color-scheme:light dark; --bg:#f5f6f8; --panel:#fff; --fg:#202c3b; --muted:#728093; --line:#e5e9ef; --accent:#355edb; --good:#157e63; --bad:#b45441; --soft:#eef2fc; --shadow:0 4px 24px #202c3b06; }
+    @media(prefers-color-scheme:dark) { :root { --bg:#111923; --panel:#1b2532; --fg:#e6edf5; --muted:#9aaabd; --line:#2e3b4b; --accent:#a1b8ff; --good:#65ccaa; --bad:#f6a291; --soft:#27354b; --shadow:none; } }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; } button,input,select { font:inherit; } button,a,input,select,summary { outline-offset:4px; }
+    .topbar { background:var(--panel); border-bottom:1px solid var(--line); } .topbar-inner { max-width:1280px; margin:auto; min-height:58px; padding:12px 30px; display:flex; align-items:center; justify-content:space-between; gap:18px; }
+    .brand { display:flex; align-items:center; gap:12px; color:var(--fg); font-weight:700; font-size:17px; letter-spacing:.04em; } .brand-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:#243e76; color:#fff; font-size:21px; }
+    main { max-width:1280px; margin:auto; padding:18px 30px 36px; } .page-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; } h1 { font-size:26px; letter-spacing:-.03em; margin:0; line-height:1.3; } h2 { font-size:17px; margin:0; } h3 { font-size:15px; } p { margin:8px 0; }
+    .selectors { display:flex; align-items:center; gap:8px; flex-wrap:wrap; } label,.muted { color:var(--muted); } .small { font-size:12px; } select,input { color:var(--fg); background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:7px 10px; min-width:0; }
+    button,.button { border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--fg); padding:7px 13px; cursor:pointer; display:inline-block; white-space:nowrap; } button:hover,.button:hover { background:var(--soft); text-decoration:none; } .primary { color:#fff; background:#355edb; border-color:#355edb; } .primary:hover { background:#294cbd; } button:disabled { opacity:.55; cursor:wait; }
+    .banner { border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:11px 16px; margin-bottom:12px; } .banner h2 { font-size:14px; } .banner p { font-size:12px; margin:2px 0; color:var(--muted); } .banner-running { border-left:3px solid var(--accent); } .banner-failed { border-left:3px solid var(--bad); } .banner-done { border-left:3px solid var(--good); }
+    .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:16px; } .stat { border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:10px 14px; box-shadow:var(--shadow); } .stat-label { color:var(--muted); font-size:12px; } .stat-value { display:block; font-size:25px; font-weight:650; line-height:1.45; font-variant-numeric:tabular-nums; } .stat-caption { font-size:11px; color:var(--muted); }
+    .section-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:12px 0 10px; } .section-heading p { margin:2px 0; } .panel,.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin:14px 0; } .panel h2 { margin:0 0 12px; }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); box-shadow:var(--shadow); } table { width:100%; border-collapse:collapse; min-width:650px; } th,td { padding:10px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; } th { background:color-mix(in srgb,var(--panel) 50%,var(--bg)); color:var(--muted); font-size:11px; font-weight:500; white-space:nowrap; } tr:last-child td { border-bottom:0; } .watch-table { table-layout:fixed; min-width:0; } .watch-table th:nth-child(1) { width:16%; } .watch-table th:nth-child(2) { width:31%; } .watch-table th:nth-child(3) { width:25%; } .watch-table th:nth-child(4) { width:9%; } .watch-table th:nth-child(5) { width:13%; } .watch-table th:nth-child(6) { width:6%; }
+    .symbol { font-size:16px; font-weight:700; color:var(--fg); letter-spacing:.02em; } .subline { display:block; color:var(--muted); font-size:11px; } .advice { font-size:13px; line-height:1.65; margin-top:6px; overflow-wrap:anywhere; } .badge { display:inline-block; padding:2px 9px; border-radius:6px; font-size:12px; font-weight:600; background:var(--soft); color:var(--muted); } .rating-buy,.rating-overweight { color:var(--good); background:color-mix(in srgb,var(--good) 10%,var(--panel)); } .rating-hold { background:var(--soft); color:var(--fg); } .rating-underweight,.rating-sell { color:var(--bad); background:color-mix(in srgb,var(--bad) 10%,var(--panel)); } .rating-review { color:var(--muted); }
+    .positive { color:var(--good); } .negative,.error { color:var(--bad); } .relative-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; font-variant-numeric:tabular-nums; } .relative-grid span { font-size:13px; font-weight:600; } .relative-grid small { display:block; font-size:10px; font-weight:400; color:var(--muted); } .relative-grid .focus { background:var(--soft); border-radius:6px; padding:2px 6px; margin:-2px -6px; } .number { font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:550; }
+    .marks { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; } .mark { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:5px; padding:1px 5px; } details { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin:10px 0; } summary { cursor:pointer; font-weight:550; } .row-details { padding:0; border:0; margin:4px 0; background:transparent; font-size:11px; } .row-details summary { color:var(--muted); font-weight:400; } .row-details p { overflow-wrap:anywhere; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:12px; }
+    .markdown { overflow-x:auto; overflow-wrap:anywhere; max-width:920px; } .markdown p { margin:12px 0; } .markdown h2 { margin-top:24px; } .markdown table { min-width:0; font-size:13px; } .markdown pre { overflow:auto; padding:12px; background:var(--bg); border-radius:8px; } .markdown code { font-family:ui-monospace,SFMono-Regular,monospace; } .time-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr)); gap:8px 20px; font-size:12px; } .empty { padding:32px 20px; color:var(--muted); text-align:center; }
+    footer { max-width:1280px; margin:auto; padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; } dialog { width:min(650px,calc(100vw - 28px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--fg); padding:24px; box-shadow:0 20px 90px #0003; } dialog::backdrop { background:#0d1c3e66; } .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; } .form-grid label { font-size:12px; display:flex; flex-direction:column; gap:5px; } .manager-row { display:flex; gap:8px; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:10px 0; } .manager-actions { display:flex; gap:5px; } .manager-actions button { font-size:12px; padding:4px 8px; } .toast { min-height:20px; font-size:12px; }
+    .mobile-label { display:none; }
+    @media(max-width:950px) { .topbar-inner,main { padding-left:18px; padding-right:18px; } .stats { gap:8px; } .stat { padding:12px; } .stat-value { font-size:21px; } .selectors label { display:none; } }
+    @media(max-width:800px) { .topbar-inner { align-items:flex-start; flex-direction:column; gap:12px; } .stats { grid-template-columns:repeat(2,1fr); } .stat:first-child { grid-column:1/-1; } .page-heading { align-items:flex-start; } h1 { font-size:23px; } .watch-table { min-width:0; table-layout:auto; } .mobile-label { display:block; } .watch-table thead { display:none; } .watch-table tbody,.watch-table tr { display:block; } .watch-table tr { display:grid; grid-template-columns:1fr 1fr; padding:15px; gap:10px; border-bottom:1px solid var(--line); } .watch-table td { border:0; padding:0; } .watch-table td:nth-child(2) { grid-column:1/-1; grid-row:2; } .watch-table td:nth-child(3) { grid-column:1/-1; grid-row:3; } .watch-table td:nth-child(4) { grid-column:2; grid-row:1; text-align:right; } .watch-table td:nth-child(5) { grid-column:1; } .watch-table td:nth-child(6) { grid-column:2; text-align:right; } .relative-grid { max-width:320px; } .form-grid { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="{{ root_prefix }}index.html"><span class="brand-icon" aria-hidden="true">↗</span> 美股每日研判</a>
+  <nav class="selectors" aria-label="报告选择"><label for="date-select">历史报告</label><select id="date-select" aria-label="交易日"></select><select id="symbol-select" aria-label="标的"></select></nav>
+</div></header>
 <main>
-  <nav class="selectors" aria-label="报告选择">
-    <label for="date-select">交易日</label><select id="date-select"></select>
-    <label for="symbol-select">标的</label><select id="symbol-select"></select>
-    <a href="{{ root_prefix }}index.html">首页</a>
-  </nav>
-  <h1>{{ title }}</h1>
+  <div class="page-heading"><h1>{{ title }}</h1>{% if root_prefix %}<a class="button" href="{{ root_prefix }}index.html">自选首页</a>{% endif %}</div>
   {{ body|safe }}
 </main>
 <footer>仅供个人研究参考，不构成投资建议。</footer>
@@ -139,7 +131,7 @@ BASE = _ENV.from_string(
     banner.querySelector("p[data-role=detail]").textContent = state.detail;
     const event = (site.banner || {}).last_schedule_event;
     const eventLine = banner.querySelector("p[data-role=event]");
-    if (event && eventLine) {
+    if (event && event.result && eventLine) {
       const labels = {started:"开始运行",recovery_started:"恢复运行",skipped_not_trading_day:"非交易日，跳过",skipped_before_anchor:"未到锚点，跳过",skipped_after_close:"已收盘，跳过",skipped_already_done:"今日已运行，跳过"};
       eventLine.textContent = prettyTime(event.at,"Asia/Shanghai") + " 调度：" + (labels[event.result] || event.result || "已记录") + (event.reason ? "（"+event.reason+"）" : "");
     }
@@ -171,58 +163,119 @@ BASE = _ENV.from_string(
       global.location.href = site.root_prefix + target;
     });
   }
-  if (site.refresh_seconds > 0) global.setTimeout(function(){ global.location.reload(); }, site.refresh_seconds*1000);
+  {% if managed %}
+  const manager = global.document.getElementById("watchlist-manager");
+  const form = global.document.getElementById("watchlist-form");
+  const message = global.document.getElementById("manager-message");
+  async function api(data) {
+    const response = await global.fetch("/api/watchlist", data ? {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)} : {});
+    const value = await response.json();
+    if (!response.ok) throw new Error(value.error || "保存失败，请重试。");
+    return value;
+  }
+  async function showManager() {
+    message.textContent = "";
+    manager.showModal();
+    try {
+      const value = await api();
+      const list = global.document.getElementById("manager-list");
+      list.replaceChildren();
+      value.items.forEach(item => {
+        const row = global.document.createElement("div"); row.className="manager-row";
+        const label=global.document.createElement("span"); label.textContent=item.symbol+(item.name?" · "+item.name:"")+(item.enabled?"":"（已暂停）"); row.appendChild(label);
+        const actions=global.document.createElement("div"); actions.className="manager-actions";
+        [[item.enabled?"暂停":"恢复","toggle"],["移除","remove"]].forEach(([text,action])=>{
+          const button=global.document.createElement("button"); button.type="button"; button.textContent=text;
+          button.addEventListener("click",async()=>{
+            button.disabled=true;
+            try { await api({action,symbol:item.symbol}); global.location.reload(); }
+            catch(error) { message.textContent=error.message; button.disabled=false; }
+          }); actions.appendChild(button);
+        }); row.appendChild(actions); list.appendChild(row);
+      });
+    } catch(error) { message.textContent=error.message; }
+  }
+  global.document.getElementById("manage-watchlist").addEventListener("click", showManager);
+  global.document.getElementById("close-manager").addEventListener("click",()=>manager.close());
+  form.addEventListener("submit",async event=>{
+    event.preventDefault();
+    const button=form.querySelector("button[type=submit]"); button.disabled=true;
+    const item=Object.fromEntries(new FormData(form));
+    Object.keys(item).forEach(key=>{if(!item[key].trim()) delete item[key];});
+    try { await api({action:"add",item}); global.location.reload(); }
+    catch(error) { message.textContent=error.message; button.disabled=false; }
+  });
+  {% endif %}
+  if (site.refresh_seconds > 0) {
+    function refresh() {
+      const dialog=global.document.getElementById("watchlist-manager");
+      if (dialog && dialog.open) global.setTimeout(refresh, 10000);
+      else global.location.reload();
+    }
+    global.setTimeout(refresh, site.refresh_seconds*1000);
+  }
 })(typeof window === "undefined" ? globalThis : window);
 </script>
 </body>
 </html>"""
 )
 
-HOME = _ENV.from_string(
-    """<section id="status-banner" class="banner" aria-live="polite">
-  <h2></h2><p data-role="detail"></p><p data-role="event" class="muted small"></p>
-</section>
-{% if latest_date %}<p class="muted">最新分析日期：{{ latest_date }}</p>{% endif %}
-<h2>大盘环境</h2>
-{% if market_cards %}<div class="grid">{% for card in market_cards %}<article class="card"><h3>{{ card.title }}</h3><div class="markdown">{{ card.body|safe }}</div></article>{% endfor %}</div>{% else %}<p class="empty">暂无大盘环境数据。</p>{% endif %}
-<h2>当日经济数据</h2>
-{% if macro_rows %}<div class="table-wrap"><table><thead><tr><th>指标</th><th>实际</th><th>预期</th><th>前值</th><th>发布时间</th></tr></thead><tbody>{% for row in macro_rows %}<tr><td>{{ row.metric }}</td><td>{{ row.actual }}</td><td>{{ row.expected }}</td><td>{{ row.prior }}</td><td>{{ row.published_at }}</td></tr>{% endfor %}</tbody></table></div>{% if macro_html %}<details><summary>经济数据与市场要闻补充</summary><div class="markdown">{{ macro_html|safe }}</div></details>{% endif %}{% elif macro_html %}<div class="panel markdown">{{ macro_html|safe }}</div>{% else %}<p class="empty">暂无经济数据。</p>{% endif %}
-<h2>板块强弱排名</h2>
-{% if sector_rows %}<div class="table-wrap"><table><thead><tr><th>名次</th><th>板块</th><th>标的</th><th>表现</th><th>说明</th></tr></thead><tbody>{% for row in sector_rows %}<tr><td>{{ row.rank }}</td><td>{{ row.sector }}</td><td>{{ row.symbol }}</td><td>{{ row.performance }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody></table></div>{% if sector_html %}<details><summary>板块与个股相对表现补充</summary><div class="markdown">{{ sector_html|safe }}</div></details>{% endif %}{% elif sector_html %}<div class="panel markdown">{{ sector_html|safe }}</div>{% else %}<p class="empty">暂无板块数据。</p>{% endif %}
-<h2>标的汇总</h2>
-{% if rows %}<div class="table-wrap"><table><thead><tr><th>代码</th><th>名称</th><th>类型</th><th>评级</th><th>一句话建议</th><th>盘前涨跌幅</th><th>板块名次</th><th>状态</th><th>开始</th><th>完成</th><th>信息截止</th><th>标记</th></tr></thead><tbody>{% for row in rows %}<tr><td><a href="{{ row.path }}">{{ row.symbol }}</a>{% if row.proxy %}<div class="muted small">代理 {{ row.proxy }}</div>{% endif %}</td><td>{{ row.name }}</td><td>{{ row.type }}</td><td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span></td><td>{{ row.advice }}</td><td>{{ row.premarket }}</td><td>{{ row.sector_rank }}</td><td>{{ row.status }}{% if row.error %}<div class="error small">{{ row.error }}</div>{% endif %}</td><td>{{ row.started_at }}</td><td>{{ row.finished_at }}</td><td>{{ row.information_through }}</td><td><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">当前没有可展示的标的结果。</p>{% endif %}
+# 汇总表与市场补充共用模板，首页优先显示订阅结论。
+_ROWS = """
+{% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对板块强弱"><thead><tr><th>订阅标的</th><th>总体建议</th><th>相对板块 · 百分点</th><th>盘前</th><th>报告状态</th><th></th></tr></thead><tbody>
+{% for row in rows %}<tr>
+  <td>{% if row.path %}<a class="symbol" href="{{ row.path }}">{{ row.symbol }}</a>{% else %}<span class="symbol">{{ row.symbol }}</span>{% endif %}<span class="subline">{{ row.name }}{% if row.name %} · {% endif %}{{ row.type }}</span>{% if row.proxy %}<span class="subline">以 {{ row.proxy }} 代理</span>{% endif %}</td>
+  <td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span><div class="advice">{{ row.advice }}</div></td>
+  <td><span class="{{ row.strength_tone }}">{{ row.strength }}</span><span class="small muted">{% if row.sector_etf != '—' %} · {{ row.sector_etf }}{% endif %}</span><div class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ row.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ row.relative[days].text }}</span>{% endfor %}</div></td>
+  <td class="number"><span class="mobile-label subline">盘前</span>{{ row.premarket }}</td>
+  <td><span class="small">{{ row.status }}</span><span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
+  <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div>{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
 """
-)
-
-DETAIL = _ENV.from_string(
-    """<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}</p>
-<section class="panel"><h2>时间信息</h2><div class="time-list">{% for item in times %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div><p class="muted">附加上下文截至 {{ context_as_of }}；日线截至 {{ price_data_end_date }}；工具数据最晚查询于 {{ last_data_query_at }}。</p>
-<div class="marks">{% for mark in marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if error %}<p class="error">{{ error }}</p>{% endif %}</section>
-{% if data_queries %}<h2>数据查询记录</h2><div class="table-wrap"><table><thead><tr><th>工具</th><th>开始</th><th>结束</th></tr></thead><tbody>{% for query in data_queries %}<tr><td>{{ query.name }}</td><td>{{ query.started_at }}</td><td>{{ query.finished_at }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+_CONTEXT = """
+<div class="section-heading"><h2>市场背景与数据</h2><span class="small muted">展开查看，不影响自选比较</span></div>
+<details><summary>大盘环境与扩展时段</summary>{% if market_cards %}<div class="grid">{% for card in market_cards %}<article class="card"><h3>{{ card.title }}</h3><div class="markdown">{{ card.body|safe }}</div></article>{% endfor %}</div>{% else %}<p class="muted">暂无大盘环境数据。</p>{% endif %}</details>
+<details><summary>当日经济数据与市场要闻{% if macro_rows %} · {{ macro_rows|length }} 项{% endif %}</summary>
+{% if macro_rows %}<div class="table-wrap"><table><thead><tr><th>指标</th><th>实际</th><th>预期</th><th>前值</th><th>发布时间</th></tr></thead><tbody>{% for row in macro_rows %}<tr><td>{{ row.metric }}</td><td>{{ row.actual }}</td><td>{{ row.expected }}</td><td>{{ row.prior }}</td><td>{{ row.published_at }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if macro_html %}<div class="markdown">{{ macro_html|safe }}</div>{% else %}<p class="muted">暂无经济数据。</p>{% endif %}</details>
+<details><summary>板块强弱排名 · 相对 SPY 的 20 日收益</summary>{% if sector_rows %}<div class="table-wrap"><table><thead><tr><th>名次</th><th>板块</th><th>20 日超额收益</th><th>说明</th></tr></thead><tbody>{% for row in sector_rows %}<tr><td>{{ row.rank }}</td><td>{{ row.sector }}</td><td class="number">{{ row.performance }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if sector_html %}<div class="markdown">{{ sector_html|safe }}</div>{% else %}<p class="muted">暂无板块数据。</p>{% endif %}</details>
+"""
+HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live="polite"><h2></h2><p data-role="detail"></p><p data-role="event" class="muted small"></p></section>
+<div class="stats">
+  <article class="stat"><span class="stat-label">市场环境</span><strong class="stat-value">{{ market_label }}</strong><span class="stat-caption">VIX {{ vix }} · 最新日期 {{ latest_date or '—' }}</span></article>
+  <article class="stat"><span class="stat-label">买入 / 增持</span><strong class="stat-value positive">{{ summary.positive }}</strong></article>
+  <article class="stat"><span class="stat-label">持有</span><strong class="stat-value">{{ summary.neutral }}</strong></article>
+  <article class="stat"><span class="stat-label">减持 / 卖出</span><strong class="stat-value negative">{{ summary.negative }}</strong></article>
+  <article class="stat"><span class="stat-label">当前订阅</span><strong class="stat-value">{{ rows|length }} <span class="small muted">只</span></strong><span class="stat-caption">{{ summary.pending }} 项待分析或复核</span></article>
+</div>
+<div class="section-heading"><div><h2>我的自选</h2><p class="small muted">强弱按 20 日超额收益判断；正值跑赢、负值跑输板块。各行保留实际报告日期。</p></div>
+{% if managed %}<button id="manage-watchlist" class="primary">＋ 管理订阅</button>{% else %}<a class="button primary" href="http://127.0.0.1:8765/">管理订阅 ↗</a>{% endif %}</div>
+""" + _ROWS + """<p class="small muted">相对收益 = 个股收益 − 板块 ETF 收益，单位为百分点；日线截至各报告的上一交易日。ETF／指数不套用个股板块基准。摘要摘自完整决策，点击详情查看条件和风险。当前模型 {{ model_label }}。</p>
+""" + _CONTEXT + """
+{% if managed %}<dialog id="watchlist-manager" aria-labelledby="manager-title"><div class="section-heading" style="margin-top:0"><h2 id="manager-title">管理订阅</h2><button id="close-manager" type="button" aria-label="关闭">关闭</button></div>
+<p class="small muted">保存后从下次分析批次生效；移除或暂停不删除历史报告，不立即调用模型。</p>
+<div id="manager-list"></div><h3>添加标的</h3><form id="watchlist-form"><div class="form-grid">
+<label>代码<input name="symbol" required maxlength="20" placeholder="NVDA / BRK.B / ^NDX" autocomplete="off"></label>
+<label>类型<select name="type"><option value="stock">个股</option><option value="etf">ETF</option><option value="index">指数</option></select></label>
+<label>名称（可选）<input name="name" maxlength="80" placeholder="显示名称"></label>
+<label>板块 ETF（个股可选）<input name="sector_etf" maxlength="20" placeholder="自动识别，可填 SMH 等"></label>
+<label>代理 ETF（指数可选）<input name="proxy" maxlength="20" placeholder="常用指数自动匹配"></label>
+</div><p id="manager-message" class="error toast" role="status"></p><button class="primary" type="submit">添加订阅</button></form></dialog>{% endif %}
+""")
+OVERVIEW = _ENV.from_string("""<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对板块收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
+DETAIL = _ENV.from_string("""<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>
+<p class="small muted">附加上下文截至 {{ context_as_of }}；日线截至 {{ price_data_end_date }}；工具数据最晚查询于 {{ last_data_query_at }}。</p>
+<div class="marks">{% for mark in marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section class="panel"><h2>组合经理最终决策（当日操作建议）</h2><div class="markdown">{{ decision|safe }}</div></section>
-<section class="panel"><h2>交易员方案</h2><div class="markdown">{{ trader_plan|safe }}</div></section>
-<section class="panel"><h2>研究经理结论</h2><div class="markdown">{{ investment_plan|safe }}</div></section>
-{% if reports %}<section><h2>分析师报告</h2>{% for report in reports %}<details><summary>{{ report.title }}</summary><div class="markdown">{{ report.body|safe }}</div></details>{% endfor %}</section>{% endif %}
-<section class="panel"><h2>多空辩论</h2><div class="markdown">{{ investment_debate|safe }}</div></section>
-<section class="panel"><h2>风控辩论</h2><div class="markdown">{{ risk_debate|safe }}</div></section>
-<section class="panel"><h2>附加市场上下文</h2><div class="markdown">{{ injected_context|safe }}</div></section>
-<h2>数据时间戳</h2>{% if timestamps %}<div class="table-wrap"><table><thead><tr><th>数据</th><th>时间</th><th>来源</th></tr></thead><tbody>{% for item in timestamps %}<tr><td>{{ item.name }}</td><td>{{ item.time }}</td><td>{{ item.source }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">暂无数据源时间戳。</p>{% endif %}
-<section class="panel"><h2>运行元数据</h2><div class="time-list">{% for item in metadata %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div></section>
-<nav class="panel"><a href="{{ previous }}" {% if not previous %}hidden{% endif %}>上一交易日结果</a>　<a href="{{ next }}" {% if not next %}hidden{% endif %}>下一交易日结果</a></nav>
-"""
-)
-
-OVERVIEW = _ENV.from_string(
-    """<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p>
-{% if market_cards %}<h2>大盘环境</h2><div class="grid">{% for card in market_cards %}<article class="card"><h3>{{ card.title }}</h3><div class="markdown">{{ card.body|safe }}</div></article>{% endfor %}</div>{% else %}<h2>大盘环境</h2><p class="empty">暂无大盘环境数据。</p>{% endif %}
-<h2>当日经济数据</h2>{% if macro_rows %}<div class="table-wrap"><table><thead><tr><th>指标</th><th>实际</th><th>预期</th><th>前值</th><th>发布时间</th></tr></thead><tbody>{% for row in macro_rows %}<tr><td>{{ row.metric }}</td><td>{{ row.actual }}</td><td>{{ row.expected }}</td><td>{{ row.prior }}</td><td>{{ row.published_at }}</td></tr>{% endfor %}</tbody></table></div>{% if macro_html %}<details><summary>经济数据与市场要闻补充</summary><div class="markdown">{{ macro_html|safe }}</div></details>{% endif %}{% elif macro_html %}<div class="panel markdown">{{ macro_html|safe }}</div>{% else %}<p class="empty">暂无经济数据。</p>{% endif %}
-<h2>板块强弱排名</h2>{% if sector_rows %}<div class="table-wrap"><table><thead><tr><th>名次</th><th>板块</th><th>标的</th><th>表现</th><th>说明</th></tr></thead><tbody>{% for row in sector_rows %}<tr><td>{{ row.rank }}</td><td>{{ row.sector }}</td><td>{{ row.symbol }}</td><td>{{ row.performance }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody></table></div>{% if sector_html %}<details><summary>板块与个股相对表现补充</summary><div class="markdown">{{ sector_html|safe }}</div></details>{% endif %}{% elif sector_html %}<div class="panel markdown">{{ sector_html|safe }}</div>{% else %}<p class="empty">暂无板块数据。</p>{% endif %}
-{% if rows %}<h2>标的汇总</h2><div class="table-wrap"><table><thead><tr><th>代码</th><th>名称</th><th>类型</th><th>评级</th><th>一句话建议</th><th>盘前涨跌幅</th><th>板块名次</th><th>状态</th><th>开始</th><th>完成</th><th>信息截止</th><th>标记</th></tr></thead><tbody>{% for row in rows %}<tr><td><a href="{{ row.path }}">{{ row.symbol }}</a>{% if row.proxy %}<div class="muted small">代理 {{ row.proxy }}</div>{% endif %}</td><td>{{ row.name }}</td><td>{{ row.type }}</td><td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span></td><td>{{ row.advice }}</td><td>{{ row.premarket }}</td><td>{{ row.sector_rank }}</td><td>{{ row.status }}{% if row.error %}<div class="error small">{{ row.error }}</div>{% endif %}</td><td>{{ row.started_at }}</td><td>{{ row.finished_at }}</td><td>{{ row.information_through }}</td><td><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div></td></tr>{% endfor %}</tbody></table></div>{% endif %}
-"""
-)
-
-HISTORY = _ENV.from_string(
-    """<p class="muted">{{ symbol }} 历次当前结果</p>
-{% if rows %}<div class="table-wrap"><table><thead><tr><th>日期</th><th>中文评级</th><th>一句话建议</th><th>状态</th><th>模式</th></tr></thead><tbody>{% for row in rows %}<tr><td><a href="{{ row.path }}">{{ row.date }}</a></td><td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span></td><td>{{ row.advice }}</td><td>{{ row.status }}</td><td>{{ row.mode }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">暂无历史结果。</p>{% endif %}
-"""
-)
+<details><summary>交易员方案</summary><div class="markdown">{{ trader_plan|safe }}</div></details>
+<details><summary>研究经理结论</summary><div class="markdown">{{ investment_plan|safe }}</div></details>
+{% if reports %}<div class="section-heading"><h2>分析师报告</h2></div>{% for report in reports %}<details><summary>{{ report.title }}</summary><div class="markdown">{{ report.body|safe }}</div></details>{% endfor %}{% endif %}
+<details><summary>多空辩论</summary><div class="markdown">{{ investment_debate|safe }}</div></details>
+<details><summary>风控辩论</summary><div class="markdown">{{ risk_debate|safe }}</div></details>
+<details><summary>附加市场上下文</summary><div class="markdown">{{ injected_context|safe }}</div></details>
+<details><summary>时间信息与数据查询记录</summary><div class="time-list">{% for item in times %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div>
+{% if data_queries %}<h3>数据查询记录</h3><div class="table-wrap"><table><thead><tr><th>工具</th><th>开始</th><th>结束</th></tr></thead><tbody>{% for query in data_queries %}<tr><td>{{ query.name }}</td><td>{{ query.started_at }}</td><td>{{ query.finished_at }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<h3>数据时间戳</h3>{% if timestamps %}<div class="table-wrap"><table><thead><tr><th>数据</th><th>时间</th><th>来源</th></tr></thead><tbody>{% for item in timestamps %}<tr><td>{{ item.name }}</td><td>{{ item.time }}</td><td>{{ item.source }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">暂无数据源时间戳。</p>{% endif %}</details>
+<details><summary>运行元数据</summary><div class="time-list">{% for item in metadata %}<div><strong>{{ item.label }}：</strong>{{ item.value }}</div>{% endfor %}</div></details>
+{% if previous or next %}<nav class="panel"><a href="{{ previous }}" {% if not previous %}hidden{% endif %}>上一交易日结果</a>　<a href="{{ next }}" {% if not next %}hidden{% endif %}>下一交易日结果</a></nav>{% endif %}
+""")
+HISTORY = _ENV.from_string("""<p class="muted">{{ symbol }} 历次当前结果</p>{% if rows %}<div class="table-wrap"><table><thead><tr><th>日期</th><th>评级</th><th>建议摘要</th><th>状态</th><th>模式</th></tr></thead><tbody>{% for row in rows %}<tr><td><a href="{{ row.path }}">{{ row.date }}</a></td><td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span></td><td>{{ row.advice }}</td><td>{{ row.status }}</td><td>{{ row.mode }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">暂无历史结果。</p>{% endif %}""")

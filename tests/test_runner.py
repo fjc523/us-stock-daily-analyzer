@@ -642,7 +642,7 @@ def test_failed_attempt_records_open_times_and_keeps_macro_or_tool_truncation(
     item = type(
         "WatchItem",
         (),
-        {"symbol": "NVDA", "analysis_symbol": "NVDA", "type": "stock"},
+        {"symbol": "NVDA", "name": "英伟达", "analysis_symbol": "NVDA", "type": "stock"},
     )()
     trade_day = date(2026, 10, 2)
     window = RunWindow(trade_day, date(2026, 10, 1), "live", None)
@@ -850,3 +850,49 @@ def test_manifest_usage_sums_batches_and_recompute_is_idempotent(tmp_path: Path)
     assert json.loads(
         (tmp_path / "data" / "runs" / trade_day.isoformat() / "manifest.json").read_text(encoding="utf-8")
     )["llm_usage"] == expected
+
+
+def test_context_information_cutoff_without_tools_and_medium_defaults(tmp_path, monkeypatch):
+    import daily_analyzer.runner as runner
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: None)
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    root = _project(tmp_path, ("NVDA",))
+    path = root / "config/watchlist.yaml"
+    path.write_text(path.read_text().replace("    type: stock", "    type: stock\n    name: 英伟达"))
+    class NoToolGraph(_FakeGraph):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.tool_trace = type("Trace", (), {"snapshot": lambda self: []})()
+    _FakeGraph.fail_symbols = set()
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    outcome = _run(root, clock=lambda: now, analyzer_factory=NoToolGraph)
+    assert outcome.exit_code == 0
+    result = json.loads((root / "data/runs/2026-10-02/current/NVDA.json").read_text())
+    assert result["information_through"] == result["context_as_of"] == now.isoformat(timespec="seconds")
+    assert result["last_data_query_at"] is None and result["data_queries"] == []
+    assert result["name"] == "英伟达"
+    assert result["llm"]["deep"]["reasoning_effort"] == "medium"
+    assert result["llm"]["quick"]["reasoning_effort"] == "medium"
+
+
+def test_subscription_changes_apply_only_to_next_batch(tmp_path, monkeypatch):
+    import daily_analyzer.runner as runner
+    from daily_analyzer.viewer import WatchlistStore
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: None)
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    root = _project(tmp_path)
+    class UpdatingContext(_ContextManager):
+        def prepare(self, batch):
+            blocks = super().prepare(batch)
+            store = WatchlistStore(root)
+            store.update({"action": "add", "item": {"symbol": "AAPL", "type": "stock"}})
+            store.update({"action": "remove", "symbol": "NVDA"})
+            return blocks
+    _FakeGraph.fail_symbols = set()
+    _FakeGraph.errors_by_symbol = {}
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    assert _run(root, clock=lambda: now, context_manager=UpdatingContext()).exit_code == 0
+    assert set(_FakeGraph.analyzed) == {"NVDA", "SPY"}
+    assert _run(root, clock=lambda: now + timedelta(minutes=2), force=True).exit_code == 0
+    assert set(_FakeGraph.analyzed) == {"SPY", "AAPL"}
+    assert (root / "data/runs/2026-10-02/current/NVDA.json").is_file()

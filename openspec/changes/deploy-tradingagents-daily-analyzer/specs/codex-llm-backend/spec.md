@@ -47,15 +47,15 @@ TradingAgents fork SHALL 在其 LLM 客户端工厂中注册原生 provider `cod
 - **THEN** 系统记录 `config_drift` 告警（含被忽略的配置名），并在本次调用记录中标出；推理结果照常返回
 
 ### Requirement: 模型与推理强度可配置
-系统 SHALL 允许 deep 与 quick 两个角色分别配置模型和推理强度。模型名使用上游已有的 `deep_think_llm` 和 `quick_think_llm`；推理强度使用 fork 新增的 `codex_deep_reasoning_effort` 和 `codex_quick_reasoning_effort`，两者都支持对应的 `TRADINGAGENTS_*` 环境变量。主项目默认值 MUST 为模型 `gpt-6.1-sol`、推理强度 `high`。系统 SHALL 支持用命令行参数临时覆盖，也 SHALL 支持把 provider 切换为上游支持的其他任意 provider。
+系统 SHALL 允许 deep 与 quick 两个角色分别配置模型和推理强度。模型名使用上游已有的 `deep_think_llm` 和 `quick_think_llm`；推理强度使用 fork 新增的 `codex_deep_reasoning_effort` 和 `codex_quick_reasoning_effort`，两者都支持对应的 `TRADINGAGENTS_*` 环境变量。主项目默认值 MUST 为模型 `gpt-6.1-sol`、推理强度 `medium`。系统 SHALL 支持用命令行参数临时覆盖，也 SHALL 支持把 provider 切换为上游支持的其他任意 provider。
 
 #### Scenario: 使用默认模型
 - **WHEN** 主项目配置文件中未设置任何模型字段
-- **THEN** deep 与 quick 两个角色都以 `-m gpt-6.1-sol -c model_reasoning_effort="high"` 调用 codex
+- **THEN** deep 与 quick 两个角色都以 `-m gpt-6.1-sol -c model_reasoning_effort="medium"` 调用 codex
 
 #### Scenario: 按角色分别配置
 - **WHEN** 配置 `llm.quick.model=gpt-6-luna`、`llm.quick.reasoning_effort=medium`，deep 保持默认
-- **THEN** quick 角色的调用使用 `gpt-6-luna` 和 `medium`，deep 角色的调用仍使用 `gpt-6.1-sol` 和 `high`
+- **THEN** quick 角色的调用使用 `gpt-6-luna` 和 `medium`，deep 角色的调用仍使用 `gpt-6.1-sol` 和 `medium`
 
 #### Scenario: 命令行临时覆盖
 - **WHEN** 用户执行 `run --model gpt-6-sol --effort xhigh`
@@ -67,7 +67,7 @@ TradingAgents fork SHALL 在其 LLM 客户端工厂中注册原生 provider `cod
 
 ### Requirement: 按角色传递 LLM 参数
 fork SHALL 把 `build_llm_kwargs(config)` 扩展为 `build_llm_kwargs(config, role=None)`。`TradingAgentsGraph.__init__` MUST 分别以 `role="deep"` 和 `role="quick"` 构造两份参数，传给对应的客户端；`role=None` 时 MUST 与上游原有行为一致。provider 为 `codex_exec` 时，SHALL 转发以下参数：
-- `reasoning_effort`：依次取 `codex_{role}_reasoning_effort`、`codex_reasoning_effort`，都没有时为 `high`；
+- `reasoning_effort`：依次取 `codex_{role}_reasoning_effort`、`codex_reasoning_effort`，都没有时保留 fork 通用回退值 `high`；主项目始终显式传入两个角色的有效值（默认均为 `medium`）；
 - `codex_binary`、超时、重试、并发、用量日志路径、提示词日志目录；
 - 角色标签。
 

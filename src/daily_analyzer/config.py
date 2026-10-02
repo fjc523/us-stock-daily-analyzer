@@ -126,7 +126,7 @@ class ConfigModel(BaseModel):
 
 class RoleSettings(ConfigModel):
     model: str = "gpt-6.1-sol"
-    reasoning_effort: str = "high"
+    reasoning_effort: str = "medium"
 
     @field_validator("model")
     @classmethod

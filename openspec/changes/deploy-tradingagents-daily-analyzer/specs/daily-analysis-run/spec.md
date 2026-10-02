@@ -99,7 +99,7 @@
 `live` 模式下，第一只标的开始分析的时刻 MUST 不早于锚点之后 `run.min_start_after_anchor_seconds`（默认 60）秒。每只标的在开始时 SHALL 重新获取 ticker 级上下文（扩展时段、经济数据与市场要闻）。结果 MUST 分别记录以下字段，不得用一个字段代表多种含义：
 - `started_at`、`context_as_of`（附加上下文获取时刻）、`price_data_end_date`；
 - `data_queries`（运行中每次工具调用的名称与起止时间，由挂在图上的回调采集）、`last_data_query_at`；
-- `information_through`：`live` 取 `last_data_query_at`，`backfill` 取冻结时刻；
+- `information_through`：`live` 取上下文有效截止与 `last_data_query_at` 的较晚者，无工具查询时取上下文截止；`backfill` 取冻结时刻；
 - `finished_at`；
 - `started_after_open`、`finished_after_open`；
 - 各上下文块的数据时间戳与数据源。
@@ -210,3 +210,10 @@
 #### Scenario: 站点构建失败
 - **WHEN** 某次构建因模板异常失败
 - **THEN** `site` 仍指向上一次成功的构建，`run` 的退出码不受影响，日志中记录错误
+
+### Requirement: 没有工具调用时仍记录信息截止
+实时分析没有工具调用时，`last_data_query_at` SHALL 保持 null，但 `information_through` MUST 取附加上下文的有效截止时刻，不能显示为无信息。结果 SHALL 保存自选名称，方便历史报告展示。
+
+#### Scenario: 仅使用注入上下文
+- **WHEN** 智能体使用已有上下文完成实时分析，没有触发工具
+- **THEN** 最晚工具查询为 null，信息截止为 context_as_of，实际名称写入结果

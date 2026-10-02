@@ -30,6 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="临时覆盖 deep 与 quick 推理强度",
     )
 
+    commands.add_parser("serve", help="启动仅本机的报告与订阅管理")
+    viewer_parser = commands.add_parser("viewer", help="管理本机查看器服务")
+    viewer_parser.add_argument("viewer_action", choices=("install", "uninstall", "status"))
     commands.add_parser("build-site", help="根据已有结果重建 HTML 站点")
     doctor_parser = commands.add_parser("doctor", help="检查本机运行环境")
     doctor_parser.add_argument("--ping", action="store_true", help="执行极小模型连通性检查")
@@ -116,6 +119,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"[{check.get('status', 'info')}] {check.get('name')}: {check.get('detail')}")
         print(result.get("summary", "自检完成"))
         return int(result.get("exit_code", 0 if result.get("ok") else 1))
+
+    if args.command == "serve":
+        from daily_analyzer.viewer import serve
+        try:
+            serve(root)
+        except OSError as exc:
+            print(f"查看器启动失败：{exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.command == "viewer":
+        from daily_analyzer.deployment.viewer import viewer_action
+        result = viewer_action(root, args.viewer_action)
+        _print_mapping("查看器 ", result)
+        return 0 if result.get("ok") else 1
 
     result = _schedule(root, args.schedule_action)
     if result.get("ok"):

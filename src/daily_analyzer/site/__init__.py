@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
 import uuid
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, timedelta, timezone
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -19,7 +20,7 @@ import markdown
 import nh3
 from markupsafe import Markup
 
-from daily_analyzer.config import load_settings
+from daily_analyzer.config import load_settings, load_watchlist
 from daily_analyzer.site.templates import BASE, DETAIL, HISTORY, HOME, OVERVIEW
 
 DISCLAIMER = "仅供个人研究参考，不构成投资建议。"
@@ -43,7 +44,7 @@ _STATUS = {
     "success": "已完成", "completed": "已完成", "running": "运行中",
     "partial": "部分失败", "failed": "失败", "interrupted": "已中断",
     "skipped_quota": "额度限制跳过", "skipped_fatal": "致命错误后跳过",
-    "skipped_timeout": "超时跳过", "skipped": "已跳过",
+    "skipped_timeout": "超时跳过", "skipped": "已跳过", "pending": "待分析",
 }
 
 
@@ -74,7 +75,9 @@ def symbol_slug(value: str) -> str:
 def _markdown(value: Any) -> Markup:
     if value is None or value == "":
         return Markup("<p class=\"muted\">暂无内容。</p>")
-    rendered = markdown.markdown(str(value), extensions=["tables", "fenced_code"])
+    # 提供器的表格可能紧接元数据说明，Markdown 表格需要空行分隔。
+    text = re.sub(r"(?<=\S)\n(?=\|[^\n]+\|\n\|[-:| ]+\|)", "\n\n", str(value))
+    rendered = markdown.markdown(text, extensions=["tables", "fenced_code"])
     cleaned = nh3.clean(
         rendered,
         tags=_MARKDOWN_TAGS,
@@ -198,7 +201,7 @@ def _rows(value: Any, kind: str) -> list[dict[str, str]]:
                     performance = item["excess_return_20d"]
             rows.append(
                 {
-                    "rank": _display(_first(item, ("rank", "position")) or index),
+                    "rank": _display(_first(item, ("rank", "position"))),
                     "sector": _display(sector_symbol),
                     "symbol": _display(_first(item, ("stock_symbol", "ticker"))),
                     "performance": _display(performance if performance is not None else item.get("score")),
@@ -375,7 +378,7 @@ def _sector_data(
 
 
 def _summary_premarket(result: Mapping[str, Any]) -> str:
-    direct = _find(
+    direct = _first(
         result,
         ("premarket_change_pct", "pre_market_change_pct", "premarket_pct_change", "premarket_return"),
     )
@@ -394,7 +397,7 @@ def _summary_premarket(result: Mapping[str, Any]) -> str:
 
 
 def _summary_sector_rank(result: Mapping[str, Any]) -> Any:
-    direct = _find(result, ("sector_rank", "sector_position"))
+    direct = _first(result, ("sector_rank", "sector_position"))
     if direct is not None:
         return direct
     return _block_data(_provider_block(result, "sector_strength")).get("sector_rank")
@@ -405,38 +408,71 @@ def _safe_retry_error(value: Any) -> Any:
     return data.get("error") if data else None
 
 
+def _advice_summary(value: Any, limit: int = 140) -> str:
+    """摘取报告的执行摘要，首页不生成新的模型建议。"""
+    if isinstance(value, Mapping):
+        value = _first(value, ("summary", "decision", "action", "plan"))
+    if not value:
+        return "暂无建议，等待分析完成。"
+    text = str(value)
+    match = re.search(
+        r"(?:\*\*|#{1,6}\s*)?(?:Executive Summary|执行摘要|总体建议|操作建议|摘要)"
+        r"(?:\*\*)?\s*[:：]\s*(.*?)(?=\n\s*(?:\*\*[^*\n]+\*\*\s*[:：]|#{1,6}\s)|\Z)",
+        text, flags=re.IGNORECASE | re.DOTALL,
+    )
+    if match:
+        text = match.group(1)
+    text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", text, flags=re.IGNORECASE | re.DOTALL)
+    text = unescape(re.sub(r"<[^>]+>", " ", str(_markdown(text))))
+    text = re.sub(r"\s+", " ", text).strip()
+    sentence = re.search(r"^.*?[。！？](?=\s|[^。！？]|$)", text)
+    if sentence:
+        text = sentence.group(0)
+    return text[:limit].rstrip() + ("…" if len(text) > limit else "")
+
+
+def _relative_metric(value: Any) -> dict[str, str]:
+    try:
+        number = float(value) if value is not None else float("nan")
+    except (TypeError, ValueError, OverflowError):
+        number = float("nan")
+    if not math.isfinite(number):
+        return {"text": "—", "tone": "muted"}
+    return {"text": f"{number * 100:+.2f}", "tone": "positive" if number > 0 else "negative" if number < 0 else "muted"}
+
+
 def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str) -> dict[str, Any]:
     rating, rating_class = _rating(result)
-    advice = result.get("final_trade_decision")
-    if isinstance(advice, Mapping):
-        advice = advice.get("action") or advice.get("summary") or advice.get("decision")
-    if not advice:
-        advice = result.get("trader_investment_plan")
-    if isinstance(advice, Mapping):
-        advice = advice.get("plan") or advice.get("summary") or advice.get("action")
-    premarket = _summary_premarket(result)
-    sector_rank = _summary_sector_rank(result)
+    advice = result.get("final_trade_decision") or result.get("trader_investment_plan")
     symbol_type = str(result.get("type") or "")
-    proxy = result.get("analyzed_symbol") if symbol_type == "index" else None
-    status = _status(result)
+    sector = _block_data(_provider_block(result, "sector_strength"))
+    # 只读取此标的的结构化指标，不从板块排名或其他标的递归取值。
+    if symbol_type != "stock" or (sector.get("symbol") and sector.get("symbol") != result.get("symbol")):
+        sector = {}
+    relative = {str(days): _relative_metric(sector.get(f"sector_excess_{days}d")) for days in (5, 20, 60)}
+    strength = "不适用" if symbol_type != "stock" else "数据不足"
+    tone = relative["20"]["tone"]
+    if relative["20"]["text"] != "—" and symbol_type == "stock":
+        strength = {"positive": "强于板块", "negative": "弱于板块", "muted": "与板块持平"}[tone]
     error = result.get("error") or _safe_retry_error(retry)
     return {
         "symbol": str(result.get("symbol") or "未知"),
-        "name": str(result.get("name") or "—"),
+        "name": str(result.get("name") or ""),
         "type": {"stock": "个股", "etf": "ETF", "index": "指数"}.get(symbol_type, symbol_type or "—"),
-        "proxy": proxy,
-        "rating": rating,
-        "rating_class": rating_class,
-        "advice": _display(advice),
-        "premarket": _display(premarket),
-        "sector_rank": _display(sector_rank),
+        "proxy": result.get("analyzed_symbol") if symbol_type == "index" else None,
+        "rating": rating, "rating_class": rating_class,
+        "advice": _advice_summary(advice),
+        "premarket": _summary_premarket(result),
+        "sector_rank": _display(_summary_sector_rank(result)),
+        "sector_etf": sector.get("sector_etf") or "—",
+        "relative": relative, "strength": strength, "strength_tone": tone,
+        "price_date": result.get("price_data_end_date") or "—",
+        "date": result.get("_date") or result.get("upstream_trade_date") or "—",
         "information_through": _pretty_timestamp(result.get("information_through")),
-        "status": status,
-        "error": _display(error) if error else None,
+        "status": _status(result), "error": _display(error) if error else None,
         "started_at": _pretty_timestamp(result.get("started_at")),
         "finished_at": _pretty_timestamp(result.get("finished_at")),
-        "marks": _marks(result, retry),
-        "path": detail_path,
+        "marks": _marks(result, retry), "path": detail_path,
     }
 
 
@@ -467,6 +503,22 @@ def _timestamp_rows(result: Mapping[str, Any]) -> list[dict[str, str]]:
     return rows
 
 
+def _debate_text(value: Any) -> str:
+    if isinstance(value, Mapping):
+        if value.get("history"):
+            value = str(value["history"])
+        else:
+            labels = {"bull_history": "多方观点", "bear_history": "空方观点",
+                      "aggressive_history": "积极观点", "conservative_history": "保守观点",
+                      "neutral_history": "中性观点"}
+            return "\n\n".join(f"### {title}\n\n{value[key]}" for key, title in labels.items() if value.get(key))
+    roles = {"Bull Analyst": "多方观点", "Bear Analyst": "空方观点",
+             "Aggressive Analyst": "积极观点", "Conservative Analyst": "保守观点",
+             "Neutral Analyst": "中性观点"}
+    return re.sub(r"(Bull|Bear|Aggressive|Conservative|Neutral) Analyst:",
+                  lambda match: f"\n\n### {roles[match.group(0)[:-1]]}\n\n", str(value or ""))
+
+
 def _detail_values(
     result: Mapping[str, Any],
     all_results: list[Mapping[str, Any]],
@@ -488,7 +540,9 @@ def _detail_values(
             continue
         text = _provider_text(value) if isinstance(value, (Mapping, list)) else str(value)
         if text.strip():
-            reports.append({"title": str(name), "body": _markdown(text)})
+            reports.append({"title": {"market_report": "技术与市场分析", "sentiment_report": "情绪分析",
+                                      "news_report": "新闻分析", "fundamentals_report": "基本面分析"}.get(name, str(name)),
+                            "body": _markdown(text)})
     llm = _as_mapping(result.get("llm"))
     metadata = [
         {"label": "批次", "value": result.get("run_id")},
@@ -526,8 +580,8 @@ def _detail_values(
         "trader_plan": _markdown(result.get("trader_investment_plan")),
         "investment_plan": _markdown(result.get("investment_plan")),
         "reports": reports,
-        "investment_debate": _markdown(result.get("investment_debate")),
-        "risk_debate": _markdown(result.get("risk_debate")),
+        "investment_debate": _markdown(_debate_text(result.get("investment_debate"))),
+        "risk_debate": _markdown(_debate_text(result.get("risk_debate"))),
         "injected_context": _markdown(result.get("injected_context")),
         "timestamps": _timestamp_rows(result),
         "data_queries": [
@@ -542,6 +596,7 @@ def _detail_values(
         "metadata": [{"label": item["label"], "value": _display(item["value"])} for item in metadata],
         "marks": marks,
         "error": _display(result.get("error") or _safe_retry_error(retry)) if result.get("error") or _safe_retry_error(retry) else None,
+        "history": f"{day_prefix}symbols/{slug}.html",
         "previous": f"{day_prefix}days/{previous['_date']}/{slug}.html" if previous else "",
         "next": f"{day_prefix}days/{next_result['_date']}/{slug}.html" if next_result else "",
     }
@@ -606,10 +661,12 @@ def _page(
     selected_symbol: str | None,
     banner: Mapping[str, Any],
     refresh_seconds: int,
+    managed: bool = False,
 ) -> str:
     return BASE.render(
         title=title,
         body=body,
+        managed=managed,
         root_prefix=root_prefix,
         ui_data={
             "root_prefix": root_prefix,
@@ -623,12 +680,12 @@ def _page(
     )
 
 
-def _build_pages(
-    build_root: Path,
-    grouped: dict[str, list[dict[str, Any]]],
-    root: Path,
-    now: datetime,
-) -> int:
+def render_home(project_root: str | Path, *, now: datetime | None = None, managed: bool = False,
+                grouped: dict[str, list[dict[str, Any]]] | None = None) -> str:
+    """读取当前订阅与落盘结果，HTTP 首页不写分析状态或发布目录。"""
+    root = Path(project_root).resolve()
+    now = now or datetime.now(ZoneInfo(_MARKET_TZ))
+    grouped = grouped if grouped is not None else _read_results(root / "data" / "runs")
     index = _index_data(grouped)
     status = _read_status(root / "data" / "status.json")
     anchor = load_settings(root).schedule.anchor
@@ -643,36 +700,88 @@ def _build_pages(
         "last_schedule_event": status.get("last_schedule_event") or {},
     }
     running = _as_mapping(banner_data["last_run"]).get("status") == "running"
-    home_refresh = 60 if running else 300
-    pages = 0
-
     latest_day = next(iter(sorted(grouped, reverse=True)), None)
     latest_results = grouped.get(latest_day, []) if latest_day else []
     latest_context = _latest_context(root / "data" / "runs" / latest_day) if latest_day else {}
-    latest_manifest = _manifest(root / "data" / "runs" / latest_day) if latest_day else {}
-    latest_rows = [
-        _summary_row(item, _retry_failure(latest_manifest, item), f"days/{latest_day}/{item['_slug']}.html")
-        for item in latest_results
-    ]
+    watchlist_path = root / "config" / "watchlist.yaml"
+    watchlist = load_watchlist(root) if watchlist_path.is_file() else None
+    latest_by_symbol = {}
+    for day in sorted(grouped, reverse=True):
+        for result in grouped[day]:
+            latest_by_symbol.setdefault(result.get("symbol"), result)
+    items = watchlist.active_items if watchlist is not None else []
+    last_run = _as_mapping(banner_data["last_run"])
+    batch_items = {}
+    if running and last_run.get("run_id") and last_run.get("trade_date"):
+        batch_path = root / "data/runs" / str(last_run["trade_date"]) / "batches" / str(last_run["run_id"]) / "batch.json"
+        if batch_path.is_file():
+            batch_items = _as_mapping(_load_json(batch_path).get("items"))
+    rows = []
+    for item in items:
+        result = latest_by_symbol.get(item.symbol)
+        if result is None:
+            result = {"symbol": item.symbol, "type": item.type, "status": "pending", "analyzed_symbol": item.analysis_symbol}
+            row = _summary_row(result, None, "")
+        else:
+            day = result["_date"]
+            row = _summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / day), result),
+                               f"days/{day}/{result['_slug']}.html")
+        row["name"] = item.name or row["name"]
+        attempt_status = _as_mapping(batch_items.get(symbol_slug(item.symbol))).get("status")
+        if attempt_status in {"running", "pending"}:
+            row["status"] = "今日分析中" if attempt_status == "running" else "今日排队中"
+        rows.append(row)
+    if watchlist is None:
+        rows = [_summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / latest_day), result),
+                             f"days/{latest_day}/{result['_slug']}.html") for result in latest_results]
     macro_rows, macro_html = _macro_data(latest_results)
     sector_rows, sector_html = _sector_data(latest_context, latest_results)
-    home_cards = _context_cards(latest_context, latest_results)
-    home_body = Markup(HOME.render(
-        latest_date=latest_day,
-        market_cards=home_cards,
-        macro_rows=macro_rows,
-        macro_html=macro_html,
-        sector_rows=sector_rows,
-        sector_html=sector_html,
-        rows=latest_rows,
+    regime = latest_context.get("market_regime") or _latest_result_block(latest_results, "market_regime")
+    market = _block_data(regime)
+    try:
+        vix_text = f"{float(market['vix_close']):.2f}"
+    except (TypeError, ValueError, KeyError):
+        vix_text = "—"
+    summary = {"positive": 0, "neutral": 0, "negative": 0, "pending": 0}
+    for row in rows:
+        if row["rating_class"] in {"rating-buy", "rating-overweight"}:
+            summary["positive"] += 1
+        elif row["rating_class"] in {"rating-sell", "rating-underweight"}:
+            summary["negative"] += 1
+        elif row["rating_class"] == "rating-hold":
+            summary["neutral"] += 1
+        else:
+            summary["pending"] += 1
+    body = Markup(HOME.render(
+        latest_date=latest_day, rows=rows, summary=summary,
+        watchlist=watchlist.items if watchlist else [], managed=managed,
+        market_label=market.get("label") or "暂无数据", vix=vix_text,
+        market_cards=_context_cards(latest_context, latest_results),
+        macro_rows=macro_rows, macro_html=macro_html, sector_rows=sector_rows, sector_html=sector_html,
+        model_label=_role_summary(load_settings(root).llm.deep.model_dump()),
     ))
-    (build_root / "index.html").write_text(
-        _page(title="首页", body=home_body, root_prefix="", index=index,
-              selected_date=latest_day, selected_symbol=None, banner=banner_data,
-              refresh_seconds=home_refresh),
-        encoding="utf-8",
-    )
-    pages += 1
+    return _page(title="自选研判", body=body, root_prefix="", index=index,
+                 selected_date=latest_day, selected_symbol=None, banner=banner_data,
+                 refresh_seconds=60 if running else 300, managed=managed)
+
+
+def _build_pages(build_root: Path, grouped: dict[str, list[dict[str, Any]]], root: Path, now: datetime) -> int:
+    index = _index_data(grouped)
+    status = _read_status(root / "data" / "status.json")
+    anchor = load_settings(root).schedule.anchor
+    local_today = now.astimezone(ZoneInfo(_MARKET_TZ)).date()
+    calendar = _calendar_payload(local_today, anchor)
+    anchor_match = re.fullmatch(r"(\d{2}):(\d{2})\s+(\S+)", anchor)
+    banner_data = {
+        **calendar,
+        "market_timezone": anchor_match.group(3) if anchor_match else _MARKET_TZ,
+        "anchor_time": f"{anchor_match.group(1)}:{anchor_match.group(2)}" if anchor_match else "08:30",
+        "last_run": status.get("last_run") or {},
+        "last_schedule_event": status.get("last_schedule_event") or {},
+    }
+    running = _as_mapping(banner_data["last_run"]).get("status") == "running"
+    pages = 1
+    (build_root / "index.html").write_text(render_home(root, now=now, grouped=grouped), encoding="utf-8")
 
     all_symbols: dict[str, list[dict[str, Any]]] = {}
     all_results: list[dict[str, Any]] = []
@@ -743,7 +852,7 @@ def _build_pages(
                 "date": result.get("_date"),
                 "rating": rating,
                 "rating_class": rating_class,
-                "advice": _display(advice),
+                "advice": _advice_summary(advice),
                 "status": _status(result),
                 "mode": "回放" if result.get("mode") == "backfill" else "实时",
                 "path": f"../days/{result.get('_date')}/{slug}.html",

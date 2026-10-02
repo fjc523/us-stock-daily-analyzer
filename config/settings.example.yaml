@@ -2,10 +2,10 @@ llm:
   provider: codex_exec
   deep:
     model: gpt-6.1-sol
-    reasoning_effort: high
+    reasoning_effort: medium
   quick:
     model: gpt-6.1-sol
-    reasoning_effort: high
+    reasoning_effort: medium
   call_timeout_seconds: 600
   max_retries: 3
   max_concurrent_calls: 4

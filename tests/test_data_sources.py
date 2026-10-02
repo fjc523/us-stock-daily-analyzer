@@ -279,9 +279,10 @@ def test_yfinance_sector_mapping_is_cached_inside_project(tmp_path: Path) -> Non
     assert ticker.info_calls == 1
 
 
-def test_yfinance_rate_limit_and_optional_calendar_fail_as_unavailable() -> None:
+def test_yfinance_rate_limit_and_optional_calendar_fail_as_unavailable(tmp_path) -> None:
     ticker = FakeTicker(error=RuntimeError("HTTP 429"))
     source = YahooDataSource(
+        project_root=tmp_path,
         ticker_factory=lambda symbol: ticker,
         calendar_factory=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("HTTP 429")),
     )

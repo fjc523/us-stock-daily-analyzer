@@ -366,6 +366,7 @@ def _failed_result(
         "run_id": run_id,
         "mode": mode,
         "symbol": item.symbol,
+        "name": item.name,
         "analyzed_symbol": item.analysis_symbol,
         "type": item.type,
         "target_session": _target_session(mode, started_at, trade_day) if started_at and mode == "live" else mode,
@@ -504,7 +505,7 @@ def _analyze_item(
         information_through = (
             window.news_cutoff_utc.isoformat()
             if window.mode == "backfill" and window.news_cutoff_utc
-            else last_query
+            else max(started_at.isoformat(timespec="seconds"), last_query or "")
         )
         open_time, _ = session_bounds(window.trade_date)
         started_after_open = window.mode == "live" and started_at > open_time
@@ -621,7 +622,7 @@ def _analyze_item(
                 result["information_through"] = (
                     window.news_cutoff_utc.isoformat()
                     if window.mode == "backfill" and window.news_cutoff_utc
-                    else result["last_data_query_at"]
+                    else max(started_at.isoformat(timespec="seconds"), result["last_data_query_at"] or "")
                 )
             except Exception:
                 pass

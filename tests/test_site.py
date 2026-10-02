@@ -146,6 +146,7 @@ def test_site_builds_local_pages_and_sanitizes_report(tmp_path: Path) -> None:
     assert "数据查询记录" in detail and "get_news" in detail
     assert "研究经理结论" in detail and "Deep 模型 / 强度" in detail
     assert "href=\"../days/2026-10-01/NVDA.html\"" in history
+    assert 'href="../../symbols/NVDA.html"' in detail
     assert "alert(1)" not in detail
     assert "javascript:" not in detail
     assert "<script>alert" not in detail
@@ -382,3 +383,76 @@ def test_site_source_is_trackable_while_root_release_link_is_ignored() -> None:
     )
     assert source.returncode == 1
     assert release.returncode == 0
+
+
+def test_home_tracks_enabled_subscriptions_and_relative_units(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/watchlist.yaml").write_text(
+        "items:\n  - {symbol: NVDA, type: stock, name: 英伟达}\n"
+        "  - {symbol: AAPL, type: stock}\n  - {symbol: MSFT, type: stock, enabled: false}\n", encoding="utf-8")
+    path = tmp_path / "data/runs/2026-10-01/current/NVDA.json"
+    result = json.loads(path.read_text())
+    result["final_trade_decision"] = "**Rating**: Hold\n\n**Executive Summary**: 先维持已有仓位，不追涨。条件和风险稍后复核。\n\n**Investment Thesis**: 这里是很长的论证。"
+    result["context_blocks"]["sector_strength"]["data"].update(
+        symbol="NVDA", sector_etf="XLK", sector_excess_5d=-0.011,
+        sector_excess_20d=0.025, sector_excess_60d=None)
+    _write_json(path, result)
+    html = render_home(tmp_path, managed=True)
+    table = html.split('aria-label="自选建议与相对板块强弱"')[1].split("</table>")[0]
+    assert "英伟达" in table and "AAPL" in table and "待分析" in table
+    assert "^NDX" not in table and "MSFT" not in table
+    assert "+2.50" in table and "-1.10" in table and "强于板块" in table
+    assert "先维持已有仓位，不追涨。" in table and "Investment Thesis" not in table
+    assert "2026-10-01 报告" in table
+    assert html.index('aria-label="自选建议') < html.index("市场背景与数据")
+    assert "XMLHttpRequest" not in html
+    build_site(tmp_path)
+    offline = (tmp_path / "site/index.html").read_text()
+    assert "fetch(" not in offline and "http://127.0.0.1:8765/" in offline
+    assert (tmp_path / "site/days/2026-10-01/^NDX.html").is_file()
+
+
+def test_missing_relative_values_are_not_zero_or_cross_symbol():
+    from daily_analyzer.site import _summary_row, _rows
+    result = _result("NVDA", "2026-10-01")
+    result.pop("premarket_change_pct")
+    result["context_blocks"]["extended_hours"] = {"data": {"SPY": {"pre": {"change_pct": 2.5}}}}
+    result["context_blocks"]["sector_strength"] = {"data": {"symbol": "AAPL", "sector_excess_20d": 0.02}}
+    row = _summary_row(result, None, "")
+    assert row["premarket"] == "—" and row["relative"]["20"]["text"] == "—"
+    assert row["strength"] == "数据不足"
+    assert _rows({"ranking": [{"symbol": "XLK", "rank": None}]}, "sector")[0]["rank"] == "—"
+    result["type"] = "etf"
+    result["context_blocks"]["sector_strength"] = {"data": {"symbol": "NVDA", "sector_excess_20d": 0.02}}
+    row = _summary_row(result, None, "")
+    assert row["strength"] == "不适用" and row["relative"]["20"]["text"] == "—"
+
+
+def test_summary_is_bounded_and_does_not_render_scripts():
+    from daily_analyzer.site import _advice_summary
+    assert _advice_summary("**Executive Summary**: 持有。\n\n**Risk**: 后续长报告") == "持有。"
+    assert len(_advice_summary("建议" * 100)) == 141
+    assert "alert" not in _advice_summary("<script>alert(1)</script>继续观察。")
+
+
+def test_context_tables_and_structured_debates_render_readable_html():
+    from daily_analyzer.site import _markdown, _debate_text
+    html = str(_markdown("数据来源：Alpaca\n| 标的 | 收盘 |\n|---|---:|\n| NVDA | 100 |"))
+    assert "<table>" in html and "<td>NVDA</td>" in html
+    text = _debate_text({"history": "**观点**：保持持有。", "bull_history": "重复段落", "count": 1})
+    assert text == "**观点**：保持持有。" and "重复段落" not in text
+    html = str(_markdown(_debate_text({"history": "Aggressive Analyst: 持有。Conservative Analyst: 控制仓位。"})))
+    assert "<h3>积极观点</h3>" in html and "<h3>保守观点</h3>" in html
+
+
+def test_home_distinguishes_running_today_from_prior_report(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/watchlist.yaml").write_text("items:\n  - {symbol: NVDA, type: stock}\n")
+    _write_json(tmp_path / "data/status.json", {"last_run": {"run_id": "active", "trade_date": "2026-10-02", "status": "running"}})
+    _write_json(tmp_path / "data/runs/2026-10-02/batches/active/batch.json", {"items": {"NVDA": {"status": "running"}}})
+    html = render_home(tmp_path, managed=True)
+    assert "今日分析中" in html and "2026-10-01 报告" in html

@@ -54,7 +54,7 @@ chmod 600 config/secrets.env
 
 ### 全局设置 `settings.yaml`
 
-`config/settings.example.yaml` 展示全部主要设置。缺省使用 Codex Exec、deep/quick 均为 `gpt-6.1-sol` 与 `high`；单次调用超时 600 秒、最多重试 3 次、最多 4 个并行模型调用。运行器默认最多并行分析 3 个标的、运行上限 180 分钟，并在 08:30 ET 锚点后至少等待 60 秒才开始第一只标的。全局上下文默认启用 `market_regime`、`sector_strength`、`extended_hours`、`macro_releases`。
+`config/settings.example.yaml` 展示全部主要设置。缺省使用 Codex Exec、deep/quick 均为 `gpt-6.1-sol` 与 `medium`；单次调用超时 600 秒、最多重试 3 次、最多 4 个并行模型调用。运行器默认最多并行分析 3 个标的、运行上限 180 分钟，并在 08:30 ET 锚点后至少等待 60 秒才开始第一只标的。全局上下文默认启用 `market_regime`、`sector_strength`、`extended_hours`、`macro_releases`。
 
 模型可按角色单独设置：
 
@@ -63,7 +63,7 @@ llm:
   provider: codex_exec
   deep:
     model: gpt-6.1-sol
-    reasoning_effort: high
+    reasoning_effort: medium
   quick:
     model: gpt-6-luna
     reasoning_effort: medium
@@ -130,8 +130,10 @@ positions:
 .venv/bin/daily-analyzer run
 .venv/bin/daily-analyzer run --tickers NVDA
 .venv/bin/daily-analyzer run --date 2026-09-30 --tickers NVDA --force
-.venv/bin/daily-analyzer run --model gpt-6.1-sol --effort high
+.venv/bin/daily-analyzer run --model gpt-6.1-sol --effort medium
 .venv/bin/daily-analyzer build-site
+.venv/bin/daily-analyzer viewer install
+.venv/bin/daily-analyzer viewer status
 .venv/bin/daily-analyzer doctor
 .venv/bin/daily-analyzer doctor --ping
 .venv/bin/daily-analyzer schedule status
@@ -141,11 +143,21 @@ positions:
 
 批次记录位于 `data/runs/<交易日>/batches/<批次ID>/`，包含 `batch.json`、`context.json`、`llm_calls.jsonl`、`results/` 与 `reports/`；每个交易日的有效结果在 `current/`，清单与汇总在 `manifest.json`。日志写入 `logs/`，程序在运行结束时清理超过 60 天的日期日志。凭据不会写入这些记录。
 
-## 离线 HTML 站点
+## 报告页面与订阅管理
 
-运行 `build-site` 可只根据已保存的结果重建站点，不发起行情请求或 LLM 调用。构建成功后打开 `site/index.html`（macOS 可运行 `open site/index.html`）。页面为本地 `file://` 静态文件，CSS/JavaScript 内联，不依赖 CDN、远程字体或 `fetch`，可离线浏览；主题跟随系统浅色/深色设置。
+推荐入口是 [本机报告首页](http://127.0.0.1:8765/)。首次执行 `viewer install` 后，独立查看器 LaunchAgent 会在登录后启动；它仅监听本机回环地址，不启动分析。临时前台运行可用 `serve`，停止时按 Control-C；`viewer status` 查看常驻服务状态，`viewer uninstall` 卸载查看器，不影响分析调度。
 
-首页显示最近批次状态、进度、预计完成时间、交易日与标的选择器；另有每日总览、单标的详情和历史页。运行中首页每分钟刷新，空闲时每五分钟刷新。状态横幅只反映 `last_run`；调度跳过等事件单独显示，不会覆盖运行状态。发布采用 `site-builds/<构建ID>/` 新目录及原子替换 `site` 符号链接，构建失败保留旧站点，并保留最近三个构建。
+首页按当前启用清单展示中文评级、完整决策的简短摘要、实际报告日期，以及个股相对板块 ETF 的 5/20/60 日超额收益。相对收益为个股收益减板块收益，单位是**百分点**；20 日值用于标注强于、弱于或与板块持平。它描述过去表现，不替代模型评级。空值显示数据不足，ETF/指数显示不适用。市场环境和评级数量位于上方，市场、宏观和板块背景默认折叠；长报告、辩论和时间信息从详情页展开查看，详情也提供标的历史入口；窄窗口宽表格在自身区域内滚动。
+
+点击“管理订阅”可添加个股、ETF、指数，或暂停、恢复、移除已有订阅。添加时可选填名称、板块 ETF 或指数代理；已有逐项分析师、上下文与备注配置会保留。服务沿用现有配置校验并原子保存 `config/watchlist.yaml`，HTTP 首页随即反映新清单。新项显示待分析，从**下一批次**生效，当前批次继续使用启动时清单；保存不调用行情或模型，也不删除历史报告、持仓或决策记忆。全部暂停/移除时会提示添加订阅，历史报告仍可查看。管理框打开期间暂停自动刷新。
+
+### 离线浏览与发布
+
+运行 `build-site` 可只根据已保存的结果重建站点，不发起行情请求或 LLM 调用。构建成功后打开 `site/index.html`（macOS 可运行 `open site/index.html`）。离线页面的 CSS/JavaScript 内联，不依赖 CDN、远程字体或本地 `fetch`，主题跟随系统浅色/深色设置；离线“管理订阅”链接会打开本机服务，服务未启动时需先执行 `viewer install` 或 `serve`。
+
+HTTP 首页直接读取当前订阅与已保存结果，其他报告从站点读取；订阅保存后的离线首页在下次正常站点发布或 `build-site` 后同步。查看器不成为第二个站点发布者。日期/标的选择器提供历史总览与详情导航，历史页保留已移除订阅的报告。
+
+运行中页面每分钟刷新，空闲首页每五分钟刷新。状态横幅只反映 `last_run`，调度跳过事件单独显示；运行时旧报告仍标明原日期，并另标今日分析中/排队中。发布采用 `site-builds/<构建ID>/` 新目录及原子替换 `site` 符号链接，构建失败保留旧站点，保留最近三个构建。
 
 ## 定时部署与自检
 
@@ -207,6 +219,7 @@ git -C TradingAgents merge upstream/main
 - **Futu OpenD 不可连或订阅额度不足**：确认 OpenD 在 `futu.host`/`futu.port` 上运行且已登录；检查 `doctor` 的剩余订阅额度。额度不足时系统尝试快照，连接失败时扩展时段数据降级到 Alpaca。
 - **Yahoo/yfinance 返回 429**：它只作兜底；个别指标、板块信息或经济日历可能不可用，不应将空值当成零。
 - **首页提示“今日尚未运行”**：检查电脑是否开机、用户是否登录、OpenD 是否运行；再查看 `schedule status`、`doctor`、`logs/` 和 LaunchAgent 是否已加载。首页依据本机状态文件判断，只是排查提示，不证明 launchd 或电源唤醒已经生效。
+- **管理订阅入口打不开**：运行 `viewer status`，未加载时执行 `viewer install`，然后访问 `http://127.0.0.1:8765/`；检查 `logs/viewer.stderr.log` 中是否有端口占用或配置错误。
 - **站点没有更新**：先运行 `build-site`；该命令只投影已有结果。确认 `site` 是项目根目录下由程序管理的符号链接，检查 `data/runs/` 与 `site-builds/` 写权限和构建错误。
 
 ## 验证与容量
@@ -226,7 +239,9 @@ git -C TradingAgents merge upstream/main
 
 数据源验证仍有明确边界：NVDA 盘后数据来自 Futu，但缺少专用报价时间，不能核验其时段；夜盘数据来自 Alpaca overnight（03:59 EDT，时段已核验）；下午读取的 Alpaca IEX 快照时间为 15:16:42 EDT，报告已将其标记为非盘前时段。Futu 夜盘/盘前数据尚待实际 08:30 锚点观察。报告中的宏观新闻来自 Alpaca 注入上下文，本次没有调用真实新闻检索工具。
 
-耗时、用量、限流和开盘前完成率仍需持续观察至少一周，计划至 2026-10-09 晚间复核；目前观察清单仅含 NVDA、SPY、`^GSPC`。以上均为下午开盘后手动批次，不能证明开盘前完成率或吞吐能力；8 只个股的容量也未经验证，不据此限制后续开发或给出容量结论。
+耗时、用量、限流和开盘前完成率仍需持续观察至少一周，计划至 2026-10-09 晚间复核；初始观察清单含 NVDA、SPY、`^GSPC`，后续按当批启用清单统计分母。以上均为下午开盘后手动批次，不能证明开盘前完成率或吞吐能力；8 只个股的容量也未经验证，不据此限制后续开发或给出容量结论。
+
+2026-10-02 按用户请求把本机 deep/quick 及项目默认值改为 `gpt-6.1-sol` / `medium`，旧报告保留实际使用的 `high` 元数据。后续耗时与容量统计按模型/推理强度分组，不能把上述 `high` 观测直接当作 `medium` 的表现；本轮没有额外发起真实模型调用。
 
 ## 测试
 

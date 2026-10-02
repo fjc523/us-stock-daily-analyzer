@@ -20,7 +20,7 @@ def test_top_level_help_lists_commands_without_reading_files(
         cli.main(["--help"])
     assert caught.value.code == 0
     output = capsys.readouterr().out
-    for command in ("run", "build-site", "doctor", "schedule"):
+    for command in ("run", "build-site", "doctor", "schedule", "serve", "viewer"):
         assert command in output
 
 
@@ -101,3 +101,18 @@ def test_build_site_failure_returns_nonzero(
     )
     assert cli.main(["build-site"]) == 1
     assert "模板错误" in capsys.readouterr().err
+
+
+def test_viewer_commands_do_not_start_analysis(monkeypatch, capsys):
+    import daily_analyzer.viewer as viewer
+    import daily_analyzer.deployment.viewer as deployment
+    observed = []
+    monkeypatch.setattr(cli, "_run_analysis", lambda *args: pytest.fail("查看器不得启动分析"))
+    monkeypatch.setattr(viewer, "serve", lambda root: observed.append(("serve", root)))
+    monkeypatch.setattr(deployment, "viewer_action", lambda root, action: observed.append((action, root)) or {"ok": True})
+    assert cli.main(["serve"]) == 0
+    assert cli.main(["viewer", "status"]) == 0
+    assert [row[0] for row in observed] == ["serve", "status"]
+    monkeypatch.setattr(viewer, "serve", lambda root: (_ for _ in ()).throw(OSError("端口已占用")))
+    assert cli.main(["serve"]) == 1
+    assert "端口已占用" in capsys.readouterr().err

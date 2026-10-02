@@ -45,7 +45,7 @@
   - 上一交易日收盘及盘后。
 - 用户只看 HTML：页面随进度更新，显示状态、进度、预计完成时间、失败原因，运行中自动刷新。
 - 分析维度可以自定义；计算口径确定、可验证。
-- LLM 默认使用本机 Codex（`gpt-6.1-sol` + `high`），可按角色配置；额度或配置类错误不会触发额外调用。
+- LLM 默认使用本机 Codex（`gpt-6.1-sol` + `medium`），可按角色配置；额度或配置类错误不会触发额外调用。
 - 同一天多次运行可追溯、不重复计数、不丢失已有成功结果。
 - fork 改动最小且有测试；凭据只存放在本项目内、不入库。
 
@@ -105,7 +105,7 @@
 ### D3. 按角色传递 LLM 参数
 - `build_llm_kwargs(config, role=None)`，`TradingAgentsGraph.__init__` 分别以 `"deep"` 和 `"quick"` 调用；`role=None` 时与上游一致。
 - provider 为 `codex_exec` 时转发：
-  - `reasoning_effort`：依次取 `codex_{role}_reasoning_effort`、`codex_reasoning_effort`，都没有时为 `high`；
+  - `reasoning_effort`：依次取 `codex_{role}_reasoning_effort`、`codex_reasoning_effort`，都没有时保留 fork 通用回退值 `high`；主项目始终显式传入两个角色的有效值（默认均为 `medium`）；
   - `codex_binary`、超时、重试、并发、`usage_log_path`、`prompt_log_dir`，以及角色标签。
 - 新增配置键均支持 `TRADINGAGENTS_*` 环境变量。其中 `codex_binary`、`codex_usage_log_path`、`codex_prompt_log_dir` 加入 `_NOT_IN_SIGNATURE`。
 - **验收测试**：deep 与 quick 使用**相同模型、不同强度**时，经图分别发起调用，假 codex 捕获到的两次 `model_reasoning_effort` 分别为配置值。
@@ -175,7 +175,7 @@
   | `price_data_end_date` | 上游日线、指标、行情快照工具允许使用的最后一个交易日，恒为 P |
   | `data_queries` | 运行中每次工具调用的记录：工具名、开始与结束时间，由挂在图上的 LangChain 回调采集 |
   | `last_data_query_at` | `data_queries` 中最晚的结束时间 |
-  | `information_through` | 本次分析可能用到的最晚信息时刻。`live` 模式取 `last_data_query_at`（新闻工具实时抓取，不冻结）；`backfill` 模式取冻结时刻 D 08:31 ET |
+  | `information_through` | 本次分析可能用到的最晚信息时刻。`live` 模式取附加上下文截止与最晚工具查询的较晚者（没有工具调用时仍有上下文信息；新闻工具实时抓取，不冻结）；`backfill` 模式取冻结时刻 D 08:31 ET |
   | `finished_at` | 完成时刻 |
 
   - `live` 模式**不冻结新闻**：用户目标是“包含开始前的全部信息”，更晚的信息只会更新，不会违背这个目标。页面如实显示“附加上下文截至 `context_as_of`，工具数据最晚查询于 `last_data_query_at`”，不再用一个时间同时代表两种含义。
@@ -294,10 +294,22 @@
 - **详情页**：显示 `started_at`、`context_as_of`、`price_data_end_date`、`last_data_query_at`、`information_through`、`finished_at`，以及“开盘后生成”“开盘后开始”“回放”“最近一次重跑失败”“数据过期”“非本时段数据”“新闻已截断”等标记。
 - **其他**：评级中文映射；Markdown 渲染后用 `nh3` 净化；每页页脚注明免责声明。
 
+### D11a. 本轮首页重做与本机订阅管理（2026-10-02）
+- **首页优先级**：紧凑状态横幅 → 市场标签与评级数量 → 当前启用订阅表 → 默认折叠的市场、宏观与板块背景。详情页优先显示最终建议，长报告、辩论、时间审计信息按需展开。Markdown 表格前补齐段落分隔；结构化辩论读取 history 正文，不直接显示字典与计数器，并把连续的角色标签分隔为中文小标题。
+- **相对强弱**：复用 `sector_strength.data.sector_excess_{5,20,60}d`，分数值乘 100 后以百分点展示；20 日值正/负/零分别为强于/弱于/与板块持平。这是描述过去表现，不生成新的买卖评级。空值显示数据不足，ETF/指数显示不适用，不从其他标的或排名表递归找替代值。
+- **建议摘要**：优先摘取完整决策已有的 Executive Summary/执行摘要首句，缺少标题时摘取正文首句，最多 140 字并注明查看完整决策；不追加 LLM 调用。中文评级来自原结果，不把市场环境偏强当成组合买入建议。
+- **当前订阅**：首页按已启用清单顺序展示；每项显示其实际报告日期和日线截止。新增无结果标为待分析，不套用其他标的结果。移除/暂停项仍可在历史日期导航中查看。
+- **窄窗口与导航**：小屏首页使用卡片布局；展开报告中的宽表格在自己的容器内横向滚动，不撑宽整页。详情页提供标的历史入口；不存在前后结果时不生成空导航面板。
+- **本机服务**：新增 `serve` 与 `viewer install|uninstall|status`，仅绑定 `127.0.0.1:8765`。HTTP 首页直接读取当前配置与已保存结果，不构建站点、不发起行情/LLM 请求；其他报告由 `site` 稳定链接读取。Python 标准库实现，不增加依赖。独立查看器 LaunchAgent 登录后启动，分析定时任务保持原有职责。
+- **保存订阅**：同源 JSON 接口 `GET/POST /api/watchlist` 支持添加、移除、暂停/恢复。沿用现有 YAML/Pydantic 模型，在同一服务锁内读取、校验、原子替换 `watchlist.yaml`；保留其他项的逐项配置。不删除任何数据、持仓或记忆，不重启/取消当前批次；已开始批次沿用启动时配置，下一批次读取新清单。拒绝重复代码与非法类型/代理。
+- **访问范围**：校验请求 Host/Origin，写接口仅接受 JSON；静态路由只允许站点内 HTML，不公开项目配置、日志、凭据或目录列表。离线页面无 fetch/XHR，管理按钮指向本机 HTTP 入口；HTTP 页面可使用同源 fetch。管理对话框打开时暂停自动刷新，避免编辑被打断。
+- **离线投影**：订阅保存后 HTTP 首页立即反映新清单；离线首页在下次正常站点发布或 `build-site` 后同步。不让管理进程成为第二个站点发布者。
+- **后端复审**：关注自选配置快照、类型/代理、上下文与工具信息截止、失败隔离、单写者及数据目录；只修复确认的正常路径问题，不扩展边界恢复机制。
+
 ### D12. 配置
 - **配置文件**：`settings.yaml`、`watchlist.yaml`、`portfolio.yaml`（可选）、`secrets.env`（git 忽略）。仓库只提交 `*.example.*`。用 Pydantic 校验，错误信息为中文并包含字段路径。
 - **默认值**：
-  - `llm`：`provider=codex_exec`；deep/quick 均为 `gpt-6.1-sol` / `high`；`max_concurrent_calls=4`；
+  - `llm`：`provider=codex_exec`；deep/quick 均为 `gpt-6.1-sol` / `medium`；`max_concurrent_calls=4`；
   - `run`：`max_parallel_tickers=3`（范围 1–4）；`max_duration_minutes=180`；`min_start_after_anchor_seconds=60`；
   - `schedule.anchor`：`08:30 America/New_York`；
   - `futu`：`host=127.0.0.1`、`port=11111`、`max_subscriptions=40`、`enabled=true`；
@@ -365,7 +377,7 @@
 
 ## Risks / Trade-offs
 
-- [开跑到开盘只有约 59 分钟，标的多或模型慢时无法全部在开盘前完成] → 3 只并行、持仓优先；没赶上的继续完成并标注“开盘后生成”；首页显示预计完成时间。README 给出初始容量建议（不超过 8 只个股），由第一周真实数据校准。可选的提速手段：把 quick 角色的强度降到 `medium`，或把基本面、技术面分析提前到 08:30 之前预跑（需改 fork，见 Open Questions）。
+- [开跑到开盘只有约 59 分钟，标的多或模型慢时无法全部在开盘前完成] → 3 只并行、持仓优先；没赶上的继续完成并标注“开盘后生成”；首页显示预计完成时间。README 给出初始容量建议（不超过 8 只个股），由第一周真实数据校准。当前 deep/quick 已按用户请求改为 `medium`，旧 `high` 用量与耗时不能直接作为新配置容量。后续可选提速手段：把基本面、技术面分析提前到 08:30 之前预跑（需改 fork，见 Open Questions）。
 - [富途订阅额度（100）与 `us_stock_trading` 共享] → 本项目最多占用 40 个；订阅前检查剩余额度，不足时改用快照；`finally` 中取消订阅。
 - [Alpaca 限额与 `quant_trading` 共用同一账户] → 本项目限流到 180 次/分钟；固定使用已实测的 A 组密钥；若与 `quant_trading` 争用限额导致频繁 429，再由用户决定是否改用 B 组。
 - [Yahoo 限流（已实测到 429）] → Yahoo 只作兜底：新闻改用 Alpaca，日线改用 Alpaca，板块映射加缓存；上游价格工具保留 Alpha Vantage 兜底。

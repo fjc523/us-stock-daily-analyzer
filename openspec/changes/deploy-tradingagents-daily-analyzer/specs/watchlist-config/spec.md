@@ -61,7 +61,7 @@
 
 ### Requirement: 全局配置项与默认值
 `settings.yaml` SHALL 支持以下配置分组，缺省时取括号中的默认值：
-- `llm`：`provider`（`codex_exec`）；`deep.model`/`quick.model`（`gpt-6.1-sol`）；`deep.reasoning_effort`/`quick.reasoning_effort`（`high`）；`call_timeout_seconds`（600）；`max_retries`（3）；`max_concurrent_calls`（4）；`log_prompts`（false）。
+- `llm`：`provider`（`codex_exec`）；`deep.model`/`quick.model`（`gpt-6.1-sol`）；`deep.reasoning_effort`/`quick.reasoning_effort`（`medium`）；`call_timeout_seconds`（600）；`max_retries`（3）；`max_concurrent_calls`（4）；`log_prompts`（false）。
 - `codex`：`binary`（未设置时自动解析）、`min_version`（`0.159.3`）。
 - `tradingagents`：`output_language`（`Chinese`）、`max_debate_rounds`（1）、`max_risk_discuss_rounds`（1）。上游的 `market_timezone` 固定为 `America/New_York`，不对用户开放；上游的 `data_vendors.news_data` 固定为 `alpaca,yfinance`。
 - `context_providers`（`[market_regime, sector_strength, extended_hours, macro_releases]`）。
@@ -92,3 +92,18 @@
 #### Scenario: 可选 Alpha Vantage 密钥
 - **WHEN** `config/secrets.env` 中提供了 `ALPHA_VANTAGE_API_KEY`
 - **THEN** 上游 `core_stock_apis` 设为 `yfinance,alpha_vantage`，日志中不出现该值
+
+### Requirement: 本机页面保存订阅
+本机 HTTP 页面 SHALL 通过同源 `GET/POST /api/watchlist` 查看并添加、移除、暂停、恢复订阅。保存 MUST 沿用现有配置模型，校验全部候选清单后原子替换 `config/watchlist.yaml`，失败时保留旧文件；其他项的分析师、上下文、代理及备注 MUST 保留。新配置 SHALL 从下一批次生效；当前批次沿用启动时快照。移除/暂停 MUST NOT 删除历史报告、持仓或决策记忆，也 MUST NOT 立即触发分析。
+
+#### Scenario: 保存并等待下次分析
+- **WHEN** 在运行期间添加 AAPL 个股
+- **THEN** 配置中出现 AAPL，HTTP 首页显示待分析，当前批次不改变，新批次读取 AAPL
+
+#### Scenario: 重复或非法配置
+- **WHEN** 添加重复代码、非法类型或没有可用代理的指数
+- **THEN** 返回中文校验错误，watchlist.yaml 逐字节保持原内容
+
+#### Scenario: 移除最后一项
+- **WHEN** 当前清单只有一项并移除它
+- **THEN** 保存空清单，首页明确提示添加订阅，历史结果仍保留

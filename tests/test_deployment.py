@@ -495,6 +495,6 @@ def test_default_ping_uses_current_model_with_strict_schema_without_cli_process(
     assert result["input_tokens"] == 23
     assert calls[0] == ("reset-abort",)
     assert calls[1][1]["model"] == "gpt-6.1-sol"
-    assert calls[1][1]["reasoning_effort"] == "high"
+    assert calls[1][1]["reasoning_effort"] == "medium"
     assert calls[1][1]["retries"] == 0
     assert calls[2][2]["additionalProperties"] is False

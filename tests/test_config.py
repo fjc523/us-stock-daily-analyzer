@@ -50,7 +50,7 @@ def test_empty_settings_file_uses_documented_defaults(tmp_path: Path) -> None:
     settings = load_settings(root)
     assert settings.llm.provider == "codex_exec"
     assert settings.llm.deep.model == "gpt-6.1-sol"
-    assert settings.llm.deep.reasoning_effort == "high"
+    assert settings.llm.deep.reasoning_effort == "medium"
     assert settings.llm.quick.model == "gpt-6.1-sol"
     assert settings.run.max_parallel_tickers == 3
     assert settings.alpaca.requests_per_minute == 180
@@ -291,7 +291,7 @@ def test_cli_model_and_effort_overrides_are_merged_without_mutation() -> None:
     assert changed.llm.deep.reasoning_effort == "xhigh"
     assert changed.llm.quick.reasoning_effort == "xhigh"
     assert original.llm.deep.model == "gpt-6.1-sol"
-    assert original.llm.quick.reasoning_effort == "high"
+    assert original.llm.quick.reasoning_effort == "medium"
 
 
 def test_project_config_loads_settings_watchlist_and_optional_portfolio(
