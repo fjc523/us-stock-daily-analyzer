@@ -96,7 +96,7 @@
 - **THEN** `trading_memory.md` 的内容（含各条目的待结算状态）与运行前逐字节相同
 
 ### Requirement: 时间语义与数据查询记录
-`live` 模式下，第一只标的开始分析的时刻 MUST 不早于锚点之后 `run.min_start_after_anchor_seconds`（默认 60）秒。每只标的在开始时 SHALL 重新获取 ticker 级上下文（扩展时段、经济数据与市场要闻）。结果 MUST 分别记录以下字段，不得用一个字段代表多种含义：
+`live` 定时模式下，第一只标的开始分析的时刻 MUST 不早于锚点之后 `run.min_start_after_anchor_seconds`（默认 60）秒；手动批次 MUST 不等待定时锚点，经济数据只使用实际已发布的信息。每只标的在开始时 SHALL 重新获取 ticker 级上下文（扩展时段、经济数据与市场要闻）。结果 MUST 分别记录以下字段，不得用一个字段代表多种含义：
 - `started_at`、`context_as_of`（附加上下文获取时刻）、`price_data_end_date`；
 - `data_queries`（运行中每次工具调用的名称与起止时间，由挂在图上的回调采集）、`last_data_query_at`；
 - `information_through`：`live` 取上下文有效截止与 `last_data_query_at` 的较晚者，无工具查询时取上下文截止；`backfill` 取冻结时刻；

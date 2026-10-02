@@ -8,10 +8,12 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
+from statistics import median
 
 from daily_analyzer.config import ConfigurationError, load_settings, load_watchlist
 from daily_analyzer.deployment.schedule import _codex_binary, _environment_path
 from daily_analyzer.instruments import normalize_code
+from daily_analyzer.site import symbol_slug
 from daily_analyzer.storage import read_json
 from daily_analyzer.time_utils import NEW_YORK, select_run_window
 
@@ -31,6 +33,54 @@ def analysis_busy(root: Path) -> bool:
             return True
         fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
     return False
+
+
+def _history_samples(root: Path, batch: dict) -> list[dict]:
+    """取最近二十个成功耗时，不把失败、等待和当前批次当样本。"""
+    samples = []
+    for path in sorted((root / "data/runs").glob("*/batches/*/batch.json"), reverse=True):
+        previous = read_json(path, {})
+        if previous.get("run_id") == batch.get("run_id"):
+            continue
+        for item in previous.get("items", {}).values():
+            seconds = item.get("duration_seconds")
+            if item.get("status") == "success" and isinstance(seconds, (int, float)) and seconds > 0:
+                samples.append({**item, "config": previous.get("effective_config", {})})
+                if len(samples) == 20:
+                    return samples
+    return samples
+
+
+def _item_progress(root: Path, batch_dir: Path, batch: dict, now: datetime) -> dict:
+    samples = _history_samples(root, batch)
+    config = batch.get("effective_config", {})
+    matching = [row for row in samples if all(row["config"].get(key) == config.get(key) for key in ("quick", "deep"))]
+    result = {}
+    for item in batch.get("items", {}).values():
+        symbol = item["symbol"]
+        progress = read_json(batch_dir / "results" / symbol_slug(symbol) / "progress.json", {})
+        status = item.get("status")
+        started = progress.get("started_at") or item.get("started_at")
+        elapsed = max(0, (now - datetime.fromisoformat(started)).total_seconds()) if started else 0
+        reference = matching or samples
+        same_symbol = [row for row in reference if row["symbol"] == symbol]
+        reference = same_symbol or reference
+        expected = median(row["duration_seconds"] for row in reference) if reference else None
+        running = status in {"pending", "running"}
+        if running:
+            stage = progress.get("stage") or ("准备批次数据" if status == "pending" else "分析中（旧任务未记录阶段）")
+        else:
+            stage = "已完成" if status == "success" else "分析失败" if status == "failed" else "已结束"
+            elapsed = item.get("duration_seconds") or elapsed
+        result[symbol] = {
+            "status": status, "stage": stage, "elapsed_seconds": int(elapsed),
+            "estimated_percent": min(95, int(elapsed / expected * 100)) if running and expected else 100 if status == "success" else None,
+            "remaining_seconds": max(0, int(expected - elapsed)) if running and expected else None,
+            "overdue": bool(running and expected and elapsed >= expected),
+            "estimate_samples": len(reference),
+            "estimate_source": "同模型与强度" if matching else "其他配置参考" if samples else "无历史样本",
+        }
+    return result
 
 
 class AnalysisLauncher:
@@ -74,18 +124,31 @@ class AnalysisLauncher:
     def _snapshot(self) -> dict:
         busy = analysis_busy(self.root)
         last_run = (read_json(self.root / "data/status.json", {}) or {}).get("last_run", {})
-        if self.process is None:
-            return {"status": "running" if busy else "idle", "busy": busy,
-                    "message": "已有分析批次运行中" if busy else ""}
-        code = self.process.poll()
-        status = "running" if code is None else "completed" if code == 0 else "failed"
-        message = f"{self.symbol} 正在分析，请稍候" if code is None else (
-            f"{self.symbol} 分析完成" if code == 0 else f"{self.symbol} 分析失败，请查看运行状态或 logs/manual-analysis.log")
-        result = {"status": status, "busy": busy or code is None, "symbol": self.symbol,
-                  "started_at": self.started_at, "message": message}
+        code = self.process.poll() if self.process is not None else None
+        if busy or (self.process is not None and code is None):
+            status = "running"
+            message = f"{self.symbol} 正在分析，请稍候" if self.symbol else "已有分析批次运行中"
+        elif self.process is None:
+            status, message = "idle", ""
+        else:
+            status = "completed" if code == 0 else "failed"
+            message = f"{self.symbol} 分析完成" if code == 0 else f"{self.symbol} 分析失败，请查看运行状态或 logs/manual-analysis.log"
+        result = {"status": status, "busy": status == "running", "symbol": self.symbol,
+                  "started_at": self.started_at, "message": message, "active_symbols": [], "items": {}}
         run_started = last_run.get("started_at")
-        if run_started and datetime.fromisoformat(run_started) >= datetime.fromisoformat(self.started_at).replace(microsecond=0):
+        if run_started and (self.started_at is None or datetime.fromisoformat(run_started) >= datetime.fromisoformat(self.started_at).replace(microsecond=0)):
             result["run"] = last_run
+            batch_dir = self.root / "data/runs" / last_run["trade_date"] / "batches" / last_run["run_id"] if last_run.get("trade_date") and last_run.get("run_id") else None
+            batch = read_json(batch_dir / "batch.json", {}) if batch_dir else {}
+            if batch and (busy or self.process is not None):
+                result["items"] = _item_progress(self.root, batch_dir, batch, self.clock())
+                if result["busy"]:
+                    result["active_symbols"] = [symbol for symbol, item in result["items"].items() if item["status"] in {"running", "pending"}]
+                    if result["active_symbols"]:
+                        result["symbol"] = result["active_symbols"][0] if len(result["active_symbols"]) == 1 else None
+                        result["message"] = "、".join(result["active_symbols"]) + " 正在处理，请稍候"
             if last_run.get("last_error"):
                 result["message"] += "：" + str(last_run["last_error"])
+        if result["busy"] and not result["active_symbols"] and self.symbol:
+            result["active_symbols"] = [self.symbol]
         return result

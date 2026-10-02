@@ -455,6 +455,11 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str) -> dic
     if relative["20"]["text"] != "—" and symbol_type == "stock":
         strength = {"positive": "强于板块", "negative": "弱于板块", "muted": "与板块持平"}[tone]
     error = result.get("error") or _safe_retry_error(retry)
+    duration = result.get("duration_seconds")
+    duration_text = "耗时未记录"
+    if isinstance(duration, (int, float)) and math.isfinite(duration) and duration >= 0:
+        minutes, seconds = divmod(int(duration), 60)
+        duration_text = f"耗时 {minutes} 分 {seconds} 秒"
     return {
         "symbol": str(result.get("symbol") or "未知"),
         "name": str(result.get("name") or ""),
@@ -470,6 +475,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str) -> dic
         "date": result.get("_date") or result.get("upstream_trade_date") or "—",
         "information_through": _pretty_timestamp(result.get("information_through")),
         "status": _status(result), "error": _display(error) if error else None,
+        "duration": duration_text,
         "started_at": _pretty_timestamp(result.get("started_at")),
         "finished_at": _pretty_timestamp(result.get("finished_at")),
         "marks": _marks(result, retry), "path": detail_path,

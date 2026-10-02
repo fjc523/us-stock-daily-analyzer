@@ -14,7 +14,7 @@ import tradingagents.llm_clients.codex_exec.runner as codex_runner_module
 import tradingagents.agents.tools as tools_module
 import pytest
 
-from daily_analyzer.analyzer import AnalyzerGraph, build_upstream_config
+from daily_analyzer.analyzer import AnalyzerGraph, ToolTraceCallback, build_upstream_config, write_progress
 from daily_analyzer.config import WatchlistItem, parse_settings
 from daily_analyzer.context import ContextBlock
 
@@ -27,6 +27,26 @@ REPLAY_CONTEXT_TIME = datetime(2026, 10, 1, 8, 31, tzinfo=EASTERN)
 MEMORY_SENTINEL = "REPLAY_MEMORY_SENTINEL"
 MARKET_PROMPT_MARKER = "You are a trading assistant tasked with analyzing financial markets."
 PORTFOLIO_PROMPT_MARKER = "As the Portfolio Manager, synthesize"
+
+
+def test_actual_graph_node_callback_records_stage_and_preserves_start(tmp_path):
+    from langgraph.graph import StateGraph, START, END
+    path = tmp_path / "progress.json"
+    clock = lambda: LIVE_CONTEXT_TIME
+    write_progress(path, "获取行情与新闻", clock, started_at=LIVE_CONTEXT_TIME.isoformat())
+    observed = []
+    graph = StateGraph(dict)
+    def capture(state):
+        observed.append(json.loads(path.read_text())["stage"])
+        return state
+    graph.add_node("News Analyst", capture)
+    graph.add_node("Trader", capture)
+    graph.add_edge(START, "News Analyst")
+    graph.add_edge("News Analyst", "Trader")
+    graph.add_edge("Trader", END)
+    graph.compile().invoke({"symbol": "NVDA"}, config={"callbacks": [ToolTraceCallback(clock, progress_path=path)]})
+    assert observed == ["分析师报告", "交易员方案"]
+    assert json.loads(path.read_text())["started_at"] == LIVE_CONTEXT_TIME.isoformat()
 
 
 class FixtureClock:

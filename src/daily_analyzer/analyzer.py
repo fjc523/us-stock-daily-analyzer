@@ -13,10 +13,18 @@ from langchain_core.callbacks import BaseCallbackHandler
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 from daily_analyzer.context import ContextBlock, render_context
-from daily_analyzer.storage import atomic_write_json
+from daily_analyzer.storage import atomic_write_json, read_json
 
 
 _NEW_YORK = ZoneInfo("America/New_York")
+_STAGES = {
+    "Market Analyst": "分析师报告", "Sentiment Analyst": "分析师报告",
+    "News Analyst": "分析师报告", "Fundamentals Analyst": "分析师报告",
+    "Bull Researcher": "多方研究", "Bear Researcher": "空方研究",
+    "Research Manager": "研究经理结论", "Trader": "交易员方案",
+    "Aggressive Analyst": "风险辩论·积极", "Neutral Analyst": "风险辩论·中性",
+    "Conservative Analyst": "风险辩论·保守", "Portfolio Manager": "组合经理最终决策",
+}
 
 
 def _timestamp(clock: Callable[[], datetime]) -> str:
@@ -26,14 +34,32 @@ def _timestamp(clock: Callable[[], datetime]) -> str:
     return value.isoformat(timespec="seconds")
 
 
+def write_progress(path: Path, stage: str, clock, *, started_at: str | None = None) -> None:
+    """仅写当前标的的可选阶段诊断，不改结果或批次汇总。"""
+    previous = read_json(path, {})
+    if previous.get("stage") == stage:
+        return
+    atomic_write_json(path, {
+        "stage": stage, "updated_at": _timestamp(clock),
+        "started_at": started_at or previous.get("started_at"),
+    })
+
+
 class ToolTraceCallback(BaseCallbackHandler):
     """按图上的工具回调记录调用起止时刻。"""
 
-    def __init__(self, clock: Callable[[], datetime] = datetime.now) -> None:
+    def __init__(self, clock: Callable[[], datetime] = datetime.now, *, progress_path: Path | None = None) -> None:
         self.clock = clock
+        self.progress_path = progress_path
         self._lock = threading.Lock()
         self._started: dict[str, tuple[str, str]] = {}
         self._queries: list[dict[str, Any]] = []
+
+    def on_chain_start(self, serialized, inputs, *, metadata=None, **kwargs) -> None:
+        node = (metadata or {}).get("langgraph_node")
+        if self.progress_path is not None and node in _STAGES:
+            with self._lock:
+                write_progress(self.progress_path, _STAGES[node], self.clock)
 
     def on_tool_start(
         self,
@@ -99,7 +125,7 @@ class AnalyzerGraph(TradingAgentsGraph):
         self.context_blocks = dict(context_blocks)
         self.context_as_of = context_as_of
         self.injected_context = render_context(self.context_blocks, context_as_of)
-        self.tool_trace = ToolTraceCallback(clock)
+        self.tool_trace = ToolTraceCallback(clock, progress_path=self.state_log_dir.parent / "progress.json")
         self._clock = clock
         self._portfolio = portfolio
         callback_list = [self.tool_trace]

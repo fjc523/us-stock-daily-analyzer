@@ -341,6 +341,83 @@ def test_banner_javascript_uses_fixed_time_for_missing_run_and_schedule_state(tm
     assert result["holiday"]["title"] == "今日非交易日"
 
 
+def test_manual_button_script_tracks_only_active_row_and_busy_click(tmp_path):
+    from daily_analyzer.site import render_home
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("当前环境没有 node，无法执行按钮交互脚本")
+    _fixture(tmp_path)
+    html = render_home(tmp_path, managed=True)
+    script = re.search(r"(  const analysisMessage=.*?  analysisStatus\(\);)", html, re.DOTALL).group(1)
+    harness = r'''
+const assert=require("node:assert/strict");
+const message={textContent:""};
+function makeButton(symbol){
+  const bar={value:null,removeAttribute(){this.value=null;}};
+  const fields={"[data-stage]":{textContent:""},"[data-remaining]":{textContent:""},"[data-estimate-note]":{textContent:""},"progress":bar};
+  const box={hidden:true,querySelector(key){return fields[key];}};
+  const summary={hidden:false};
+  return {dataset:{analyze:symbol},disabled:false,textContent:"分析一次",box,summary,fields,
+    closest(){return {querySelector(key){return key==="[data-analysis-progress]"?box:summary;}};},
+    addEventListener(event,handler){this.click=handler;}};
+}
+const buttons=[makeButton("NVDA"),makeButton("TSLA")];
+let value={busy:false,items:{},active_symbols:[]};
+let reloads=0;
+const delays=[];
+const global={document:{getElementById(){return message;},querySelectorAll(){return buttons;}},
+  clearTimeout(){},setTimeout(fn,delay){delays.push(delay);return delays.length;},location:{reload(){reloads++;}}};
+async function api(data){
+  if(data){
+    if(value.busy)throw new Error("已有分析批次运行中");
+    value={busy:true,symbol:data.symbol,active_symbols:[data.symbol],message:"正在分析",
+      items:{NVDA:{stage:"新闻分析",estimated_percent:50,elapsed_seconds:300,remaining_seconds:300,estimate_samples:3,estimate_source:"其他配置参考"}}};
+  }
+  return value;
+}
+'''+script+r'''
+(async()=>{
+  await new Promise(setImmediate);
+  const clicking=buttons[0].click();
+  assert.equal(buttons[0].disabled,true);
+  assert.equal(buttons[1].disabled,false);
+  await clicking;
+  await new Promise(setImmediate);
+  assert.equal(buttons[0].disabled,true);
+  assert.equal(buttons[1].disabled,false);
+  assert.equal(buttons[0].fields["[data-stage]"].textContent,"新闻分析 · 预计 50%");
+  assert.match(buttons[0].fields["[data-remaining]"].textContent,/剩余约 5分/);
+  assert.match(buttons[0].fields["[data-estimate-note]"].textContent,/配置不同/);
+  assert.equal(buttons[0].summary.hidden,true);
+  assert.equal(buttons[1].summary.hidden,false);
+  await buttons[1].click();
+  assert.equal(buttons[0].disabled,true);
+  assert.equal(buttons[1].disabled,false);
+  assert.match(message.textContent,/已有分析批次/);
+  value={busy:false,active_symbols:[],items:{}};
+  await analysisStatus();
+  assert.ok(buttons.every(button=>!button.disabled && button.box.hidden && !button.summary.hidden));
+  assert.equal(reloads,1);
+  assert.ok(delays.every(delay=>delay===3000));
+  console.log("按钮和进度验证通过");
+})().catch(error=>{console.error(error);process.exitCode=1;});
+'''
+    path = tmp_path / "analysis-buttons.js"
+    path.write_text(harness)
+    result = subprocess.run([node, str(path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_report_status_shows_only_duration_and_keeps_times_collapsed(tmp_path):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    html = render_home(tmp_path, managed=True)
+    summary = re.findall(r"<span data-report-summary>(.*?)</span></span>", html, re.DOTALL)
+    assert summary and "耗时 3 分 54 秒" in summary[0]
+    assert all("开始" not in value and "完成 2026" not in value and "北京" not in value for value in summary)
+    assert re.search(r'<details class="row-details">.*?开始 .*?完成 .*?</details>', html, re.DOTALL)
+
+
 def test_date_selection_navigates_to_overview_and_symbol_to_detail(tmp_path: Path) -> None:
     node = shutil.which("node")
     if node is None:

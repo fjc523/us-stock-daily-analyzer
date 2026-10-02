@@ -33,6 +33,8 @@ BASE = _ENV.from_string(
     .markdown { overflow-x:auto; overflow-wrap:anywhere; max-width:920px; } .markdown p { margin:12px 0; } .markdown h2 { margin-top:24px; } .markdown table { min-width:0; font-size:13px; } .markdown pre { overflow:auto; padding:12px; background:var(--bg); border-radius:8px; } .markdown code { font-family:ui-monospace,SFMono-Regular,monospace; } .time-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr)); gap:8px 20px; font-size:12px; } .empty { padding:32px 20px; color:var(--muted); text-align:center; }
     footer { max-width:1280px; margin:auto; padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; } dialog { width:min(650px,calc(100vw - 28px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--fg); padding:24px; box-shadow:0 20px 90px #0003; } dialog::backdrop { background:#0d1c3e66; } .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; } .form-grid label { font-size:12px; display:flex; flex-direction:column; gap:5px; } .manager-row { display:flex; gap:8px; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:10px 0; } .manager-actions { display:flex; gap:5px; } .manager-actions button { font-size:12px; padding:4px 8px; } .toast { min-height:20px; font-size:12px; } [hidden] { display:none !important; } .analyze-button { display:block; font-size:11px; padding:4px 6px; margin-top:8px; white-space:nowrap; } button:disabled { opacity:.55; cursor:wait; }
     .mobile-label { display:none; }
+    .analysis-progress { font-size:11px; line-height:1.7; overflow-wrap:anywhere; color:var(--accent); }
+    .analysis-progress progress { display:block; width:100%; height:5px; margin:5px 0; accent-color:var(--accent); }
     @media(max-width:950px) { .topbar-inner,main { padding-left:18px; padding-right:18px; } .stats { gap:8px; } .stat { padding:12px; } .stat-value { font-size:21px; } .selectors label { display:none; } }
     @media(max-width:800px) { .topbar-inner { align-items:flex-start; flex-direction:column; gap:12px; } .stats { grid-template-columns:repeat(2,1fr); } .stat:first-child { grid-column:1/-1; } .page-heading { align-items:flex-start; } h1 { font-size:23px; } .watch-table { min-width:0; table-layout:auto; } .mobile-label { display:block; } .watch-table thead { display:none; } .watch-table tbody,.watch-table tr { display:block; } .watch-table tr { display:grid; grid-template-columns:1fr 1fr; padding:15px; gap:10px; border-bottom:1px solid var(--line); } .watch-table td { border:0; padding:0; } .watch-table td:nth-child(2) { grid-column:1/-1; grid-row:2; } .watch-table td:nth-child(3) { grid-column:1/-1; grid-row:3; } .watch-table td:nth-child(4) { grid-column:2; grid-row:1; text-align:right; } .watch-table td:nth-child(5) { grid-column:1; } .watch-table td:nth-child(6) { grid-column:2; text-align:right; } .relative-grid { max-width:320px; } .form-grid { grid-template-columns:1fr; } }
   </style>
@@ -287,24 +289,55 @@ BASE = _ENV.from_string(
   const analysisMessage=global.document.getElementById("analysis-message");
   const analysisButtons=[...global.document.querySelectorAll("[data-analyze]")];
   let polling=false;
+  let analysisTimer;
+  function durationText(seconds){
+    seconds=Math.max(0,Math.floor(seconds || 0));
+    return seconds<60?seconds+"秒":Math.floor(seconds/60)+"分"+(seconds%60?seconds%60+"秒":"");
+  }
+  function renderAnalysis(value){
+    const active=new Set(value.active_symbols || (value.busy && value.symbol?[value.symbol]:[]));
+    analysisButtons.forEach(button=>{
+      const symbol=button.dataset.analyze;
+      button.disabled=active.has(symbol);
+      button.textContent=button.disabled?"分析中…":"分析一次";
+      const row=button.closest("tr");
+      const box=row.querySelector("[data-analysis-progress]");
+      row.querySelector("[data-report-summary]").hidden=button.disabled;
+      box.hidden=!button.disabled;
+      if(!button.disabled)return;
+      const item=(value.items || {})[symbol] || {stage:"正在启动",elapsed_seconds:0};
+      const percent=item.estimated_percent;
+      box.querySelector("[data-stage]").textContent=item.stage+(percent!=null?" · 预计 "+percent+"%":"");
+      const bar=box.querySelector("progress");
+      if(percent==null)bar.removeAttribute("value");else bar.value=percent;
+      box.querySelector("[data-remaining]").textContent="已用 "+durationText(item.elapsed_seconds)+" · "+
+        (item.overdue?"已超预计，仍在执行":item.remaining_seconds!=null?"剩余约 "+durationText(item.remaining_seconds):"暂无耗时估计");
+      box.title=item.estimate_samples?item.estimate_source+"，参考 "+item.estimate_samples+" 次成功分析":"暂无成功历史样本";
+      box.querySelector("[data-estimate-note]").textContent=item.estimate_source==="其他配置参考"?"参考配置不同，耗时可能有偏差":"";
+    });
+  }
   async function analysisStatus(){
+    global.clearTimeout(analysisTimer);
     try {
       const value=await api(null,"/api/analysis");
-      analysisButtons.forEach(button=>{button.disabled=value.busy;});
+      renderAnalysis(value);
       if(value.message){
         const progress=value.run && value.run.progress;
         analysisMessage.textContent=value.message+(value.busy && progress?" · "+progress.completed+"/"+progress.total:"");
       }
-      if(value.busy){polling=true;global.setTimeout(analysisStatus,3000);}
+      if(value.busy){polling=true;analysisTimer=global.setTimeout(analysisStatus,3000);}
       else if(polling){polling=false;global.location.reload();}
-    } catch(error){analysisMessage.textContent=error.message;polling=false;analysisButtons.forEach(button=>{button.disabled=false;});}
+    } catch(error){analysisMessage.textContent=error.message;analysisTimer=global.setTimeout(analysisStatus,3000);}
   }
   analysisButtons.forEach(button=>button.addEventListener("click",async()=>{
-    analysisButtons.forEach(entry=>{entry.disabled=true;});
+    button.disabled=true;button.textContent="正在启动…";
     try {
       const value=await api({symbol:button.dataset.analyze},"/api/analysis");
-      analysisMessage.textContent=value.message;polling=true;analysisStatus();
-    } catch(error){analysisMessage.textContent=error.message;analysisButtons.forEach(entry=>{entry.disabled=false;});}
+      renderAnalysis(value);analysisMessage.textContent=value.message;polling=true;analysisStatus();
+    } catch(error){
+      button.disabled=false;button.textContent="分析一次";
+      await analysisStatus();analysisMessage.textContent=error.message;
+    }
   }));
   analysisStatus();
   {% endif %}
@@ -331,7 +364,7 @@ _ROWS = """
   <td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span><div class="advice">{{ row.advice }}</div></td>
   <td><span class="{{ row.strength_tone }}">{{ row.strength }}</span><span class="small muted">{% if row.sector_etf != '—' %} · {{ row.sector_etf }}{% endif %}</span><div class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ row.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ row.relative[days].text }}</span>{% endfor %}</div></td>
   <td class="number"><span class="mobile-label subline">盘前</span>{{ row.premarket }}</td>
-  <td><span class="small">{{ row.status }}</span><span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
+  <td><span data-report-summary><span class="small">{{ row.status }}</span><span class="subline">{{ row.duration }}</span></span>{% if managed %}<div class="analysis-progress" data-analysis-progress hidden role="status"><span data-stage></span><progress max="100"></progress><span class="subline" data-remaining></span><span class="subline" data-estimate-note></span></div>{% endif %}<span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
   <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}{% if managed %}<button class="analyze-button" data-analyze="{{ row.symbol }}" title="重新获取数据并分析该标的">分析一次</button>{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
 """

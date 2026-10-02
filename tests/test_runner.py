@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import pytest
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -503,8 +504,9 @@ def test_first_live_ticker_waits_until_configured_anchor_delay() -> None:
     assert now[0] == datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK)
 
 
-def test_run_waits_after_batch_prepare_before_starting_first_ticker(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize("scheduled", [True, False])
+def test_only_scheduled_run_waits_after_batch_prepare_before_first_ticker(
+    tmp_path: Path, monkeypatch, scheduled: bool
 ) -> None:
     import daily_analyzer.runner as runner
 
@@ -524,12 +526,13 @@ def test_run_waits_after_batch_prepare_before_starting_first_ticker(
         clock=lambda: now[0],
         context_manager=manager,
         sleeper=sleep,
+        scheduled=scheduled,
     )
 
     assert result.exit_code == 0
-    assert sleeps == [60.0]
+    assert sleeps == ([60.0] if scheduled else [])
     assert manager.prepared["context_as_of"] == datetime(2026, 10, 2, 8, 30, tzinfo=NEW_YORK)
-    assert _FakeGraph.context_as_of_values == [datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK)]
+    assert _FakeGraph.context_as_of_values == [datetime(2026, 10, 2, 8, 31 if scheduled else 30, tzinfo=NEW_YORK)]
 
 
 def test_running_items_are_not_counted_as_completed() -> None:
@@ -620,6 +623,7 @@ def test_failed_attempt_records_open_times_and_keeps_macro_or_tool_truncation(
 ) -> None:
     class FailedGraph:
         def __init__(self, *, tool_truncated: bool, **kwargs: object) -> None:
+            self.analysis_symbol = kwargs["item"].analysis_symbol
             stamp = "2026-10-02T09:36:00-04:00"
             self.tool_trace = type(
                 "Trace",
@@ -637,6 +641,7 @@ def test_failed_attempt_records_open_times_and_keeps_macro_or_tool_truncation(
             )()
 
         def propagate(self, *args: object, **kwargs: object):
+            now[0] = finish
             raise RuntimeError("fixture analysis failure")
 
     item = type(
@@ -663,7 +668,7 @@ def test_failed_attempt_records_open_times_and_keeps_macro_or_tool_truncation(
                     )
                 }
 
-        clock_values = iter((start, finish))
+        now = [start]
         outcome = _analyze_item(
             item=item,
             run_id=f"failure-{index}",
@@ -674,7 +679,7 @@ def test_failed_attempt_records_open_times_and_keeps_macro_or_tool_truncation(
             context_manager=MacroContext(),
             context_build_lock=threading.Lock(),
             portfolio=None,
-            clock=lambda: next(clock_values),
+            clock=lambda: now[0],
             monotonic=iter((1.0, 2.0)).__next__,
             secrets=(),
             analyzer_factory=lambda **kwargs: FailedGraph(

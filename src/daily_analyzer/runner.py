@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from daily_analyzer.analyzer import AnalyzerGraph, build_upstream_config
+from daily_analyzer.analyzer import AnalyzerGraph, build_upstream_config, write_progress
 from daily_analyzer.config import (
     ConfigurationError,
     ProjectConfig,
@@ -466,16 +466,20 @@ def _analyze_item(
     injected = ""
     graph = None
     timer: float | None = None
+    progress_path = batch_dir / "results" / symbol_slug(item.symbol) / "progress.json"
     try:
+        write_progress(progress_path, "等待数据准备", clock)
         with context_build_lock:
             started_at = _clock_now(clock)
             timer = monotonic()
+            write_progress(progress_path, "获取行情与新闻", clock, started_at=started_at.isoformat())
             cutoff = window.news_cutoff_utc or started_at
             typed_blocks = context_manager.build(item, cutoff)
             ticker_blocks = serialize_blocks(typed_blocks)
             from daily_analyzer.context import render_context
 
             injected = render_context(typed_blocks, cutoff)
+        write_progress(progress_path, "准备分析与决策记忆", clock)
         graph = analyzer_factory(
             item=item,
             mode=window.mode,
@@ -496,6 +500,7 @@ def _analyze_item(
                 portfolio=portfolio,
             )
         reports_path = batch_dir / "reports" / symbol_slug(item.symbol)
+        write_progress(progress_path, "保存报告", clock)
         graph.save_reports(final_state, ticker=graph.analysis_symbol, save_path=reports_path)
         finished_at = _clock_now(clock)
         tool_queries = graph.tool_trace.snapshot()
@@ -1145,7 +1150,8 @@ def run_analysis(
             }
             batch_blocks = context_manager.prepare(batch_context)
             atomic_write_json(batch_dir / "context.json", serialize_blocks(batch_blocks))
-            _wait_until_first_start(settings, window, clock, sleeper)
+            if scheduled:
+                _wait_until_first_start(settings, window, clock, sleeper)
 
             lock = threading.Lock()
             build_lock = threading.Lock()

@@ -20,7 +20,7 @@ from daily_analyzer.instruments import InstrumentUnavailableError
 from daily_analyzer.manual_analysis import AnalysisLauncher, AnalysisBusyError
 from datetime import datetime
 from daily_analyzer.time_utils import NEW_YORK
-from daily_analyzer.storage import run_lock
+from daily_analyzer.storage import run_lock, atomic_write_json
 
 
 
@@ -294,3 +294,56 @@ def test_settings_preserve_hidden_values_and_validate_atomically(tmp_path, monke
     with pytest.raises(OSError):
         store.update({"run": {"max_parallel_tickers": 3}})
     assert path.read_bytes() == original
+
+
+def test_progress_recovers_symbols_and_estimates_from_matching_history(tmp_path):
+    root = project(tmp_path)
+    now = [datetime(2026, 10, 2, 8, 45, tzinfo=NEW_YORK)]
+    batch_dir = root / "data/runs/2026-10-02/batches/current"
+    config = {"quick": {"model": "gpt-6.1-sol", "reasoning_effort": "medium"},
+              "deep": {"model": "gpt-6.1-sol", "reasoning_effort": "xhigh"}}
+    batch = {"run_id": "current", "effective_config": config,
+             "items": {"NVDA": {"symbol": "NVDA", "status": "running"}}}
+    atomic_write_json(batch_dir / "batch.json", batch)
+    atomic_write_json(root / "data/status.json", {"last_run": {"run_id": "current", "trade_date": "2026-10-02", "started_at": "2026-10-02T08:40:00-04:00", "status": "running"}})
+    atomic_write_json(batch_dir / "results/NVDA/progress.json", {"stage": "新闻分析", "started_at": "2026-10-02T08:40:00-04:00"})
+    for number, duration in enumerate([500, 600, 700]):
+        atomic_write_json(root / f"data/runs/2026-10-01/batches/sample{number}/batch.json", {
+            "run_id": f"sample{number}", "effective_config": config,
+            "items": {"NVDA": {"symbol": "NVDA", "status": "success", "duration_seconds": duration},
+                      "SPY": {"symbol": "SPY", "status": "success", "duration_seconds": 3000},
+                      "FAILED": {"symbol": "FAILED", "status": "failed", "duration_seconds": 1}}})
+    atomic_write_json(root / "data/runs/2026-10-01/batches/old/batch.json", {
+        "run_id": "old", "effective_config": {},
+        "items": {"NVDA": {"symbol": "NVDA", "status": "success", "duration_seconds": 60}}})
+    launcher = AnalysisLauncher(root, clock=lambda: now[0])
+    with run_lock(root):
+        value = launcher.snapshot()
+        assert value["active_symbols"] == ["NVDA"]
+        item = value["items"]["NVDA"]
+        assert item["stage"] == "新闻分析" and item["elapsed_seconds"] == 300
+        assert item["estimated_percent"] == 50 and item["remaining_seconds"] == 300
+        assert item["estimate_source"] == "同模型与强度" and item["estimate_samples"] == 3
+        now[0] = datetime(2026, 10, 2, 8, 55, tzinfo=NEW_YORK)
+        item = launcher.snapshot()["items"]["NVDA"]
+        assert item["estimated_percent"] == 95 and item["overdue"]
+    assert launcher.snapshot()["active_symbols"] == []
+
+
+def test_progress_no_history_and_other_config_reference(tmp_path):
+    from daily_analyzer.manual_analysis import _item_progress
+    root = project(tmp_path)
+    batch_dir = root / "data/runs/2026-10-02/batches/current"
+    batch = {"run_id": "current", "effective_config": {"quick": {"model": "新模型"}},
+             "items": {"NVDA": {"symbol": "NVDA", "status": "running"}}}
+    atomic_write_json(batch_dir / "results/NVDA/progress.json", {"stage": "交易员方案", "started_at": "2026-10-02T08:40:00-04:00"})
+    now = datetime(2026, 10, 2, 8, 45, tzinfo=NEW_YORK)
+    item = _item_progress(root, batch_dir, batch, now)["NVDA"]
+    assert item["estimated_percent"] is None and item["remaining_seconds"] is None
+    atomic_write_json(root / "data/runs/2026-10-01/batches/old/batch.json", {
+        "run_id": "old", "items": {"SPY": {"symbol": "SPY", "status": "success", "duration_seconds": 600}}})
+    item = _item_progress(root, batch_dir, batch, now)["NVDA"]
+    assert item["estimated_percent"] == 50 and item["estimate_source"] == "其他配置参考"
+    batch["items"]["NVDA"].update(status="success", duration_seconds=650)
+    item = _item_progress(root, batch_dir, batch, now)["NVDA"]
+    assert item["estimated_percent"] == 100 and item["elapsed_seconds"] == 650
