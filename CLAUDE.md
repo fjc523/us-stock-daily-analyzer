@@ -51,6 +51,8 @@
 
 ## 9. 分支管理
 - 除非用户明确要求，否则不要创建新分支。
+- 本项目的所有子仓库都使用专用维护分支，不在子仓库的 `main/master` 主分支提交或推送项目改造。TradingAgents 当前维护分支为 `codex/standard-position-plans`；后续新增子仓库时也应创建专用维护分支，并在 `.gitmodules` 登记。
+- 子仓库先在维护分支提交并推送，再由主仓库提交和推送对应的子模块指针。主仓库仍锁定具体提交，不自动升级子仓库版本。
 
 ## Arc Protocol
 - 任务管理协议：~/.claude/skills/arc/SKILL.md。

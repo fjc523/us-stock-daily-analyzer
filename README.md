@@ -205,15 +205,19 @@ sudo pmset repeat wakeorpoweron MTWRF 21:15:00
 
 ## TradingAgents fork 维护
 
+本项目所有子仓库都使用专用维护分支，不在子仓库的 `main/master` 上维护项目改造。当前 `fjc523/TradingAgents` 使用 `codex/standard-position-plans`，`.gitmodules` 已登记该分支；主项目仍通过子模块指针锁定具体提交，切换维护分支不会自动升级运行版本。
+
 主项目通过 `TradingAgents/` 子模块锁定 fork 版本。需要同步官方上游时，在子模块中检查工作树、抓取并合并 `upstream/main`，运行 fork 与主项目回归，再由维护流程审核 fork 改动；不要直接覆盖主项目记录的子模块指针：
 
 ```sh
 git -C TradingAgents status --short
+git -C TradingAgents fetch origin
+git -C TradingAgents switch codex/standard-position-plans
 git -C TradingAgents fetch upstream
 git -C TradingAgents merge upstream/main
 ```
 
-完成测试和独立审核、并获主代理批准后，在 fork 中提交并推送到有 SSH 权限的用户 fork，再回到主项目更新 `TradingAgents` 子模块指针。运行时不会从其他项目导入代码或配置。
+完成测试和独立审核、并获主代理批准后，在 fork 的维护分支中提交并推送到有 SSH 权限的用户 fork，再回到主项目提交和推送 `TradingAgents` 子模块指针。运行时不会从其他项目导入代码或配置。
 
 ## 项目协作约定
 
