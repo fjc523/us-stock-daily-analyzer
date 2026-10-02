@@ -6,8 +6,10 @@ import plistlib
 from pathlib import Path
 from typing import Any
 
+from daily_analyzer.config import load_settings
 from daily_analyzer.deployment.schedule import (
     _call, _default_launch_agents_dir, _launch_domain, _result_detail, _write_atomic,
+    _codex_binary, _environment_path,
 )
 from daily_analyzer.viewer import URL
 
@@ -29,6 +31,7 @@ def viewer_action(project_root: str | Path, action: str, *, runner=None,
                 "Label": LABEL,
                 "ProgramArguments": [str(root / ".venv/bin/python"), "-m", "daily_analyzer", "serve"],
                 "WorkingDirectory": str(root), "RunAtLoad": True, "KeepAlive": True,
+                "EnvironmentVariables": {"PATH": _environment_path(_codex_binary(load_settings(root)), root)},
                 "StandardOutPath": str(root / "logs/viewer.stdout.log"),
                 "StandardErrorPath": str(root / "logs/viewer.stderr.log"),
             }

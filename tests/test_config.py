@@ -50,7 +50,7 @@ def test_empty_settings_file_uses_documented_defaults(tmp_path: Path) -> None:
     settings = load_settings(root)
     assert settings.llm.provider == "codex_exec"
     assert settings.llm.deep.model == "gpt-6.1-sol"
-    assert settings.llm.deep.reasoning_effort == "medium"
+    assert settings.llm.deep.reasoning_effort == "xhigh"
     assert settings.llm.quick.model == "gpt-6.1-sol"
     assert settings.run.max_parallel_tickers == 3
     assert settings.alpaca.requests_per_minute == 180

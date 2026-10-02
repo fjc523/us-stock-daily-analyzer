@@ -31,6 +31,7 @@ from daily_analyzer.deployment.schedule import (
     _result_detail,
     machine_timezone,
     schedule_trigger_times,
+    schedule_calendar_intervals,
 )
 
 Probe = Callable[[], Mapping[str, Any]]
@@ -513,10 +514,10 @@ def doctor(
         _add(checks, "LaunchAgent plist", "fail", "plist 无法解析")
         _add(checks, "LaunchAgent PATH", "fail", "无法读取 plist 中的 PATH")
     else:
-        expected = schedule_trigger_times(settings.schedule.anchor, local_timezone=machine_timezone(), year=current.year)
+        expected = schedule_calendar_intervals(settings.schedule.anchor, local_timezone=machine_timezone(), year=current.year)
         installed = plist.get("StartCalendarInterval", [])
-        actual_points = sorted((int(item.get("Hour", -1)), int(item.get("Minute", -1))) for item in installed if isinstance(item, Mapping))
-        expected_points = sorted((item["Hour"], item["Minute"]) for item in expected)
+        actual_points = sorted((int(item.get("Hour", -1)), int(item.get("Minute", -1)), int(item.get("Weekday", -1))) for item in installed if isinstance(item, Mapping))
+        expected_points = sorted((item["Hour"], item["Minute"], item["Weekday"]) for item in expected)
         match = actual_points == expected_points
         _add(checks, "LaunchAgent plist", "pass" if match else "fail", f"已安装；触发点 {actual_points}；锚点应为 {expected_points}")
         environment = plist.get("EnvironmentVariables", {})

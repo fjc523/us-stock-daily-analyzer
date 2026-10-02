@@ -852,7 +852,7 @@ def test_manifest_usage_sums_batches_and_recompute_is_idempotent(tmp_path: Path)
     )["llm_usage"] == expected
 
 
-def test_context_information_cutoff_without_tools_and_medium_defaults(tmp_path, monkeypatch):
+def test_context_information_cutoff_without_tools_and_role_defaults(tmp_path, monkeypatch):
     import daily_analyzer.runner as runner
     monkeypatch.setattr(runner, "_codex_version", lambda settings: None)
     monkeypatch.setattr(runner, "_fork_state", lambda root: {})
@@ -871,7 +871,7 @@ def test_context_information_cutoff_without_tools_and_medium_defaults(tmp_path, 
     assert result["information_through"] == result["context_as_of"] == now.isoformat(timespec="seconds")
     assert result["last_data_query_at"] is None and result["data_queries"] == []
     assert result["name"] == "英伟达"
-    assert result["llm"]["deep"]["reasoning_effort"] == "medium"
+    assert result["llm"]["deep"]["reasoning_effort"] == "xhigh"
     assert result["llm"]["quick"]["reasoning_effort"] == "medium"
 
 
@@ -884,7 +884,7 @@ def test_subscription_changes_apply_only_to_next_batch(tmp_path, monkeypatch):
     class UpdatingContext(_ContextManager):
         def prepare(self, batch):
             blocks = super().prepare(batch)
-            store = WatchlistStore(root)
+            store = WatchlistStore(root, resolver=lambda symbol: {"symbol": symbol, "type": "stock", "name": symbol})
             store.update({"action": "add", "item": {"symbol": "AAPL", "type": "stock"}})
             store.update({"action": "remove", "symbol": "NVDA"})
             return blocks

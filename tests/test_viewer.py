@@ -15,7 +15,26 @@ import yaml
 from daily_analyzer.config import ConfigurationError, load_watchlist
 from daily_analyzer.deployment.viewer import LABEL, viewer_action
 from daily_analyzer.site import build_site
-from daily_analyzer.viewer import WatchlistStore, create_server
+from daily_analyzer.viewer import WatchlistStore, SettingsStore, create_server
+from daily_analyzer.instruments import InstrumentUnavailableError
+from daily_analyzer.manual_analysis import AnalysisLauncher, AnalysisBusyError
+from datetime import datetime
+from daily_analyzer.time_utils import NEW_YORK
+from daily_analyzer.storage import run_lock
+
+
+
+def identity(symbol):
+    if symbol.startswith("^"):
+        raise ConfigurationError("未找到有效标的")
+    return {"symbol": symbol, "type": "etf" if symbol == "QQQ" else "stock",
+            "name": "测试标的", "source": "固定测试样例"}
+
+
+@pytest.fixture(autouse=True)
+def offline_identity(monkeypatch):
+    monkeypatch.setattr("daily_analyzer.viewer.InstrumentResolver", lambda root: identity)
+    monkeypatch.setattr("daily_analyzer.viewer.load_codex_models", lambda: {"models": [{"id": "gpt-6.1-sol", "name": "固定模型", "reasoning_efforts": ["medium", "xhigh"], "default_effort": "medium"}], "updated_at": "固定时间", "source": "固定目录"})
 
 
 def project(root: Path) -> Path:
@@ -153,3 +172,125 @@ def test_viewer_launchagent_is_separate_from_analysis(tmp_path):
     viewer_action(root, "uninstall", runner=runner, launch_agents_dir=directory)
     assert not (directory / f"{LABEL}.plist").exists()
     assert (root / "config/watchlist.yaml").is_file()
+
+
+def test_identity_api_autotype_and_backend_revalidation(tmp_path):
+    root = project(tmp_path)
+    with http(root) as base:
+        code, body = request(base + "/api/instruments?symbol=qqq")
+        assert code == 200 and json.loads(body)["type"] == "etf"
+        code, body = request(base + "/api/watchlist", {"action": "add", "item": {"symbol": "QQQ"}})
+        assert code == 200
+        assert load_watchlist(root).items[-1].type == "etf"
+        assert request(base + "/api/watchlist", {"action": "add", "item": {"symbol": "QQQ", "type": "stock"}})[0] == 400
+        assert request(base + "/api/instruments?symbol=%5EINVALID")[0] == 400
+        html = request(base + "/")[1]
+        assert 'id="type-field" hidden' in html and 'data-analyze="QQQ"' in html
+
+
+def test_unknown_type_requires_selection_and_outage_does_not_save(tmp_path):
+    root = project(tmp_path)
+    resolver = lambda symbol: {"symbol": symbol, "type": None, "name": "未知类型标的"}
+    store = WatchlistStore(root, resolver=resolver)
+    with pytest.raises(ConfigurationError, match="请选择类型"):
+        store.update({"action": "add", "item": {"symbol": "ABC"}})
+    store.update({"action": "add", "item": {"symbol": "ABC", "type": "etf"}})
+    assert load_watchlist(root).items[-1].type == "etf"
+    original = (root / "config/watchlist.yaml").read_bytes()
+    def unavailable(symbol):
+        raise InstrumentUnavailableError("暂时无法验证")
+    with pytest.raises(InstrumentUnavailableError):
+        WatchlistStore(root, resolver=unavailable).update({"action": "add", "item": {"symbol": "XYZ", "type": "stock"}})
+    server = create_server(root, port=0, resolver=unavailable)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        assert request(base + "/api/instruments?symbol=XYZ")[0] == 503
+        assert request(base + "/api/watchlist", {"action": "add", "item": {"symbol": "XYZ"}})[0] == 503
+    finally:
+        server.shutdown(); thread.join(); server.server_close()
+    assert (root / "config/watchlist.yaml").read_bytes() == original
+
+
+def test_manual_launch_command_busy_window_and_result(tmp_path):
+    root = project(tmp_path)
+    calls = []
+    process = SimpleNamespace(poll=lambda: None)
+    def launch(command, **kwargs):
+        calls.append((command, kwargs))
+        return process
+    launcher = AnalysisLauncher(root, popen=launch, clock=lambda: datetime(2026, 10, 2, 8, 40, tzinfo=NEW_YORK))
+    with run_lock(root), pytest.raises(AnalysisBusyError):
+        launcher.start("NVDA")
+    assert calls == []
+    assert launcher.start("nvda")["status"] == "running"
+    (root / "data/status.json").write_text(json.dumps({"last_run": {"started_at": "2026-10-02T08:40:00-04:00", "progress": {"completed": 0, "total": 1}}}))
+    assert launcher.snapshot()["run"]["progress"] == {"completed": 0, "total": 1}
+    command, kwargs = calls[0]
+    assert command[-3:] == ["--tickers", "NVDA", "--force"]
+    assert "--date" not in command and kwargs["cwd"] == root
+    assert "PATH" in kwargs["env"]
+    with pytest.raises(AnalysisBusyError):
+        launcher.start("NVDA")
+    process.poll = lambda: 2
+    assert launcher.snapshot()["status"] == "failed"
+    process.poll = lambda: 0
+    assert launcher.snapshot()["status"] == "completed"
+    with pytest.raises(ConfigurationError, match="启用"):
+        launcher.start("AAPL")
+    launcher.clock = lambda: datetime(2026, 10, 2, 17, tzinfo=NEW_YORK)
+    with pytest.raises(ValueError, match="交易日"):
+        launcher.start("NVDA")
+    assert len(calls) == 1
+
+
+def test_manual_analysis_http_is_async_and_reports_busy(tmp_path):
+    root = project(tmp_path)
+    launcher = AnalysisLauncher(root, popen=lambda *a, **kw: SimpleNamespace(poll=lambda: None),
+                                clock=lambda: datetime(2026, 10, 2, 8, 40, tzinfo=NEW_YORK))
+    server = create_server(root, port=0, launcher=launcher)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        code, body = request(base + "/api/analysis", {"symbol": "NVDA"})
+        assert code == 202 and json.loads(body)["status"] == "running"
+        assert request(base + "/api/analysis", {"symbol": "NVDA"})[0] == 409
+        assert json.loads(request(base + "/api/analysis")[1])["symbol"] == "NVDA"
+        assert not (root / "data/status.json").exists()
+    finally:
+        server.shutdown(); thread.join(); server.server_close()
+
+
+def test_settings_preserve_hidden_values_and_validate_atomically(tmp_path, monkeypatch):
+    root = project(tmp_path)
+    path = root / "config/settings.yaml"
+    path.write_text("llm:\n  call_timeout_seconds: 720\nrun:\n  max_duration_minutes: 160\nfutu:\n  port: 12345\n")
+    store = SettingsStore(root)
+    store.update({"llm": {"quick": {"model": "gpt-6.1-sol", "reasoning_effort": "medium"},
+                          "deep": {"model": "gpt-6.1-sol", "reasoning_effort": "xhigh"},
+                          "max_concurrent_calls": 2}, "run": {"max_parallel_tickers": 1}})
+    raw = yaml.safe_load(path.read_text())
+    assert raw["llm"]["call_timeout_seconds"] == 720 and raw["futu"]["port"] == 12345
+    assert raw["run"]["max_duration_minutes"] == 160
+    original = path.read_bytes()
+    for command in ({"run": {"max_parallel_tickers": 0}}, {"llm": {"deep": {"reasoning_effort": "bad"}}},
+                    {"llm": {"provider": "bad"}}, {"futu": {"enabled": False}},
+                    {"llm": {"deep": {"model": "未列出的模型"}}}, {"llm": {"quick": {"reasoning_effort": "high"}}}):
+        with pytest.raises(ConfigurationError):
+            store.update(command)
+        assert path.read_bytes() == original
+    with http(root) as base:
+        assert json.loads(request(base + "/api/settings")[1])["llm"]["deep"]["reasoning_effort"] == "xhigh"
+        html = request(base + "/")[1]
+        assert 'id="settings-form"' in html and '<select name="quick_model"' in html
+        assert 'list="model-options"' not in html and "模型名可自行填写" not in html
+        assert request(base + "/api/settings", {"run": {"max_parallel_tickers": 2}})[0] == 200
+    original = path.read_bytes()
+    def fail_replace(*args):
+        raise OSError("模拟保存失败")
+    monkeypatch.setattr("daily_analyzer.viewer.os.replace", fail_replace)
+    with pytest.raises(OSError):
+        store.update({"run": {"max_parallel_tickers": 3}})
+    assert path.read_bytes() == original

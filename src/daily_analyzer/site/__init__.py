@@ -758,7 +758,8 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         market_label=market.get("label") or "暂无数据", vix=vix_text,
         market_cards=_context_cards(latest_context, latest_results),
         macro_rows=macro_rows, macro_html=macro_html, sector_rows=sector_rows, sector_html=sector_html,
-        model_label=_role_summary(load_settings(root).llm.deep.model_dump()),
+        model_label=("分析师/辩论 quick：" + _role_summary(load_settings(root).llm.quick.model_dump())
+                     + "；研究经理/交易员/组合经理 deep：" + _role_summary(load_settings(root).llm.deep.model_dump())),
     ))
     return _page(title="自选研判", body=body, root_prefix="", index=index,
                  selected_date=latest_day, selected_symbol=None, banner=banner_data,

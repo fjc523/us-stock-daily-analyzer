@@ -141,7 +141,7 @@ LLM 生成的 Markdown SHALL 渲染为 HTML（支持表格），然后 MUST 经�
 - **THEN** HTTP 首页立即出现 AAPL 待分析，当前订阅表不再显示 NVDA，但历史 NVDA 报告保持可访问
 
 ### Requirement: 仅本机的查看与管理入口
-系统 SHALL 提供 `serve` 与 `viewer install|uninstall|status`，查看器仅监听 `127.0.0.1:8765`。HTTP 首页 SHALL 动态读取当前订阅和落盘结果，不调用模型、不访问行情、不写分析状态、不发布站点。服务 MUST 校验 Host/Origin，静态路由只公开站点内 HTML。管理对话框打开时 MUST 暂停页面自动刷新。
+系统 SHALL 提供 `serve` 与 `viewer install|uninstall|status`，查看器仅监听 `127.0.0.1:8765`。HTTP 首页本身 SHALL 动态读取当前订阅和落盘结果，不调用模型、不访问行情、不写分析状态、不发布站点；代码验证接口可以查询基本资料，手动分析接口仅启动独立运行器。服务 MUST 校验 Host/Origin，静态路由只公开站点内 HTML。管理对话框打开时 MUST 暂停页面自动刷新。
 
 #### Scenario: 登录后直接管理
 - **WHEN** 已安装并加载查看器 LaunchAgent，打开 `http://127.0.0.1:8765/`
@@ -161,3 +161,14 @@ Markdown 上下文中的表格 SHALL 正常渲染为表格；结构化辩论 SHA
 #### Scenario: 上下文表格紧接说明行
 - **WHEN** 提供器的表格之前没有空行，辩论为带 history 的对象
 - **THEN** 页面显示表格和辩论正文，而不是竖线源码和原始字典
+
+### Requirement: 实时验证与单标的手动分析
+系统 SHALL 在输入订阅代码后实时查询身份并自动识别股票、ETF 或指数；身份有效但类型未知时才要求选择。查询不可用 MUST 与代码无效区分，保存 MUST 再次验证。首页 SHALL 为启用订阅提供异步分析入口，复用当前交易日的单标的强制运行；已有任务执行或无可分析交易日 MUST 显示原因，不暗中回放。
+
+#### Scenario: 输入 ETF 代码
+- **WHEN** 用户只输入可验证的 ETF 代码
+- **THEN** 显示身份与自动识别的 ETF 类型，可直接保存，不强制填其他字段
+
+#### Scenario: 单标的重新分析
+- **WHEN** 可分析交易日内用户点击某启用订阅的分析按钮且运行锁空闲
+- **THEN** 后台只强制分析该标的，页面显示进度，其他历史结果保留

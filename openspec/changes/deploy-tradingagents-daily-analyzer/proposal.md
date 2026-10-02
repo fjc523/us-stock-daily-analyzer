@@ -33,7 +33,7 @@ TradingAgents（v0.5.2）的多智能体引擎最合适，我已 fork 到 `fjc52
   - 3 只标的并行、持仓优先；
   - 遇到额度或配置错误时中止派发，必要时终止运行中的调用；
   - 批次化落盘：补跑、部分重跑、强制重跑的合并规则明确，不重复计数，不丢失旧的成功结果；落盘汇总和站点发布只由主线程执行（单写者），站点通过原子替换符号链接发布。
-- **HTML 站点**：离线可用，可按日期和股票查看；每完成一只标的就更新；首页优先展示当前订阅的中文评级、简短建议、个股相对板块的 5/20/60 日超额收益（百分点）和运行状态；展开查看市场背景与完整报告。新增仅本机的 HTTP 管理入口，可添加、移除、暂停、恢复订阅，配置从下一批次生效，历史结果保留；离线浏览继续可用。默认 deep/quick 均为 `gpt-6.1-sol` / `medium`。
+- **HTML 站点**：离线可用，可按日期和股票查看；每完成一只标的就更新；首页优先展示当前订阅的中文评级、简短建议、个股相对板块的 5/20/60 日超额收益（百分点）和运行状态；展开查看市场背景与完整报告。新增仅本机的 HTTP 管理入口，可添加、移除、暂停、恢复订阅，配置从下一批次生效，历史结果保留；离线浏览继续可用。默认 quick 为 `gpt-6.1-sol / medium`，deep 为 `gpt-6.1-sol / xhigh`。
 - **本机 launchd 部署与 `doctor` 自检**：检查内容包括时区库与锚点换算、凭据文件、Alpaca 与富途连通、定时唤醒的只读检查。
 - 明确不做：消息推送、下单、选股、付费行情、云端部署、修改系统电源设置。
 
@@ -54,7 +54,7 @@ TradingAgents（v0.5.2）的多智能体引擎最合适，我已 fork 到 `fjc52
 ## Impact
 
 - **主项目代码**：配置、数据源客户端、上下文提供器、TradingAgents 集成、编排、站点、本机查看服务、调度、doctor、测试；`CLAUDE.md`。
-- **fork 代码**：`llm_clients/codex_exec/`、`llm_clients/errors.py`、`dataflows/vendors/alpaca/`，以及对 `trading_graph.py`、`factory.py`、`structured.py`、`settlement.py`、`date_window.py`、`router.py`、`default_config.py`，以及日线工具入口（`agents/tools.py`、yahoo 与 alpha_vantage 的日线读取、行情快照）的少量修改。
+- **fork 代码**：`llm_clients/codex_exec/`、`llm_clients/errors.py`、`dataflows/vendors/alpaca/`，以及对 `trading_graph.py`、`factory.py`、`structured.py`、`settlement.py`、`date_window.py`、`router.py`、`default_config.py`，以及日线工具入口（`agents/tools.py`、yahoo 与 alpha_vantage 的日线读取、行情快照）的少量修改。本轮补充 `graph/setup.py` 的交易员角色分配及交易员/组合经理提示、`agents/schemas.py` 的可选价格方案输出。
 - **依赖**：
   - 主项目：`exchange-calendars`、`pyyaml`、`pydantic`、`jinja2`、`markdown`、`nh3`、`python-dotenv`、`futu-api`、`requests`、`pytest`；
   - fork 的依赖不变（Alpaca 新闻用 `requests` 直连）。
@@ -77,3 +77,11 @@ TradingAgents（v0.5.2）的多智能体引擎最合适，我已 fork 到 `fjc52
 ## 2026-10-02 本轮修订范围
 
 用户要求主代理直接重做前端并复审后端，本轮不委派子代理。复用已有板块指标、Pydantic 配置、Jinja2 与 Python 标准库 HTTP 服务；不增加新分析指标、额外模型摘要调用或新的前端框架。后端只修正审核发现的正常路径问题，具体登记在 evidence.md。涉及订阅与角色配置的改变已由本轮用户请求授权；不调整撮合、记账或价格指标口径，不删除历史结果。
+
+## 2026-10-02 订阅与分析能力补充
+
+本轮由主代理直接完成。添加订阅先实时查询代码身份，仅输入代码即可；可靠识别 stock/etf/index 后自动填类型，身份有效但类型未知时才要求用户选择。查询失败与无效代码分别提示，保存时同样验证，不能绕过。沿用既有配置格式和历史结果。首页每个启用订阅可异步触发一次单标的强制分析，复用运行锁和运行器，不增加队列或新的发布者。继续采用既有交易日/收盘限制，收盘后不悄悄变成回放。
+
+按用户最新口径仅保留两组模型：quick 为 gpt-6.1-sol / medium，deep 为 gpt-6.1-sol / xhigh。分析师、多空和风险辩论走 quick；研究经理、交易员和组合经理走 deep。最终建议新增参考价格及其数据时点、建仓和加仓区间、触发和失效条件；证据不足明确等待，不编造价格。复核扩展时段和新闻的注入、时段质量及报告引用，区分已进入模型与真实盘前时段验收。
+
+用户追加：定时在交易日开盘前一小时（正常为 08:30 ET），周末不启动，节假日由 NYSE 日历跳过；HTML 可编辑两角色模型/推理强度及两种并发数量，校验后原子保存，从下一次分析生效。

@@ -148,7 +148,7 @@ class RoleSettings(ConfigModel):
 
 class LLMSettings(ConfigModel):
     provider: str = "codex_exec"
-    deep: RoleSettings = Field(default_factory=RoleSettings)
+    deep: RoleSettings = Field(default_factory=lambda: RoleSettings(reasoning_effort="xhigh"))
     quick: RoleSettings = Field(default_factory=RoleSettings)
     call_timeout_seconds: int = 600
     max_retries: int = 3

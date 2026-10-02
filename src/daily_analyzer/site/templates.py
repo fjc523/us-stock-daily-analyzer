@@ -31,7 +31,7 @@ BASE = _ENV.from_string(
     .positive { color:var(--good); } .negative,.error { color:var(--bad); } .relative-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; font-variant-numeric:tabular-nums; } .relative-grid span { font-size:13px; font-weight:600; } .relative-grid small { display:block; font-size:10px; font-weight:400; color:var(--muted); } .relative-grid .focus { background:var(--soft); border-radius:6px; padding:2px 6px; margin:-2px -6px; } .number { font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:550; }
     .marks { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; } .mark { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:5px; padding:1px 5px; } details { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin:10px 0; } summary { cursor:pointer; font-weight:550; } .row-details { padding:0; border:0; margin:4px 0; background:transparent; font-size:11px; } .row-details summary { color:var(--muted); font-weight:400; } .row-details p { overflow-wrap:anywhere; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:12px; }
     .markdown { overflow-x:auto; overflow-wrap:anywhere; max-width:920px; } .markdown p { margin:12px 0; } .markdown h2 { margin-top:24px; } .markdown table { min-width:0; font-size:13px; } .markdown pre { overflow:auto; padding:12px; background:var(--bg); border-radius:8px; } .markdown code { font-family:ui-monospace,SFMono-Regular,monospace; } .time-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr)); gap:8px 20px; font-size:12px; } .empty { padding:32px 20px; color:var(--muted); text-align:center; }
-    footer { max-width:1280px; margin:auto; padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; } dialog { width:min(650px,calc(100vw - 28px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--fg); padding:24px; box-shadow:0 20px 90px #0003; } dialog::backdrop { background:#0d1c3e66; } .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; } .form-grid label { font-size:12px; display:flex; flex-direction:column; gap:5px; } .manager-row { display:flex; gap:8px; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:10px 0; } .manager-actions { display:flex; gap:5px; } .manager-actions button { font-size:12px; padding:4px 8px; } .toast { min-height:20px; font-size:12px; }
+    footer { max-width:1280px; margin:auto; padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; } dialog { width:min(650px,calc(100vw - 28px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--fg); padding:24px; box-shadow:0 20px 90px #0003; } dialog::backdrop { background:#0d1c3e66; } .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; } .form-grid label { font-size:12px; display:flex; flex-direction:column; gap:5px; } .manager-row { display:flex; gap:8px; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:10px 0; } .manager-actions { display:flex; gap:5px; } .manager-actions button { font-size:12px; padding:4px 8px; } .toast { min-height:20px; font-size:12px; } [hidden] { display:none !important; } .analyze-button { display:block; font-size:11px; padding:4px 6px; margin-top:8px; white-space:nowrap; } button:disabled { opacity:.55; cursor:wait; }
     .mobile-label { display:none; }
     @media(max-width:950px) { .topbar-inner,main { padding-left:18px; padding-right:18px; } .stats { gap:8px; } .stat { padding:12px; } .stat-value { font-size:21px; } .selectors label { display:none; } }
     @media(max-width:800px) { .topbar-inner { align-items:flex-start; flex-direction:column; gap:12px; } .stats { grid-template-columns:repeat(2,1fr); } .stat:first-child { grid-column:1/-1; } .page-heading { align-items:flex-start; } h1 { font-size:23px; } .watch-table { min-width:0; table-layout:auto; } .mobile-label { display:block; } .watch-table thead { display:none; } .watch-table tbody,.watch-table tr { display:block; } .watch-table tr { display:grid; grid-template-columns:1fr 1fr; padding:15px; gap:10px; border-bottom:1px solid var(--line); } .watch-table td { border:0; padding:0; } .watch-table td:nth-child(2) { grid-column:1/-1; grid-row:2; } .watch-table td:nth-child(3) { grid-column:1/-1; grid-row:3; } .watch-table td:nth-child(4) { grid-column:2; grid-row:1; text-align:right; } .watch-table td:nth-child(5) { grid-column:1; } .watch-table td:nth-child(6) { grid-column:2; text-align:right; } .relative-grid { max-width:320px; } .form-grid { grid-template-columns:1fr; } }
@@ -167,8 +167,8 @@ BASE = _ENV.from_string(
   const manager = global.document.getElementById("watchlist-manager");
   const form = global.document.getElementById("watchlist-form");
   const message = global.document.getElementById("manager-message");
-  async function api(data) {
-    const response = await global.fetch("/api/watchlist", data ? {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)} : {});
+  async function api(data, path="/api/watchlist") {
+    const response = await global.fetch(path, data ? {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)} : {});
     const value = await response.json();
     if (!response.ok) throw new Error(value.error || "保存失败，请重试。");
     return value;
@@ -197,19 +197,122 @@ BASE = _ENV.from_string(
   }
   global.document.getElementById("manage-watchlist").addEventListener("click", showManager);
   global.document.getElementById("close-manager").addEventListener("click",()=>manager.close());
+  const codeInput=form.elements.symbol, typeInput=form.elements.type;
+  const typeField=global.document.getElementById("type-field");
+  const identityMessage=global.document.getElementById("identity-message");
+  const submitButton=form.querySelector("button[type=submit]");
+  let verified=null, validationTimer=null, validationVersion=0;
+  function codeValue(){return codeInput.value.trim().toUpperCase();}
+  function allowSubmit(){submitButton.disabled=!(verified && verified.symbol===codeValue() && (verified.type || typeInput.value));}
+  async function validateCode(){
+    const code=codeValue(), version=++validationVersion;
+    verified=null; allowSubmit(); typeField.hidden=true; typeInput.value="";
+    if(!code){identityMessage.textContent="输入代码后自动验证和识别类型";return;}
+    identityMessage.textContent="正在验证 "+code+"…";
+    try {
+      const value=await api(null,"/api/instruments?symbol="+encodeURIComponent(code));
+      if(version!==validationVersion || code!==codeValue()) return;
+      verified=value; typeField.hidden=!!value.type;
+      const types={stock:"个股",etf:"ETF",index:"指数"};
+      identityMessage.textContent=value.symbol+" · "+value.name+" · "+(types[value.type]||"代码有效，请选择类型")+"（"+value.source+"）";
+      if(value.type) typeInput.value=value.type;
+      allowSubmit();
+    } catch(error){
+      if(version===validationVersion && code===codeValue()) identityMessage.textContent=error.message;
+    }
+  }
+  codeInput.addEventListener("input",()=>{
+    ++validationVersion; verified=null; submitButton.disabled=true; typeField.hidden=true;
+    identityMessage.textContent="等待验证…"; global.clearTimeout(validationTimer);
+    validationTimer=global.setTimeout(validateCode,500);
+  });
+  codeInput.addEventListener("blur",()=>{if(!verified){global.clearTimeout(validationTimer);validateCode();}});
+  typeInput.addEventListener("change",allowSubmit);
   form.addEventListener("submit",async event=>{
     event.preventDefault();
-    const button=form.querySelector("button[type=submit]"); button.disabled=true;
+    if(!verified || verified.symbol!==codeValue()) return;
+    submitButton.disabled=true;
     const item=Object.fromEntries(new FormData(form));
     Object.keys(item).forEach(key=>{if(!item[key].trim()) delete item[key];});
+    item.symbol=verified.symbol;
     try { await api({action:"add",item}); global.location.reload(); }
-    catch(error) { message.textContent=error.message; button.disabled=false; }
+    catch(error) { message.textContent=error.message; allowSubmit(); }
   });
+  const settingsDialog=global.document.getElementById("settings-manager");
+  const settingsForm=global.document.getElementById("settings-form");
+  const settingsMessage=global.document.getElementById("settings-message");
+  global.document.getElementById("manage-settings").addEventListener("click",async()=>{
+    settingsDialog.showModal();settingsMessage.textContent="正在读取参数…";
+    settingsForm.querySelector("button[type=submit]").disabled=true;
+    try {
+      const value=await api(null,"/api/settings");
+      ["quick","deep"].forEach(role=>{
+        const modelSelect=settingsForm.elements[role+"_model"];
+        modelSelect.replaceChildren();
+        value.models.forEach(model=>{
+          const option=global.document.createElement("option");option.value=model.id;option.textContent=model.name+" · "+model.id;modelSelect.appendChild(option);
+        });
+        modelSelect.value=value.llm[role].model;
+        function fillEfforts(preferred){
+          const model=value.models.find(item=>item.id===modelSelect.value);
+          const effortSelect=settingsForm.elements[role+"_effort"];effortSelect.replaceChildren();
+          if(!model){
+            const option=global.document.createElement("option");option.value="";option.textContent="原配置 "+value.llm[role].model+" 不在当前目录，请选择";option.selected=true;modelSelect.prepend(option);
+            return;
+          }
+          model.reasoning_efforts.forEach(effort=>{
+            const option=global.document.createElement("option");option.value=effort;option.textContent=effort;effortSelect.appendChild(option);
+          });
+          effortSelect.value=model.reasoning_efforts.includes(preferred)?preferred:model.default_effort;
+        }
+        fillEfforts(value.llm[role].reasoning_effort);
+        modelSelect.onchange=()=>fillEfforts(settingsForm.elements[role+"_effort"].value);
+      });
+      global.document.getElementById("model-source").textContent=value.source+"；更新时间 "+(value.updated_at||"未提供");
+      settingsForm.elements.parallel.value=value.run.max_parallel_tickers;
+      settingsForm.elements.calls.value=value.llm.max_concurrent_calls;
+      settingsMessage.textContent="";settingsForm.querySelector("button[type=submit]").disabled=false;
+    } catch(error){settingsMessage.textContent=error.message;}
+  });
+  global.document.getElementById("close-settings").addEventListener("click",()=>settingsDialog.close());
+  settingsForm.addEventListener("submit",async event=>{
+    event.preventDefault();const button=settingsForm.querySelector("button[type=submit]");button.disabled=true;
+    const fields=settingsForm.elements;
+    const value={llm:{quick:{model:fields.quick_model.value.trim(),reasoning_effort:fields.quick_effort.value},
+                     deep:{model:fields.deep_model.value.trim(),reasoning_effort:fields.deep_effort.value},
+                     max_concurrent_calls:Number(fields.calls.value)},run:{max_parallel_tickers:Number(fields.parallel.value)}};
+    try {await api(value,"/api/settings");global.location.reload();}
+    catch(error){settingsMessage.textContent=error.message;button.disabled=false;}
+  });
+  const analysisMessage=global.document.getElementById("analysis-message");
+  const analysisButtons=[...global.document.querySelectorAll("[data-analyze]")];
+  let polling=false;
+  async function analysisStatus(){
+    try {
+      const value=await api(null,"/api/analysis");
+      analysisButtons.forEach(button=>{button.disabled=value.busy;});
+      if(value.message){
+        const progress=value.run && value.run.progress;
+        analysisMessage.textContent=value.message+(value.busy && progress?" · "+progress.completed+"/"+progress.total:"");
+      }
+      if(value.busy){polling=true;global.setTimeout(analysisStatus,3000);}
+      else if(polling){polling=false;global.location.reload();}
+    } catch(error){analysisMessage.textContent=error.message;polling=false;analysisButtons.forEach(button=>{button.disabled=false;});}
+  }
+  analysisButtons.forEach(button=>button.addEventListener("click",async()=>{
+    analysisButtons.forEach(entry=>{entry.disabled=true;});
+    try {
+      const value=await api({symbol:button.dataset.analyze},"/api/analysis");
+      analysisMessage.textContent=value.message;polling=true;analysisStatus();
+    } catch(error){analysisMessage.textContent=error.message;analysisButtons.forEach(entry=>{entry.disabled=false;});}
+  }));
+  analysisStatus();
   {% endif %}
   if (site.refresh_seconds > 0) {
     function refresh() {
       const dialog=global.document.getElementById("watchlist-manager");
-      if (dialog && dialog.open) global.setTimeout(refresh, 10000);
+      const settingsDialog=global.document.getElementById("settings-manager");
+      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open)) global.setTimeout(refresh, 10000);
       else global.location.reload();
     }
     global.setTimeout(refresh, site.refresh_seconds*1000);
@@ -229,7 +332,7 @@ _ROWS = """
   <td><span class="{{ row.strength_tone }}">{{ row.strength }}</span><span class="small muted">{% if row.sector_etf != '—' %} · {{ row.sector_etf }}{% endif %}</span><div class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ row.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ row.relative[days].text }}</span>{% endfor %}</div></td>
   <td class="number"><span class="mobile-label subline">盘前</span>{{ row.premarket }}</td>
   <td><span class="small">{{ row.status }}</span><span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% endif %}</span><details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
-  <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}</td>
+  <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}{% if managed %}<button class="analyze-button" data-analyze="{{ row.symbol }}" title="重新获取数据并分析该标的">分析一次</button>{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}
 """
 _CONTEXT = """
@@ -248,18 +351,27 @@ HOME = _ENV.from_string("""<section id="status-banner" class="banner" aria-live=
   <article class="stat"><span class="stat-label">当前订阅</span><strong class="stat-value">{{ rows|length }} <span class="small muted">只</span></strong><span class="stat-caption">{{ summary.pending }} 项待分析或复核</span></article>
 </div>
 <div class="section-heading"><div><h2>我的自选</h2><p class="small muted">强弱按 20 日超额收益判断；正值跑赢、负值跑输板块。各行保留实际报告日期。</p></div>
-{% if managed %}<button id="manage-watchlist" class="primary">＋ 管理订阅</button>{% else %}<a class="button primary" href="http://127.0.0.1:8765/">管理订阅 ↗</a>{% endif %}</div>
-""" + _ROWS + """<p class="small muted">相对收益 = 个股收益 − 板块 ETF 收益，单位为百分点；日线截至各报告的上一交易日。ETF／指数不套用个股板块基准。摘要摘自完整决策，点击详情查看条件和风险。当前模型 {{ model_label }}。</p>
+{% if managed %}<div class="manager-actions"><button id="manage-settings">参数设置</button><button id="manage-watchlist" class="primary">＋ 管理订阅</button></div>{% else %}<a class="button primary" href="http://127.0.0.1:8765/">管理订阅 ↗</a>{% endif %}</div>
+""" + _ROWS + """{% if managed %}<p id="analysis-message" class="small toast" role="status"></p>{% endif %}<p class="small muted">相对收益 = 个股收益 − 板块 ETF 收益，单位为百分点；日线截至各报告的上一交易日。ETF／指数不套用个股板块基准。摘要摘自完整决策，点击详情查看条件和风险。当前模型 {{ model_label }}。</p>
 """ + _CONTEXT + """
 {% if managed %}<dialog id="watchlist-manager" aria-labelledby="manager-title"><div class="section-heading" style="margin-top:0"><h2 id="manager-title">管理订阅</h2><button id="close-manager" type="button" aria-label="关闭">关闭</button></div>
 <p class="small muted">保存后从下次分析批次生效；移除或暂停不删除历史报告，不立即调用模型。</p>
 <div id="manager-list"></div><h3>添加标的</h3><form id="watchlist-form"><div class="form-grid">
 <label>代码<input name="symbol" required maxlength="20" placeholder="NVDA / BRK.B / ^NDX" autocomplete="off"></label>
-<label>类型<select name="type"><option value="stock">个股</option><option value="etf">ETF</option><option value="index">指数</option></select></label>
-<label>名称（可选）<input name="name" maxlength="80" placeholder="显示名称"></label>
-<label>板块 ETF（个股可选）<input name="sector_etf" maxlength="20" placeholder="自动识别，可填 SMH 等"></label>
-<label>代理 ETF（指数可选）<input name="proxy" maxlength="20" placeholder="常用指数自动匹配"></label>
-</div><p id="manager-message" class="error toast" role="status"></p><button class="primary" type="submit">添加订阅</button></form></dialog>{% endif %}
+<label id="type-field" hidden>类型（未能自动识别）<select name="type"><option value="">请选择类型</option><option value="stock">个股</option><option value="etf">ETF</option><option value="index">指数</option></select></label>
+</div><p id="identity-message" class="small toast" role="status">输入代码后自动验证和识别类型</p>
+<details><summary>高级选项（可选）</summary><div class="form-grid">
+<label>名称<input name="name" maxlength="80" placeholder="默认使用识别名称"></label>
+<label>板块 ETF（个股）<input name="sector_etf" maxlength="20" placeholder="自动识别，可填 SMH 等"></label>
+<label>代理 ETF（指数）<input name="proxy" maxlength="20" placeholder="常用指数自动匹配；其他指数需填写"></label>
+</div></details><p id="manager-message" class="error toast" role="status"></p><button class="primary" type="submit" disabled>添加订阅</button></form></dialog>
+<dialog id="settings-manager" aria-labelledby="settings-title"><div class="section-heading" style="margin-top:0"><h2 id="settings-title">分析参数</h2><button id="close-settings" type="button">关闭</button></div>
+<p class="small muted">下一次分析生效；当前批次继续使用原配置。定时在美股交易日开盘前一小时（08:30 ET），周末不分析。</p>
+<form id="settings-form"><h3>分析师与辩论 · quick</h3><div class="form-grid"><label>模型<select name="quick_model" required></select></label><label>推理强度<select name="quick_effort" required></select></label></div>
+<h3>研究经理、交易员、组合经理 · deep</h3><div class="form-grid"><label>模型<select name="deep_model" required></select></label><label>推理强度<select name="deep_effort" required></select></label></div>
+<p id="model-source" class="small muted"></p>
+<div class="form-grid"><label>并行分析标的数<input name="parallel" type="number" min="1" max="4" step="1" required></label><label>并行模型调用数<input name="calls" type="number" min="1" step="1" required></label></div>
+<p class="small muted">模型与推理强度从本机 Codex 模型目录自动载入，保存时再次校验。标的并行数控制同时分析几只；调用并行数控制所有标的共享的模型调用上限。</p><p id="settings-message" class="error toast" role="status"></p><button class="primary" type="submit">保存参数</button></form></dialog>{% endif %}
 """)
 OVERVIEW = _ENV.from_string("""<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对板块收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
 DETAIL = _ENV.from_string("""<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>

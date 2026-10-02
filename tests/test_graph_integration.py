@@ -90,7 +90,7 @@ def _context(ticker: str, as_of: datetime) -> dict[str, ContextBlock]:
     return {
         "fixture": ContextBlock(
             title="离线标的上下文",
-            markdown=f"CONTEXT_{ticker}_UNIQUE",
+            markdown=f"CONTEXT_{ticker}_UNIQUE\n盘前 148.20；夜盘 148.10；新闻发布时间 08:31 ET；固定测试数据，不是实盘报价。",
             data={"symbol": ticker},
             as_of=as_of,
             sources=("固定测试样例",),
@@ -192,6 +192,7 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
                     "role": getattr(runner, "role", None),
                     "prompt": prompt,
                     "text": _message_text(prompt),
+                    "stage": "研究经理" if "recommendation" in properties else "交易员" if "action" in properties else "组合经理" if "rating" in properties else "分析师/辩论",
                 }
             )
 
@@ -228,6 +229,9 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
                 "entry_price": None,
                 "stop_loss": None,
                 "position_sizing": None,
+                "reference_price": "148.20 USD，2026-10-02 08:31 ET，固定测试样例",
+                "entry_plan": "148.0–148.2；仅固定测试条件；跌破148失效；依据测试盘前价",
+                "add_plan": "不适用；等待仓位与信号确认",
             }
         elif "rating" in properties:
             output = {
@@ -236,6 +240,9 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
                 "investment_thesis": "本次输出仅用于验证图集成。",
                 "price_target": None,
                 "time_horizon": None,
+                "reference_price": "148.20 USD，2026-10-02 08:31 ET，固定测试样例",
+                "entry_plan": "暂不建仓；等待固定样例证据补齐",
+                "add_plan": "暂不加仓；等待固定样例证据补齐",
             }
         elif "content" in properties:
             output = {"content": "离线辩论样例。"}
@@ -319,6 +326,15 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         assert market_prompt["effort"] == "medium"
         assert portfolio_prompt["model"] == "gpt-6.1-sol"
         assert portfolio_prompt["effort"] == "xhigh"
+        ticker_calls = [call for call in llm_calls if marker in call["text"]]
+        assert {call["stage"] for call in ticker_calls} >= {"研究经理", "交易员", "组合经理", "分析师/辩论"}
+        for call in ticker_calls:
+            assert all(text in call["text"] for text in ("盘前 148.20", "夜盘 148.10", "新闻发布时间"))
+            if call["stage"] in {"研究经理", "交易员", "组合经理"}:
+                assert (call["role"], call["model"], call["effort"]) == ("deep", "gpt-6.1-sol", "xhigh")
+        assert "建仓点位" in results[ticker][0]["final_trade_decision"]
+        assert "加仓点位" in results[ticker][0]["final_trade_decision"]
+        assert "148.20 USD" in results[ticker][0]["final_trade_decision"]
 
     memory_before_replay = memory_path.read_bytes()
     replay_graph = _new_graph(

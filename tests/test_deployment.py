@@ -202,7 +202,10 @@ def test_trigger_conversion_and_rendered_plist_cover_dst_and_fixed_offset(tmp_pa
         "-m", "daily_analyzer", "run", "--scheduled",
     ]
     assert plist["WorkingDirectory"] == str(root)
-    assert plist["StartCalendarInterval"] == [{"Hour": 20, "Minute": 30}, {"Hour": 21, "Minute": 30}]
+    assert plist["StartCalendarInterval"] == [
+        {"Hour": hour, "Minute": 30, "Weekday": weekday}
+        for hour in (20, 21) for weekday in range(1, 6)
+    ]
     assert str(codex.parent) in plist["EnvironmentVariables"]["PATH"]
     assert plist["EnvironmentVariables"]["PYTHONUNBUFFERED"] == "1"
     assert "secrets" not in str(plist)
@@ -495,6 +498,14 @@ def test_default_ping_uses_current_model_with_strict_schema_without_cli_process(
     assert result["input_tokens"] == 23
     assert calls[0] == ("reset-abort",)
     assert calls[1][1]["model"] == "gpt-6.1-sol"
-    assert calls[1][1]["reasoning_effort"] == "medium"
+    assert calls[1][1]["reasoning_effort"] == "xhigh"
     assert calls[1][1]["retries"] == 0
     assert calls[2][2]["additionalProperties"] is False
+
+
+def test_schedule_weekdays_follow_anchor_date_across_midnight():
+    from daily_analyzer.deployment.schedule import schedule_calendar_intervals
+    beijing = schedule_calendar_intervals("08:30 America/New_York", local_timezone="Asia/Shanghai", year=2026)
+    assert len(beijing) == 10 and {point["Weekday"] for point in beijing} == {1, 2, 3, 4, 5}
+    tokyo = schedule_calendar_intervals("15:30 America/New_York", local_timezone="Asia/Tokyo", year=2026)
+    assert {point["Weekday"] for point in tokyo} == {2, 3, 4, 5, 6}

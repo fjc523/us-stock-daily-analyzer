@@ -77,6 +77,23 @@ def schedule_trigger_times(
     return [{"Hour": h, "Minute": m} for h, m in sorted(points)]
 
 
+
+def schedule_calendar_intervals(anchor: str, *, local_timezone=None, year=None) -> list[dict[str, int]]:
+    """将锚点工作日换算到本地星期，兼容跨午夜与冬夏令时。"""
+    hour, minute, zone = _anchor_parts(anchor)
+    local_zone = ZoneInfo(local_timezone) if isinstance(local_timezone, str) else (local_timezone or machine_timezone())
+    sample_year = year or datetime.now(_NEW_YORK).year
+    points = set()
+    for month in (1, 7):
+        for day in range(15, 22):
+            anchored = datetime(sample_year, month, day, hour, minute, tzinfo=ZoneInfo(zone))
+            if anchored.weekday() >= 5:
+                continue
+            local = anchored.astimezone(local_zone)
+            points.add((local.hour, local.minute, local.isoweekday() % 7))
+    return [{"Hour": h, "Minute": m, "Weekday": w} for h, m, w in sorted(points)]
+
+
 def _codex_binary(settings: Any) -> str:
     configured = settings.codex.binary
     if configured:
@@ -133,7 +150,7 @@ def render_plist(
         "Label": LABEL,
         "ProgramArguments": program_arguments,
         "WorkingDirectory": str(root),
-        "StartCalendarInterval": schedule_trigger_times(
+        "StartCalendarInterval": schedule_calendar_intervals(
             configured_anchor, local_timezone=local_timezone, year=year
         ),
         "EnvironmentVariables": {
@@ -214,7 +231,7 @@ def schedule_install(
             "installed": True,
             "loaded": success,
             "plist_path": str(plist_path),
-            "triggers": [f"{item['Hour']:02d}:{item['Minute']:02d}" for item in decoded["StartCalendarInterval"]],
+            "triggers": sorted({f"{item['Hour']:02d}:{item['Minute']:02d}" for item in decoded["StartCalendarInterval"]}),
             "error": None if success else _result_detail(loaded),
         }
     except Exception as exc:
@@ -300,7 +317,7 @@ def schedule_status(
     if installed:
         try:
             value = plistlib.loads(plist_path.read_bytes())
-            triggers = [f"{point['Hour']:02d}:{point['Minute']:02d}" for point in value.get("StartCalendarInterval", [])]
+            triggers = sorted({f"{point['Hour']:02d}:{point['Minute']:02d}" for point in value.get("StartCalendarInterval", [])})
         except (OSError, plistlib.InvalidFileException, ValueError, KeyError, TypeError):
             triggers = []
     loaded = False
