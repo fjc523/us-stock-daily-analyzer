@@ -208,7 +208,7 @@
 ## 10. 真实环境验证（不得用假数据替代）
 
 - [x] 10.1 真实环境验证：执行 `doctor --ping`，确认 Codex、ChatGPT 登录、`gpt-6.1-sol` + `high` 可用，输入 token 不超过 7,000 且无 `config_drift`；Alpaca 与富途连通。记录结果
-- [ ] 10.2 真实环境验证：手动执行 `run --tickers NVDA`，记录总耗时、调用次数、token；核对：
+- [x] 10.2 真实环境验证：手动执行 `run --tickers NVDA`，记录总耗时、调用次数、token；核对：
   - 行情快照与指标的最新日期等于 `price_data_end_date`（上一交易日）；
   - `data_queries` 中记录了工具调用时间；
   - 新闻来自 Alpaca；
