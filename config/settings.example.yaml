@@ -16,6 +16,10 @@ codex:
   min_version: "0.159.3"
 
 tradingagents:
+  # 方向由研究证据决定，执行条件单独给出；条件ATR目标仍遵守原门槛。
+  risk_layer_direction_lock: true
+  rating_timing_decoupled: true
+  price_plan_alt_target: true
   # 完整报告直接核对；legacy仅恢复研究辩论路径。
   research_manager_reads_reports: true
   debate_mode: structured

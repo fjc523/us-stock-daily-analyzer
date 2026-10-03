@@ -194,6 +194,9 @@ class CodexSettings(ConfigModel):
 
 
 class TradingAgentsSettings(ConfigModel):
+    risk_layer_direction_lock: bool = True
+    rating_timing_decoupled: bool = True
+    price_plan_alt_target: bool = True
     debate_mode: Literal['structured', 'legacy'] = 'structured'
     research_manager_reads_reports: bool = True
     context_compaction: bool = True

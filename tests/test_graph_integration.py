@@ -26,7 +26,7 @@ LIVE_CONTEXT_TIME = datetime(2026, 10, 2, 8, 31, tzinfo=EASTERN)
 REPLAY_CONTEXT_TIME = datetime(2026, 10, 1, 8, 31, tzinfo=EASTERN)
 MEMORY_SENTINEL = "REPLAY_MEMORY_SENTINEL"
 MARKET_PROMPT_MARKER = "你是市场分析师。"
-PORTFOLIO_PROMPT_MARKER = "As the Portfolio Manager, synthesize"
+PORTFOLIO_PROMPT_MARKER = "你是组合经理，综合执行风险"
 
 
 def test_actual_graph_node_callback_records_stage_and_preserves_start(tmp_path):
@@ -253,6 +253,7 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         elif "action" in properties:
             output = {
                 "action": "Hold",
+                "direction_change": "否",
                 "reasoning": "按固定样例保持观察。",
                 "entry_price": None,
                 "stop_loss": None,
@@ -264,6 +265,7 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         elif "rating" in properties:
             output = {
                 "rating": "Hold",
+                "direction_change": "否",
                 "executive_summary": "固定离线样例建议保持观察。",
                 "investment_thesis": "本次输出仅用于验证图集成。",
                 "price_target": None,

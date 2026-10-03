@@ -51,3 +51,22 @@ T8独立测试及功能审核已通过：首批28及相关58项通过，真实�
 COHR/NVDA/QQQ/SMTC/TSLA五标固定桩在真实LangGraph执行structured与legacy两路径；线程屏障证明两阶段并行，首轮不读取对方/旧历史，反驳读取对方首轮，独占写字段后稳定汇合一次。固定桩structured四次、legacy两次研究员调用；风险层仍三次，隔离站点能显示四段辩论和先分歧后评级。以上仅验证执行路径，桩输出不代表实际对方引用条数、经理裁决质量或投资评级。
 
 真实三标引用核对、真实五标新旧报告质量/评级/对方引用条数、实际调用时长及计费token增量均 **NOT_TESTED**；未授权昂贵模型复跑。生产加载另在全部功能完成后安全部署核验，不把源码自测视为生产证明。
+
+
+## T16/T24 方向与执行验证边界
+
+关闭兼容以TradingAgents `a897742` 原Git对象独立执行捕获五角色提示、Trader/PM完整schema与点位规则。新生成方向声明必填、格式校验、专用旧记录读取、八种开关组合/私有配置、风险职责与PM输入顺序、独立方向评级定义、两具体等待价模板及止损/盈亏比不变均有固定输入测试。原相关整合102项及全图/记忆影响104项通过；审核返工仅复验方向定义、等待模板与周期字段相关项。
+
+10-02七标原结果只读回放全部新旧输入路径，原三层真实表如下；NVDA为实际现存05:18批次，其余11:47批次。新模型评级、目标配置、方案首句、方向依据、审阅措辞、改评级比例和投资效果均 **NOT_TESTED**，未获授权复跑真实模型。固定桩输出不当作方向行为已证实。
+
+|标的|原研究经理|原交易员|原组合经理|新模型三层及执行|
+|---|---|---|---|---|
+|SMTC|Overweight|Hold|Underweight|NOT_TESTED|
+|QQQ|Overweight|Hold|Underweight|NOT_TESTED|
+|COHR|Overweight|Hold|Hold|NOT_TESTED|
+|NVDA|Overweight|Hold|Hold|NOT_TESTED|
+|INTC|Underweight|Underweight|Underweight|NOT_TESTED|
+|SPY|Underweight|Underweight|Underweight|NOT_TESTED|
+|TSLA|Underweight|Underweight|Underweight|NOT_TESTED|
+
+原基线交易员改4/7、组合经理相对交易员再改2/7，均向下；新比例未取得，不推算未来统计。生产源码加载与新模型业务结果分开报告，静态发布不会重写旧分析结论。
