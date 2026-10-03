@@ -1,0 +1,4626 @@
+[
+  {
+    "url": "/index.html",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 428.609375,
+            "bottom": 600.203125,
+            "width": 109.609375,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 486.703125,
+                  "bottom": 501.703125,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 506.5,
+                  "bottom": 521.5,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1025.953125,
+                  "top": 526.296875,
+                  "bottom": 541.296875,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 428.609375,
+            "bottom": 600.203125,
+            "width": 158.328125,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1147.5625,
+                  "top": 451.53125,
+                  "bottom": 466.53125,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1189.171875,
+                  "top": 471.625,
+                  "bottom": 484.625,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 489.765625,
+                  "bottom": 502.765625,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 507.90625,
+                  "bottom": 520.90625,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 536.046875,
+                  "bottom": 549.046875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 533.046875,
+                  "bottom": 550.046875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 562.140625,
+                  "bottom": 575.140625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 600.203125,
+            "bottom": 824.15625,
+            "width": 109.609375,
+            "height": 223.953125
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 684.484375,
+                  "bottom": 699.484375,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 704.28125,
+                  "bottom": 719.28125,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1025.953125,
+                  "top": 724.078125,
+                  "bottom": 739.078125,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 600.203125,
+            "bottom": 824.15625,
+            "width": 158.328125,
+            "height": 223.953125
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "正在分析市场与新闻 · 预计 42%",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1231.21875,
+                  "top": 612.703125,
+                  "bottom": 625.703125,
+                  "width": 119.65625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1149.8125,
+                  "top": 631.390625,
+                  "bottom": 644.390625,
+                  "width": 38.25,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "已用 2分5秒 · 剩余约 3分",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1236.0625,
+                  "top": 665.078125,
+                  "bottom": 678.078125,
+                  "width": 124.5,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "参考配置不同，耗时可能有偏差",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.5625,
+                  "top": 683.765625,
+                  "bottom": 696.765625,
+                  "width": 121,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1144.5625,
+                  "top": 702.453125,
+                  "bottom": 715.453125,
+                  "width": 33,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 721.140625,
+                  "bottom": 734.140625,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 739.28125,
+                  "bottom": 752.28125,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 767.421875,
+                  "bottom": 780.421875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 764.421875,
+                  "bottom": 781.421875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 793.515625,
+                  "bottom": 806.515625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 824.15625,
+            "bottom": 995.25,
+            "width": 109.609375,
+            "height": 171.09375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1082.75,
+                  "top": 844.5,
+                  "bottom": 861.5,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.671875,
+                  "top": 867.59375,
+                  "bottom": 884.59375,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1053.21875,
+                  "top": 889.6875,
+                  "bottom": 902.6875,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1070.40625,
+                  "top": 907.828125,
+                  "bottom": 920.828125,
+                  "width": 68.453125,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.546875,
+                  "top": 925.96875,
+                  "bottom": 938.96875,
+                  "width": 75.59375,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.015625,
+                  "top": 944.109375,
+                  "bottom": 957.109375,
+                  "width": 75.0625,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.546875,
+                  "top": 962.25,
+                  "bottom": 975.25,
+                  "width": 75.59375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 824.15625,
+            "bottom": 995.25,
+            "width": 158.328125,
+            "height": 171.09375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1147.5625,
+                  "top": 847.078125,
+                  "bottom": 862.078125,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1189.171875,
+                  "top": 867.171875,
+                  "bottom": 880.171875,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 885.3125,
+                  "bottom": 898.3125,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 903.453125,
+                  "bottom": 916.453125,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 931.59375,
+                  "bottom": 944.59375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 928.59375,
+                  "bottom": 945.59375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 957.6875,
+                  "bottom": 970.6875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/index.html",
+    "width": 390,
+    "scrollWidth": 390,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 705,
+            "bottom": 762.734375,
+            "width": 156,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 707,
+                  "bottom": 720,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 212,
+                  "right": 356,
+                  "top": 725.140625,
+                  "bottom": 740.140625,
+                  "width": 144,
+                  "height": 15
+                },
+                {
+                  "left": 332,
+                  "right": 356,
+                  "top": 744.9375,
+                  "bottom": 759.9375,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 966.421875,
+            "bottom": 1102.171875,
+            "width": 156,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 971.421875,
+                  "bottom": 986.421875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 991.515625,
+                  "bottom": 1004.515625,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 1009.65625,
+                  "bottom": 1022.65625,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 1027.796875,
+                  "bottom": 1040.796875,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1055.9375,
+                  "bottom": 1068.9375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1052.9375,
+                  "bottom": 1069.9375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1082.03125,
+                  "bottom": 1095.03125,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 1133.171875,
+            "bottom": 1190.90625,
+            "width": 156,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 1135.171875,
+                  "bottom": 1148.171875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 212,
+                  "right": 356,
+                  "top": 1153.3125,
+                  "bottom": 1168.3125,
+                  "width": 144,
+                  "height": 15
+                },
+                {
+                  "left": 332,
+                  "right": 356,
+                  "top": 1173.109375,
+                  "bottom": 1188.109375,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 1394.59375,
+            "bottom": 1578.859375,
+            "width": 156,
+            "height": 184.265625
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "正在分析市场与新闻 · 预计 42%",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 164.65625,
+                  "top": 1396.59375,
+                  "bottom": 1409.59375,
+                  "width": 130.65625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 58.09375,
+                  "top": 1415.28125,
+                  "bottom": 1428.28125,
+                  "width": 24.09375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "已用 2分5秒 · 剩余约 3分",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 158.5,
+                  "top": 1448.96875,
+                  "bottom": 1461.96875,
+                  "width": 124.5,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "参考配置不同，耗时可能有偏差",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 188,
+                  "top": 1467.65625,
+                  "bottom": 1480.65625,
+                  "width": 154,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 1486.34375,
+                  "bottom": 1499.34375,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 1504.484375,
+                  "bottom": 1517.484375,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1532.625,
+                  "bottom": 1545.625,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1529.625,
+                  "bottom": 1546.625,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1558.71875,
+                  "bottom": 1571.71875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 1609.859375,
+            "bottom": 1728.609375,
+            "width": 156,
+            "height": 118.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 1611.859375,
+                  "bottom": 1624.859375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 275.203125,
+                  "right": 356,
+                  "top": 1631,
+                  "bottom": 1648,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 284.28125,
+                  "right": 356,
+                  "top": 1654.09375,
+                  "bottom": 1671.09375,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 304.734375,
+                  "right": 356,
+                  "top": 1676.1875,
+                  "bottom": 1689.1875,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 202.3125,
+                  "right": 356,
+                  "top": 1694.328125,
+                  "bottom": 1707.328125,
+                  "width": 153.6875,
+                  "height": 13
+                },
+                {
+                  "left": 208.9375,
+                  "right": 356,
+                  "top": 1712.46875,
+                  "bottom": 1725.46875,
+                  "width": 147.0625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 1932.296875,
+            "bottom": 2068.046875,
+            "width": 156,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 1937.296875,
+                  "bottom": 1952.296875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 1957.390625,
+                  "bottom": 1970.390625,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 1975.53125,
+                  "bottom": 1988.53125,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 1993.671875,
+                  "bottom": 2006.671875,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 2021.8125,
+                  "bottom": 2034.8125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 2018.8125,
+                  "bottom": 2035.8125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 2047.90625,
+                  "bottom": 2060.90625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/index.html",
+    "width": 320,
+    "scrollWidth": 320,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 744.59375,
+            "bottom": 802.328125,
+            "width": 121,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 746.59375,
+                  "bottom": 759.59375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 178,
+                  "right": 286,
+                  "top": 764.734375,
+                  "bottom": 779.734375,
+                  "width": 108,
+                  "height": 15
+                },
+                {
+                  "left": 226,
+                  "right": 286,
+                  "top": 784.53125,
+                  "bottom": 799.53125,
+                  "width": 60,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 1006.015625,
+            "bottom": 1141.765625,
+            "width": 121,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 1011.015625,
+                  "bottom": 1026.015625,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 1031.109375,
+                  "bottom": 1044.109375,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 1049.25,
+                  "bottom": 1062.25,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 1067.390625,
+                  "bottom": 1080.390625,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1095.53125,
+                  "bottom": 1108.53125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1092.53125,
+                  "bottom": 1109.53125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1121.625,
+                  "bottom": 1134.625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 1172.765625,
+            "bottom": 1230.5,
+            "width": 121,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 1174.765625,
+                  "bottom": 1187.765625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 178,
+                  "right": 286,
+                  "top": 1192.90625,
+                  "bottom": 1207.90625,
+                  "width": 108,
+                  "height": 15
+                },
+                {
+                  "left": 226,
+                  "right": 286,
+                  "top": 1212.703125,
+                  "bottom": 1227.703125,
+                  "width": 60,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 1434.1875,
+            "bottom": 1655.828125,
+            "width": 121,
+            "height": 221.640625
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "正在分析市场与新闻 · 预计 42%",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 153.65625,
+                  "top": 1436.1875,
+                  "bottom": 1449.1875,
+                  "width": 119.65625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 72.25,
+                  "top": 1454.875,
+                  "bottom": 1467.875,
+                  "width": 38.25,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "已用 2分5秒 · 剩余约 3分",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 147.5,
+                  "top": 1488.5625,
+                  "bottom": 1501.5625,
+                  "width": 113.5,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 45,
+                  "top": 1507.25,
+                  "bottom": 1520.25,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "参考配置不同，耗时可能有偏差",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 155,
+                  "top": 1525.9375,
+                  "bottom": 1538.9375,
+                  "width": 121,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 67,
+                  "top": 1544.625,
+                  "bottom": 1557.625,
+                  "width": 33,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 1563.3125,
+                  "bottom": 1576.3125,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 1581.453125,
+                  "bottom": 1594.453125,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1609.59375,
+                  "bottom": 1622.59375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1606.59375,
+                  "bottom": 1623.59375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1635.6875,
+                  "bottom": 1648.6875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 1686.828125,
+            "bottom": 1823.71875,
+            "width": 121,
+            "height": 136.890625
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 1688.828125,
+                  "bottom": 1701.828125,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 205.203125,
+                  "right": 286,
+                  "top": 1707.96875,
+                  "bottom": 1724.96875,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 214.28125,
+                  "right": 286,
+                  "top": 1731.0625,
+                  "bottom": 1748.0625,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 234.734375,
+                  "right": 286,
+                  "top": 1753.15625,
+                  "bottom": 1766.15625,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 217.546875,
+                  "right": 286,
+                  "top": 1771.296875,
+                  "bottom": 1784.296875,
+                  "width": 68.453125,
+                  "height": 13
+                },
+                {
+                  "left": 166.546875,
+                  "right": 286,
+                  "top": 1789.4375,
+                  "bottom": 1802.4375,
+                  "width": 119.453125,
+                  "height": 13
+                },
+                {
+                  "left": 173.15625,
+                  "right": 286,
+                  "top": 1807.578125,
+                  "bottom": 1820.578125,
+                  "width": 112.84375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 2027.40625,
+            "bottom": 2163.15625,
+            "width": 121,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 2032.40625,
+                  "bottom": 2047.40625,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 2052.5,
+                  "bottom": 2065.5,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 2070.640625,
+                  "bottom": 2083.640625,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 2088.78125,
+                  "bottom": 2101.78125,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 2116.921875,
+                  "bottom": 2129.921875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 2113.921875,
+                  "bottom": 2130.921875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 2143.015625,
+                  "bottom": 2156.015625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/days/2026-10-02/index.html",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 241.875,
+            "bottom": 413.46875,
+            "width": 109.609375,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 299.96875,
+                  "bottom": 314.96875,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 319.765625,
+                  "bottom": 334.765625,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1025.953125,
+                  "top": 339.5625,
+                  "bottom": 354.5625,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 241.875,
+            "bottom": 413.46875,
+            "width": 158.328125,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1147.5625,
+                  "top": 264.796875,
+                  "bottom": 279.796875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1189.171875,
+                  "top": 284.890625,
+                  "bottom": 297.890625,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 303.03125,
+                  "bottom": 316.03125,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 321.171875,
+                  "bottom": 334.171875,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 349.3125,
+                  "bottom": 362.3125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 346.3125,
+                  "bottom": 363.3125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 375.40625,
+                  "bottom": 388.40625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 413.46875,
+            "bottom": 585.0625,
+            "width": 109.609375,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 471.5625,
+                  "bottom": 486.5625,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1073.953125,
+                  "top": 491.359375,
+                  "bottom": 506.359375,
+                  "width": 72,
+                  "height": 15
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1025.953125,
+                  "top": 511.15625,
+                  "bottom": 526.15625,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 413.46875,
+            "bottom": 585.0625,
+            "width": 158.328125,
+            "height": 171.59375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "运行中",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1147.5625,
+                  "top": 436.390625,
+                  "bottom": 451.390625,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时未记录",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1166.5625,
+                  "top": 456.484375,
+                  "bottom": 469.484375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 474.625,
+                  "bottom": 487.625,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 492.765625,
+                  "bottom": 505.765625,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 520.90625,
+                  "bottom": 533.90625,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 517.90625,
+                  "bottom": 534.90625,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 547,
+                  "bottom": 560,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 987.953125,
+            "right": 1097.5625,
+            "top": 585.0625,
+            "bottom": 756.15625,
+            "width": 109.609375,
+            "height": 171.09375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1082.75,
+                  "top": 605.40625,
+                  "bottom": 622.40625,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1073.671875,
+                  "top": 628.5,
+                  "bottom": 645.5,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1053.21875,
+                  "top": 650.59375,
+                  "bottom": 663.59375,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 1001.953125,
+                  "right": 1070.40625,
+                  "top": 668.734375,
+                  "bottom": 681.734375,
+                  "width": 68.453125,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.546875,
+                  "top": 686.875,
+                  "bottom": 699.875,
+                  "width": 75.59375,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.015625,
+                  "top": 705.015625,
+                  "bottom": 718.015625,
+                  "width": 75.0625,
+                  "height": 13
+                },
+                {
+                  "left": 1001.953125,
+                  "right": 1077.546875,
+                  "top": 723.15625,
+                  "bottom": 736.15625,
+                  "width": 75.59375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 1097.5625,
+            "right": 1255.890625,
+            "top": 585.0625,
+            "bottom": 756.15625,
+            "width": 158.328125,
+            "height": 171.09375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1147.5625,
+                  "top": 607.984375,
+                  "bottom": 622.984375,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1189.171875,
+                  "top": 628.078125,
+                  "bottom": 641.078125,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 1111.5625,
+                  "right": 1232.203125,
+                  "top": 646.21875,
+                  "bottom": 659.21875,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 1111.5625,
+                  "right": 1230.203125,
+                  "top": 664.359375,
+                  "bottom": 677.359375,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 1122.5625,
+                  "right": 1197.640625,
+                  "top": 692.5,
+                  "bottom": 705.5,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 1201.4375,
+                  "right": 1207.53125,
+                  "top": 689.5,
+                  "bottom": 706.5,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 1123.203125,
+                  "right": 1178.203125,
+                  "top": 718.59375,
+                  "bottom": 731.59375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/days/2026-10-02/index.html",
+    "width": 390,
+    "scrollWidth": 390,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 264.234375,
+            "bottom": 321.96875,
+            "width": 156,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 266.234375,
+                  "bottom": 279.234375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 212,
+                  "right": 356,
+                  "top": 284.375,
+                  "bottom": 299.375,
+                  "width": 144,
+                  "height": 15
+                },
+                {
+                  "left": 332,
+                  "right": 356,
+                  "top": 304.171875,
+                  "bottom": 319.171875,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 525.65625,
+            "bottom": 661.40625,
+            "width": 156,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 530.65625,
+                  "bottom": 545.65625,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 550.75,
+                  "bottom": 563.75,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 568.890625,
+                  "bottom": 581.890625,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 587.03125,
+                  "bottom": 600.03125,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 615.171875,
+                  "bottom": 628.171875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 612.171875,
+                  "bottom": 629.171875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 641.265625,
+                  "bottom": 654.265625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 692.40625,
+            "bottom": 750.140625,
+            "width": 156,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 694.40625,
+                  "bottom": 707.40625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 212,
+                  "right": 356,
+                  "top": 712.546875,
+                  "bottom": 727.546875,
+                  "width": 144,
+                  "height": 15
+                },
+                {
+                  "left": 332,
+                  "right": 356,
+                  "top": 732.34375,
+                  "bottom": 747.34375,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 953.828125,
+            "bottom": 1089.578125,
+            "width": 156,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "运行中",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 958.828125,
+                  "bottom": 973.828125,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时未记录",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 89,
+                  "top": 978.921875,
+                  "bottom": 991.921875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 997.0625,
+                  "bottom": 1010.0625,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 1015.203125,
+                  "bottom": 1028.203125,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1043.34375,
+                  "bottom": 1056.34375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1040.34375,
+                  "bottom": 1057.34375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1069.4375,
+                  "bottom": 1082.4375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 200,
+            "right": 356,
+            "top": 1120.578125,
+            "bottom": 1239.328125,
+            "width": 156,
+            "height": 118.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 301,
+                  "right": 356,
+                  "top": 1122.578125,
+                  "bottom": 1135.578125,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 275.203125,
+                  "right": 356,
+                  "top": 1141.71875,
+                  "bottom": 1158.71875,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 284.28125,
+                  "right": 356,
+                  "top": 1164.8125,
+                  "bottom": 1181.8125,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 304.734375,
+                  "right": 356,
+                  "top": 1186.90625,
+                  "bottom": 1199.90625,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 202.3125,
+                  "right": 356,
+                  "top": 1205.046875,
+                  "bottom": 1218.046875,
+                  "width": 153.6875,
+                  "height": 13
+                },
+                {
+                  "left": 208.9375,
+                  "right": 356,
+                  "top": 1223.1875,
+                  "bottom": 1236.1875,
+                  "width": 147.0625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 190,
+            "top": 1443.015625,
+            "bottom": 1578.765625,
+            "width": 156,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 1448.015625,
+                  "bottom": 1463.015625,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 1468.109375,
+                  "bottom": 1481.109375,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 186.90625,
+                  "top": 1486.25,
+                  "bottom": 1499.25,
+                  "width": 152.90625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 120.390625,
+                  "top": 1504.390625,
+                  "bottom": 1517.390625,
+                  "width": 86.390625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1532.53125,
+                  "bottom": 1545.53125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1529.53125,
+                  "bottom": 1546.53125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1558.625,
+                  "bottom": 1571.625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/days/2026-10-02/index.html",
+    "width": 320,
+    "scrollWidth": 320,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 287.328125,
+            "bottom": 345.0625,
+            "width": 121,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 289.328125,
+                  "bottom": 302.328125,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 178,
+                  "right": 286,
+                  "top": 307.46875,
+                  "bottom": 322.46875,
+                  "width": 108,
+                  "height": 15
+                },
+                {
+                  "left": 226,
+                  "right": 286,
+                  "top": 327.265625,
+                  "bottom": 342.265625,
+                  "width": 60,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 548.75,
+            "bottom": 684.5,
+            "width": 121,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 553.75,
+                  "bottom": 568.75,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 573.84375,
+                  "bottom": 586.84375,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 591.984375,
+                  "bottom": 604.984375,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 610.125,
+                  "bottom": 623.125,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 638.265625,
+                  "bottom": 651.265625,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 635.265625,
+                  "bottom": 652.265625,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 664.359375,
+                  "bottom": 677.359375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 715.5,
+            "bottom": 773.234375,
+            "width": 121,
+            "height": 57.734375
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 717.5,
+                  "bottom": 730.5,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 178,
+                  "right": 286,
+                  "top": 735.640625,
+                  "bottom": 750.640625,
+                  "width": 108,
+                  "height": 15
+                },
+                {
+                  "left": 226,
+                  "right": 286,
+                  "top": 755.4375,
+                  "bottom": 770.4375,
+                  "width": 60,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 976.921875,
+            "bottom": 1112.671875,
+            "width": 121,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "运行中",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 981.921875,
+                  "bottom": 996.921875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时未记录",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 89,
+                  "top": 1002.015625,
+                  "bottom": 1015.015625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 1020.15625,
+                  "bottom": 1033.15625,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 1038.296875,
+                  "bottom": 1051.296875,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1066.4375,
+                  "bottom": 1079.4375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1063.4375,
+                  "bottom": 1080.4375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1092.53125,
+                  "bottom": 1105.53125,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 165,
+            "right": 286,
+            "top": 1143.671875,
+            "bottom": 1280.5625,
+            "width": 121,
+            "height": 136.890625
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "分析时价格",
+              "rects": [
+                {
+                  "left": 231,
+                  "right": 286,
+                  "top": 1145.671875,
+                  "bottom": 1158.671875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 205.203125,
+                  "right": 286,
+                  "top": 1164.8125,
+                  "bottom": 1181.8125,
+                  "width": 80.796875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 214.28125,
+                  "right": 286,
+                  "top": 1187.90625,
+                  "bottom": 1204.90625,
+                  "width": 71.71875,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 234.734375,
+                  "right": 286,
+                  "top": 1210,
+                  "bottom": 1223,
+                  "width": 51.265625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 217.546875,
+                  "right": 286,
+                  "top": 1228.140625,
+                  "bottom": 1241.140625,
+                  "width": 68.453125,
+                  "height": 13
+                },
+                {
+                  "left": 166.546875,
+                  "right": 286,
+                  "top": 1246.28125,
+                  "bottom": 1259.28125,
+                  "width": 119.453125,
+                  "height": 13
+                },
+                {
+                  "left": 173.15625,
+                  "right": 286,
+                  "top": 1264.421875,
+                  "bottom": 1277.421875,
+                  "width": 112.84375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 34,
+            "right": 155,
+            "top": 1484.25,
+            "bottom": 1620,
+            "width": 121,
+            "height": 135.75
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 70,
+                  "top": 1489.25,
+                  "bottom": 1504.25,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 111.609375,
+                  "top": 1509.34375,
+                  "bottom": 1522.34375,
+                  "width": 77.609375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 34,
+                  "right": 154.640625,
+                  "top": 1527.484375,
+                  "bottom": 1540.484375,
+                  "width": 120.640625,
+                  "height": 13
+                },
+                {
+                  "left": 34,
+                  "right": 152.640625,
+                  "top": 1545.625,
+                  "bottom": 1558.625,
+                  "width": 118.640625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 45,
+                  "right": 120.078125,
+                  "top": 1573.765625,
+                  "bottom": 1586.765625,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 123.875,
+                  "right": 129.96875,
+                  "top": 1570.765625,
+                  "bottom": 1587.765625,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 45.640625,
+                  "right": 100.640625,
+                  "top": 1599.859375,
+                  "bottom": 1612.859375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/index.html",
+    "width": 801,
+    "scrollWidth": 801,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 469.6875,
+            "bottom": 680.859375,
+            "width": 68.65625,
+            "height": 211.171875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 527.78125,
+                  "bottom": 542.78125,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 547.578125,
+                  "bottom": 562.578125,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 567.375,
+                  "bottom": 582.375,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 587.171875,
+                  "bottom": 602.171875,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 606.34375,
+                  "top": 606.96875,
+                  "bottom": 621.96875,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 469.6875,
+            "bottom": 680.859375,
+            "width": 99.1875,
+            "height": 211.171875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 687,
+                  "top": 485.1875,
+                  "bottom": 500.1875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.453125,
+                  "top": 505.28125,
+                  "bottom": 518.28125,
+                  "width": 63.453125,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 662,
+                  "top": 523.421875,
+                  "bottom": 536.421875,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 541.5625,
+                  "bottom": 554.5625,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 559.703125,
+                  "bottom": 572.703125,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 577.84375,
+                  "bottom": 590.84375,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 595.984375,
+                  "bottom": 608.984375,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 624.125,
+                  "bottom": 637.125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 621.125,
+                  "bottom": 638.125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 650.21875,
+                  "bottom": 663.21875,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 680.859375,
+            "bottom": 997.15625,
+            "width": 68.65625,
+            "height": 316.296875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 791.515625,
+                  "bottom": 806.515625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 811.3125,
+                  "bottom": 826.3125,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 831.109375,
+                  "bottom": 846.109375,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 850.90625,
+                  "bottom": 865.90625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 606.34375,
+                  "top": 870.703125,
+                  "bottom": 885.703125,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 680.859375,
+            "bottom": 997.15625,
+            "width": 99.1875,
+            "height": 316.296875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "正在分析市场与新闻 · 预计 42%",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 717,
+                  "top": 693.359375,
+                  "bottom": 706.359375,
+                  "width": 66,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 715.65625,
+                  "top": 712.046875,
+                  "bottom": 725.046875,
+                  "width": 64.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 675.09375,
+                  "top": 730.734375,
+                  "bottom": 743.734375,
+                  "width": 24.09375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "已用 2分5秒 · 剩余约 3分",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 718.21875,
+                  "top": 764.421875,
+                  "bottom": 777.421875,
+                  "width": 67.21875,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.125,
+                  "top": 783.109375,
+                  "bottom": 796.109375,
+                  "width": 54.125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "参考配置不同，耗时可能有偏差",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 706,
+                  "top": 801.796875,
+                  "bottom": 814.796875,
+                  "width": 55,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 717,
+                  "top": 820.484375,
+                  "bottom": 833.484375,
+                  "width": 66,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 684,
+                  "top": 839.171875,
+                  "bottom": 852.171875,
+                  "width": 33,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 857.859375,
+                  "bottom": 870.859375,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 876,
+                  "bottom": 889,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 894.140625,
+                  "bottom": 907.140625,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 912.28125,
+                  "bottom": 925.28125,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 940.421875,
+                  "bottom": 953.421875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 937.421875,
+                  "bottom": 954.421875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 966.515625,
+                  "bottom": 979.515625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 997.15625,
+            "bottom": 1309.578125,
+            "width": 68.65625,
+            "height": 312.421875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.5625,
+                  "top": 1010.65625,
+                  "bottom": 1027.65625,
+                  "width": 40.21875,
+                  "height": 17
+                },
+                {
+                  "left": 582.34375,
+                  "right": 622.9375,
+                  "top": 1033.75,
+                  "bottom": 1050.75,
+                  "width": 40.59375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.5625,
+                  "top": 1056.84375,
+                  "bottom": 1073.84375,
+                  "width": 40.21875,
+                  "height": 17
+                },
+                {
+                  "left": 582.34375,
+                  "right": 613.84375,
+                  "top": 1079.9375,
+                  "bottom": 1096.9375,
+                  "width": 31.5,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.609375,
+                  "top": 1102.03125,
+                  "bottom": 1115.03125,
+                  "width": 40.265625,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 593.34375,
+                  "top": 1120.171875,
+                  "bottom": 1133.171875,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 1138.3125,
+                  "bottom": 1151.3125,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 1156.453125,
+                  "bottom": 1169.453125,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.46875,
+                  "top": 1174.59375,
+                  "bottom": 1187.59375,
+                  "width": 36.125,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 621.828125,
+                  "top": 1192.734375,
+                  "bottom": 1205.734375,
+                  "width": 39.484375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 585.9375,
+                  "top": 1210.875,
+                  "bottom": 1223.875,
+                  "width": 3.59375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 1229.015625,
+                  "bottom": 1242.015625,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 1247.15625,
+                  "bottom": 1260.15625,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.46875,
+                  "top": 1265.296875,
+                  "bottom": 1278.296875,
+                  "width": 36.125,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 621.828125,
+                  "top": 1283.4375,
+                  "bottom": 1296.4375,
+                  "width": 39.484375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 997.15625,
+            "bottom": 1309.578125,
+            "width": 99.1875,
+            "height": 312.421875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 687,
+                  "top": 1063.53125,
+                  "bottom": 1078.53125,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.453125,
+                  "top": 1083.625,
+                  "bottom": 1096.625,
+                  "width": 63.453125,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 662,
+                  "top": 1101.765625,
+                  "bottom": 1114.765625,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 1119.90625,
+                  "bottom": 1132.90625,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 1138.046875,
+                  "bottom": 1151.046875,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 1156.1875,
+                  "bottom": 1169.1875,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 1174.328125,
+                  "bottom": 1187.328125,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 1202.46875,
+                  "bottom": 1215.46875,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 1199.46875,
+                  "bottom": 1216.46875,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 1228.5625,
+                  "bottom": 1241.5625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  },
+  {
+    "url": "/days/2026-10-02/index.html",
+    "width": 801,
+    "scrollWidth": 801,
+    "rows": [
+      {
+        "symbol": "NVDA",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 241.875,
+            "bottom": 453.046875,
+            "width": 68.65625,
+            "height": 211.171875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 299.96875,
+                  "bottom": 314.96875,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 319.765625,
+                  "bottom": 334.765625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 339.5625,
+                  "bottom": 354.5625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 359.359375,
+                  "bottom": 374.359375,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 606.34375,
+                  "top": 379.15625,
+                  "bottom": 394.15625,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 241.875,
+            "bottom": 453.046875,
+            "width": 99.1875,
+            "height": 211.171875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 687,
+                  "top": 257.375,
+                  "bottom": 272.375,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.453125,
+                  "top": 277.46875,
+                  "bottom": 290.46875,
+                  "width": 63.453125,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 662,
+                  "top": 295.609375,
+                  "bottom": 308.609375,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 313.75,
+                  "bottom": 326.75,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 331.890625,
+                  "bottom": 344.890625,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 350.03125,
+                  "bottom": 363.03125,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 368.171875,
+                  "bottom": 381.171875,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 396.3125,
+                  "bottom": 409.3125,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 393.3125,
+                  "bottom": 410.3125,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 422.40625,
+                  "bottom": 435.40625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "SMTC",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 453.046875,
+            "bottom": 646.078125,
+            "width": 68.65625,
+            "height": 193.03125
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "真实行情时间未核验（旧报告）",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 502.0625,
+                  "bottom": 517.0625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 521.859375,
+                  "bottom": 536.859375,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 541.65625,
+                  "bottom": 556.65625,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.34375,
+                  "top": 561.453125,
+                  "bottom": 576.453125,
+                  "width": 36,
+                  "height": 15
+                },
+                {
+                  "left": 582.34375,
+                  "right": 606.34375,
+                  "top": 581.25,
+                  "bottom": 596.25,
+                  "width": 24,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 453.046875,
+            "bottom": 646.078125,
+            "width": 99.1875,
+            "height": 193.03125
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "运行中",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 687,
+                  "top": 468.546875,
+                  "bottom": 483.546875,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时未记录",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 706,
+                  "top": 488.640625,
+                  "bottom": 501.640625,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 506.78125,
+                  "bottom": 519.78125,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 524.921875,
+                  "bottom": 537.921875,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 543.0625,
+                  "bottom": 556.0625,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 561.203125,
+                  "bottom": 574.203125,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 589.34375,
+                  "bottom": 602.34375,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 586.34375,
+                  "bottom": 603.34375,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 615.4375,
+                  "bottom": 628.4375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      },
+      {
+        "symbol": "TSLA",
+        "price": {
+          "box": {
+            "left": 568.34375,
+            "right": 637,
+            "top": 646.078125,
+            "bottom": 958.5,
+            "width": 68.65625,
+            "height": 312.421875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "357.13 美元",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.5625,
+                  "top": 659.578125,
+                  "bottom": 676.578125,
+                  "width": 40.21875,
+                  "height": 17
+                },
+                {
+                  "left": 582.34375,
+                  "right": 622.9375,
+                  "top": 682.671875,
+                  "bottom": 699.671875,
+                  "width": 40.59375,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "+257.13%",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.5625,
+                  "top": 705.765625,
+                  "bottom": 722.765625,
+                  "width": 40.21875,
+                  "height": 17
+                },
+                {
+                  "left": 582.34375,
+                  "right": 613.84375,
+                  "top": 728.859375,
+                  "bottom": 745.859375,
+                  "width": 31.5,
+                  "height": 17
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "相对P收盘",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 622.609375,
+                  "top": 750.953125,
+                  "bottom": 763.953125,
+                  "width": 40.265625,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 593.34375,
+                  "top": 769.09375,
+                  "bottom": 782.09375,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 20:31:00 北京 / 2026-10-02 08:31:00 美东",
+              "rects": [
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 787.234375,
+                  "bottom": 800.234375,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 805.375,
+                  "bottom": 818.375,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.46875,
+                  "top": 823.515625,
+                  "bottom": 836.515625,
+                  "width": 36.125,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 621.828125,
+                  "top": 841.65625,
+                  "bottom": 854.65625,
+                  "width": 39.484375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 585.9375,
+                  "top": 859.796875,
+                  "bottom": 872.796875,
+                  "width": 3.59375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 877.9375,
+                  "bottom": 890.9375,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 616.578125,
+                  "top": 896.078125,
+                  "bottom": 909.078125,
+                  "width": 34.234375,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 618.46875,
+                  "top": 914.21875,
+                  "bottom": 927.21875,
+                  "width": 36.125,
+                  "height": 13
+                },
+                {
+                  "left": 582.34375,
+                  "right": 621.828125,
+                  "top": 932.359375,
+                  "bottom": 945.359375,
+                  "width": 39.484375,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "status": {
+          "box": {
+            "left": 637,
+            "right": 736.1875,
+            "top": 646.078125,
+            "bottom": 958.5,
+            "width": 99.1875,
+            "height": 312.421875
+          },
+          "whiteSpace": "normal",
+          "texts": [
+            {
+              "text": "已完成",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 687,
+                  "top": 712.453125,
+                  "bottom": 727.453125,
+                  "width": 36,
+                  "height": 15
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "耗时 3 分 54 秒",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.453125,
+                  "top": 732.546875,
+                  "bottom": 745.546875,
+                  "width": 63.453125,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 662,
+                  "top": 750.6875,
+                  "bottom": 763.6875,
+                  "width": 11,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "2026-10-02 报告 · 开始 20:31 北京 / 08:31 美东",
+              "rects": [
+                {
+                  "left": 651,
+                  "right": 714.84375,
+                  "top": 768.828125,
+                  "bottom": 781.828125,
+                  "width": 63.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 704.65625,
+                  "top": 786.96875,
+                  "bottom": 799.96875,
+                  "width": 53.65625,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 711.84375,
+                  "top": 805.109375,
+                  "bottom": 818.109375,
+                  "width": 60.84375,
+                  "height": 13
+                },
+                {
+                  "left": 651,
+                  "right": 705.65625,
+                  "top": 823.25,
+                  "bottom": 836.25,
+                  "width": 54.65625,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "数据源 1/1 正常",
+              "rects": [
+                {
+                  "left": 662,
+                  "right": 737.078125,
+                  "top": 851.390625,
+                  "bottom": 864.390625,
+                  "width": 75.078125,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            },
+            {
+              "text": "›",
+              "rects": [
+                {
+                  "left": 740.875,
+                  "right": 746.96875,
+                  "top": 848.390625,
+                  "bottom": 865.390625,
+                  "width": 6.09375,
+                  "height": 17
+                }
+              ],
+              "inside": false
+            },
+            {
+              "text": "时间与质量",
+              "rects": [
+                {
+                  "left": 662.640625,
+                  "right": 717.640625,
+                  "top": 877.484375,
+                  "bottom": 890.484375,
+                  "width": 55,
+                  "height": 13
+                }
+              ],
+              "inside": true
+            }
+          ]
+        },
+        "overlap": false
+      }
+    ]
+  }
+]

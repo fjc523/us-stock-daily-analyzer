@@ -793,6 +793,30 @@ def test_home_row_renders_premarket_price_and_start_clock(tmp_path):
     assert "分析时价格" in table and "08:29:00 美东" in table and "相对P收盘" in table
 
 
+@pytest.mark.parametrize("verified", [False, True])
+def test_price_cell_wraps_reason_and_time_in_home_and_overview(tmp_path, verified):
+    from daily_analyzer.site import render_home
+    _fixture(tmp_path)
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config/watchlist.yaml").write_text("items:\n  - {symbol: NVDA, type: stock}\n", encoding="utf-8")
+    path = tmp_path / "data/runs/2026-10-01/current/NVDA.json"
+    result = json.loads(path.read_text())
+    if verified:
+        _analysis_fixture(result, quote_time="2026-10-01T08:29:00-04:00")
+    _write_json(path, result)
+    build_site(tmp_path)
+    for html in (render_home(tmp_path, managed=True), (tmp_path / "site/days/2026-10-01/index.html").read_text()):
+        cell = re.search(r'<td class="number analysis-price"[^>]*>(.*?)</td>', html, re.S).group(1)
+        if verified:
+            assert "101.00 美元" in cell and "08:29:00 美东" in cell
+            assert "quote-reason" not in cell
+        else:
+            assert '<span class="small muted quote-reason">真实行情时间未核验（旧报告）</span>' in cell
+            assert "101.00" not in cell
+        assert ".watch-table .analysis-price { min-width:0; white-space:normal; overflow-wrap:anywhere; }" in html
+        assert "grid-template-columns:minmax(0,1fr) minmax(0,1fr)" in html
+
+
 def test_home_late_news_and_bound_cutoff_watch_render_and_hide_stale(tmp_path):
     from daily_analyzer.site import render_home
     _fixture(tmp_path)
