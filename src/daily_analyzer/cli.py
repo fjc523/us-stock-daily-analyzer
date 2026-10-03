@@ -30,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="临时覆盖 deep 与 quick 推理强度",
     )
 
+    commands.add_parser("settle", help="回填并结算独立评估窗口")
+    evaluate_parser = commands.add_parser("evaluate", help="生成三层评级客观评估报告")
+    evaluate_parser.add_argument("--since", metavar="YYYY-MM-DD")
+    evaluate_parser.add_argument("--window", type=int, choices=(5, 10, 20), default=5)
+    evaluate_parser.add_argument("--layer", choices=("rm", "trader", "pm", "all"), default="all")
+
     commands.add_parser("serve", help="启动仅本机的报告与订阅管理")
     viewer_parser = commands.add_parser("viewer", help="管理本机查看器服务")
     viewer_parser.add_argument("viewer_action", choices=("install", "uninstall", "status"))
@@ -104,6 +110,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         stream = sys.stdout if outcome.exit_code == 0 else sys.stderr
         print(outcome.message, file=stream)
         return outcome.exit_code
+
+    if args.command in {"settle", "evaluate"}:
+        try:
+            if args.command == "settle":
+                from daily_analyzer.evaluation import settle
+                result = settle(root)
+            else:
+                from daily_analyzer.evaluation.report import evaluate
+                result = evaluate(root, since=args.since, window=args.window, layer=args.layer)
+            _print_mapping("评估 ", result)
+            return 0
+        except (ValueError, OSError) as exc:
+            print(f"评估失败：{exc}", file=sys.stderr)
+            return 2
 
     if args.command == "build-site":
         result = _build_site(root)

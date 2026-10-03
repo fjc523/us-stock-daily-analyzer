@@ -145,6 +145,7 @@ def _run(
     sleeper=None,
     analyzer_factory=None,
     site_builder=None,
+    settler=None,
 ):
     _FakeGraph.configs = []
     _FakeGraph.analyzed = []
@@ -154,6 +155,7 @@ def _run(
     _FakeGraph.report_threads = []
     return run_analysis(
         root,
+        settler=settler or (lambda *args: None),
         scheduled=scheduled,
         force=force,
         tickers=tickers,
@@ -1091,3 +1093,42 @@ def test_backfill_run_never_wires_macro_refresher(tmp_path: Path, monkeypatch) -
     assert outcome.exit_code == 0
     assert "_late_macro_refresher" not in _FakeGraph.configs[-1]
     assert manager.refresh_calls == []
+
+
+def test_live_run_calls_settlement_after_current_written(tmp_path, monkeypatch):
+    """结束挂接只验证fixture，避免普通runner测试调用外网。"""
+    import daily_analyzer.runner as runner
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: "test")
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    root = _project(tmp_path, symbols=("NVDA",), parallelism=1)
+    calls = []
+    def settling(project, now):
+        current = json.loads((project / "data/runs/2026-10-02/current/NVDA.json").read_text())
+        assert current["status"] == "success"
+        calls.append(current["run_id"])
+    outcome = _run(root, clock=lambda: datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK), settler=settling)
+    assert outcome.exit_code == 0 and calls == [outcome.run_id]
+
+
+def test_settlement_failure_only_logs_exception_type(tmp_path, monkeypatch):
+    import daily_analyzer.evaluation as evaluation
+    from daily_analyzer.runner import _settle_completed
+    def failure(*args, **kwargs):
+        raise RuntimeError("不输出凭据或原始异常")
+    monkeypatch.setattr(evaluation, "settle", failure)
+    _settle_completed(tmp_path, datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK))
+    text = (tmp_path / "logs/2026-10-02.log").read_text()
+    assert "结算失败：RuntimeError" in text and "不输出凭据" not in text
+
+
+def test_backfill_run_never_calls_independent_settlement(tmp_path, monkeypatch):
+    import daily_analyzer.runner as runner
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: "test")
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    root = _project(tmp_path, symbols=("NVDA",), parallelism=1)
+    outcome = run_analysis(root, date_value="2026-10-01", force=True,
+        clock=lambda: datetime(2026, 10, 2, 8, 31, tzinfo=NEW_YORK),
+        monotonic=lambda: 100.0, sleeper=lambda seconds: None,
+        context_manager_factory=lambda *args: _ContextManager(), analyzer_factory=_FakeGraph,
+        site_builder=lambda *args, **kwargs: {"ok": True}, settler=lambda *args: pytest.fail("回放不结算"))
+    assert outcome.exit_code == 0

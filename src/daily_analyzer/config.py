@@ -331,7 +331,30 @@ class PricePlanSettings(ConfigModel):
         return self
 
 
+class EvaluationSettings(ConfigModel):
+    """独立评估的资产主口径与结算窗口。"""
+
+    broad_market_etfs: list[str] = Field(default_factory=lambda: ["SPY", "QQQ", "IWM", "DIA", "VOO", "IVV", "VTI"])
+    settlement_windows: list[int] = Field(default_factory=lambda: [5, 10, 20])
+
+    @field_validator("broad_market_etfs")
+    @classmethod
+    def normalize_broad_etfs(cls, value: list[str]) -> list[str]:
+        normalized = [symbol.strip().upper() for symbol in value]
+        if any(not symbol for symbol in normalized) or len(set(normalized)) != len(normalized):
+            raise ValueError("宽基ETF代码必须非空且不重复")
+        return normalized
+
+    @field_validator("settlement_windows")
+    @classmethod
+    def validate_windows(cls, value: list[int]) -> list[int]:
+        if not value or any(day not in {5, 10, 20} for day in value) or len(set(value)) != len(value):
+            raise ValueError("结算窗口须为5、10、20的非空不重复子集")
+        return sorted(value)
+
+
 class Settings(ConfigModel):
+    evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     codex: CodexSettings = Field(default_factory=CodexSettings)
     tradingagents: TradingAgentsSettings = Field(default_factory=TradingAgentsSettings)

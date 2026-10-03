@@ -983,6 +983,17 @@ def _environment_credentials(project: ProjectConfig) -> dict[str, str]:
     return values
 
 
+def _settle_completed(root: Path, now: datetime) -> None:
+    """结算失败仅记日志，不改变已完成分析。"""
+    from daily_analyzer.evaluation import settle
+
+    try:
+        result = settle(root, now=now)
+        append_log(root, now.date(), now, f"独立评估结算：记录{result['records']}，新增成熟窗口{result['newly_settled']}")
+    except Exception as exc:
+        append_log(root, now.date(), now, f"独立评估结算失败：{type(exc).__name__}")
+
+
 def run_analysis(
     project_root: str | Path,
     *,
@@ -999,6 +1010,7 @@ def run_analysis(
     context_manager_factory: Callable[..., Any] | None = None,
     analyzer_factory: Callable[..., Any] | None = None,
     site_builder: Callable[..., Mapping[str, Any]] | None = None,
+    settler: Callable[[Path, datetime], None] | None = None,
 ) -> RunOutcome:
     """执行一个受锁保护的日分析批次。"""
     root = Path(project_root).expanduser().resolve()
@@ -1431,6 +1443,8 @@ def run_analysis(
                 finished=True,
             )
             append_log(root, window.trade_date, current_now, f"批次 {run_id} 结束，状态 {final_status}")
+            if window.mode == "live":
+                (settler or _settle_completed)(root, current_now)
             exit_code = 0 if final_status == "completed" else 1
             return RunOutcome(exit_code, f"批次 {run_id}：{final_status}", run_id, final_status)
         finally:

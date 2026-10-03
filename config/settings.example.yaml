@@ -56,3 +56,8 @@ futu:
 
 alpaca:
   requests_per_minute: 180
+
+# 独立评估，不改变旧五日记忆结算与反思。
+evaluation:
+  broad_market_etfs: [SPY, QQQ, IWM, DIA, VOO, IVV, VTI]
+  settlement_windows: [5, 10, 20]

@@ -20,7 +20,7 @@ def test_top_level_help_lists_commands_without_reading_files(
         cli.main(["--help"])
     assert caught.value.code == 0
     output = capsys.readouterr().out
-    for command in ("run", "build-site", "doctor", "schedule", "serve", "viewer"):
+    for command in ("run", "build-site", "doctor", "schedule", "serve", "viewer", "settle", "evaluate"):
         assert command in output
 
 
@@ -116,3 +116,15 @@ def test_viewer_commands_do_not_start_analysis(monkeypatch, capsys):
     monkeypatch.setattr(viewer, "serve", lambda root: (_ for _ in ()).throw(OSError("端口已占用")))
     assert cli.main(["serve"]) == 1
     assert "端口已占用" in capsys.readouterr().err
+
+
+def test_evaluation_commands_dispatch_without_model(monkeypatch):
+    import daily_analyzer.evaluation as evaluation
+    import daily_analyzer.evaluation.report as report
+    called = []
+    monkeypatch.setattr(evaluation, "settle", lambda root: called.append("settle") or {"ok": True})
+    monkeypatch.setattr(report, "evaluate", lambda root, **kwargs: called.append(kwargs) or {"ok": True})
+    monkeypatch.setattr(cli, "_run_analysis", lambda *args: pytest.fail("评估不得分析模型"))
+    assert cli.main(["settle"]) == 0
+    assert cli.main(["evaluate", "--since", "2026-10-01", "--window", "20", "--layer", "trader"]) == 0
+    assert called == ["settle", {"since": "2026-10-01", "window": 20, "layer": "trader"}]
