@@ -17,3 +17,5 @@
 经理据独立 `testing/report.md`、8组合截图/测量及 `review/report.md` 验收限定范围 PASS。桌面1440自然3行、窄屏390/320自然2行、801自然5行；不声称固定两行。801px 既有来源摘要箭头越界10.78px记录为范围外残留。
 
 部署前最终只读复查：/api/analysis 仍 running/busy，活跃 SPY、QQQ、SMTC（TSLA已完成）；viewer PID73157与分析PID73885仍共用PGID73157，锁由73885持有。未重启、未修改锁、未重建生产站点，不等待长期轮询。新代码生产生效：NOT_TESTED；22.5保持未完成。
+
+提交推送：显式暂存准确18文件（5个产品/说明/规格/tasks文件、implementation.md、独立测试11文件、review/report.md），staged路径比对、staged diff与diff检查通过。中文功能提交 `9be2a0766e11ca3293d6cdbbee1a4edd57f1919b`，`git push origin main` 成功，`git ls-remote origin refs/heads/main` 返回同一完整提交。未夹带175历史未跟踪工件、.vantage、运行数据、配置或子模块；当前仅tasks与本证据两文件文书收尾，不新增功能或重复审核测试。
