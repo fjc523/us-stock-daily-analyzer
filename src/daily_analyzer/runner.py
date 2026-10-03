@@ -443,10 +443,16 @@ def _default_context_manager(settings: Settings, root: Path, mode: str, clock):
         alpaca=AlpacaDataSource(),
         futu=futu,
         futu_enabled=settings.futu.enabled and mode == "live",
+        analysis_mode=mode,
         project_root=str(root),
         clock=clock,
     )
-    return create_context_manager(settings.context_providers, services=services)
+    names = list(settings.context_providers)
+    if settings.tradingagents.position_structure_enabled and "position_structure" not in names:
+        names.append("position_structure")
+    if not settings.tradingagents.position_structure_enabled:
+        names = [name for name in names if name != "position_structure"]
+    return create_context_manager(names, services=services)
 
 
 def _analyze_item(

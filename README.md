@@ -60,3 +60,5 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 
 个股基本面新增 `get_earnings_expectations`，输出本季/下季EPS及营收均值/分析师数、7/30/60/90日EPS修正、30日上/下调数、四季实际/预期/惊喜及下次财报日。实际来源为yfinance当前快照，缺值明示；历史回放拒绝当前值，ETF/指数不查询。`tradingagents.earnings_expectations_enabled: false` 恢复原工具及提示。
+
+“期权与持仓结构”两档上下文仅提供空头比例、股数、回补天数及真实数据日期。2026-10-04只读核验NVDA/TSLA富途期权链无权限，期权部分按规格不可行，不能提供IV/Greeks/PCR；空头通常半月更新，不能称实时。`tradingagents.position_structure_enabled: false` 关闭新增上下文，回放不读取当前空头快照。

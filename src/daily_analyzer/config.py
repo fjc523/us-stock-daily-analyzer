@@ -40,7 +40,7 @@ DEFAULT_INDEX_PROXIES = {
     "^SOX": "SOXX",
 }
 BUILTIN_CONTEXT_PROVIDERS = frozenset(
-    {"market_regime", "sector_strength", "extended_hours", "macro_releases", "price_anchors"}
+    {"market_regime", "sector_strength", "extended_hours", "macro_releases", "price_anchors", "position_structure"}
 )
 SUPPORTED_REASONING_EFFORTS = frozenset(
     {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
@@ -195,6 +195,7 @@ class CodexSettings(ConfigModel):
 
 class TradingAgentsSettings(ConfigModel):
     earnings_expectations_enabled: bool = True
+    position_structure_enabled: bool = True
     risk_layer_direction_lock: bool = True
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True

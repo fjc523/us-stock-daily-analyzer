@@ -133,3 +133,4 @@ tradingagents:
 ### 中优先级投研增量
 
 - `earnings_expectations_enabled`：见README当前已交付说明。
+- `position_structure_enabled`：见README当前已交付说明。

@@ -1163,7 +1163,10 @@ def _upcoming_events(rows: Sequence[Mapping[str, Any]], trade_day: date, cutoff:
 
 from .price_anchors import PriceAnchorsProvider
 
+from .position_structure import PositionStructureProvider
+
 PROVIDER_CLASSES = {
+    "position_structure": PositionStructureProvider,
     "price_anchors": PriceAnchorsProvider,
     "market_regime": MarketRegimeProvider,
     "sector_strength": SectorStrengthProvider,

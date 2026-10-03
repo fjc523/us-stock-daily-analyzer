@@ -88,6 +88,7 @@ class ContextProvider(Protocol):
 
 @dataclass
 class ProviderServices:
+    analysis_mode: str = "live"
     alpaca: Any = None
     futu: Any = None
     futu_enabled: bool = True

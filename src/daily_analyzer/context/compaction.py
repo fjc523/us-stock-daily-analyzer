@@ -13,7 +13,7 @@ from daily_analyzer.context.base import ContextBlock, render_context
 from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
 
 EASTERN = ZoneInfo('America/New_York')
-CORE_BLOCKS = {'market_regime', 'sector_strength', 'extended_hours', 'price_anchors'}
+CORE_BLOCKS = {'market_regime', 'sector_strength', 'extended_hours', 'price_anchors', 'position_structure'}
 
 
 def _time(row):

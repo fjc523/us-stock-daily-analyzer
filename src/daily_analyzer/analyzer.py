@@ -331,6 +331,7 @@ def build_upstream_config(
             "max_debate_rounds": settings.tradingagents.max_debate_rounds,
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
             "earnings_expectations_enabled": settings.tradingagents.earnings_expectations_enabled,
+            "position_structure_enabled": settings.tradingagents.position_structure_enabled,
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,
             "risk_layer_direction_lock": settings.tradingagents.risk_layer_direction_lock,

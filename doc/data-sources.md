@@ -76,3 +76,4 @@ SEC companyfacts 表体仍按 filing date 保持历史截止。新增官方 subm
 ### 中优先级投研增量
 
 - `earnings_expectations_enabled`：见README当前已交付说明。
+- `position_structure_enabled`：见README当前已交付说明。
