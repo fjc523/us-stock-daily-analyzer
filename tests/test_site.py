@@ -1029,3 +1029,25 @@ def test_analysis_quote_binds_original_block_microseconds_and_replay_cutoff():
     quote = observation("SMTC",frozen,{"price":100,"quote_time":"2026-10-01T08:30:00-04:00","time_field":"minute.t","source":"Alpaca feed=iex 历史分钟线"})
     result["context_blocks"]["extended_hours"] = {"as_of":frozen.isoformat(),"data":{"SMTC":{"analysis_quote":quote}}}
     assert _summary_row(result,None,"")["premarket_price"] == "100.00 美元"
+
+
+def test_structured_research_debate_and_cruxes_display(tmp_path):
+    """隔离站点发布验证完整四段辩论和先分歧后评级，不覆盖历史站点。"""
+    from tradingagents.agents.researchers.structured_debate import join_research_debate
+    from tradingagents.agents.schemas import ResearchPlan, ResearchCrux, render_research_plan
+    _fixture(tmp_path)
+    path = tmp_path / 'data/runs/2026-10-01/results/NVDA.json'
+    # 使用既有fixture实际结果路径。
+    path = next((tmp_path / 'data').rglob('NVDA.json'))
+    result = json.loads(path.read_text())
+    turns = {key: key + '文本' for key in ['bull_opening', 'bear_opening', 'bull_rebuttal', 'bear_rebuttal']}
+    result['investment_debate'] = join_research_debate(turns)['investment_debate_state']
+    crux = ResearchCrux(bull_claim='多方证据', bear_claim='空方证据', evidence='原报告证据', winner='未决', reason='不足')
+    result['investment_plan'] = render_research_plan(ResearchPlan(recommendation='Hold', rationale='理由', strategic_actions='等待', cruxes=[crux] * 3))
+    path.write_text(json.dumps(result, ensure_ascii=False))
+    build_site(tmp_path)
+    html = (tmp_path / 'site/days/2026-10-01/NVDA.html').read_text()
+    positions = [html.index(value) for value in turns.values()]
+    assert positions == sorted(positions)
+    assert html.index('分歧点裁决') < html.index('Recommendation')
+    assert '原报告证据' in html

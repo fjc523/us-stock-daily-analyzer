@@ -106,3 +106,12 @@ tradingagents:
 ```
 
 固定输入回放可证明路径、字段保留、提示长度及开关兼容；模型实际输入 tokens 是否下降50%、研究/组合经理是否仍准确引用就业与未来事件，需要真实运行单独验证，当前 **NOT_TESTED**。
+
+
+## 研究经理证据核对与两阶段辩论（T14/T15）
+
+`tradingagents.research_manager_reads_reports` 默认 `true`。研究经理按上下文、市场/基本面/情绪/新闻四份完整报告、辩论、历史教训、输出要求的顺序读取；缺少报告使用既有明确缺失说明，不截断或用模型摘要替代。输出 `evidence_check` 限200字，指出引用不符与双方遗漏；没有问题时写“无”并列已核对的2–3个数据点。旧结果缺字段仍可加载，显示未提供而不伪称已核对。
+
+`tradingagents.debate_mode` 默认 `structured`：四分析师汇合后多空独立并行立论，各≤700字，只读报告/上下文；第二阶段双方并行回应对方首轮最强2条，各≤500字，核对可证伪条件。四个节点分别写 `bull_opening`、`bear_opening`、`bull_rebuttal`、`bear_rebuttal`；屏障后按多方首轮、空方首轮、多方反驳、空方反驳顺序一次写入兼容辩论历史。研究经理的 `cruxes` 为3–5个分歧点，含双方主张、报告证据、胜负和理由，在评级之前展示。旧记录缺分歧点不假称已有裁决。
+
+`legacy` 恢复原多空顺序及 `max_debate_rounds`；结构化模式固定两阶段四次quick模型调用，不受该旧轮数扩展。风险讨论轮数和模型分配沿用原配置。两个开关互相独立，图持有自己的配置；缺字段旧配置可加载并使用新默认。要恢复本批研究经理原提示/原schema，需同时设 `research_manager_reads_reports: false` 和 `debate_mode: legacy`；完整旧上下文另需 `context_compaction: false`。关闭模式不注入新字段描述。

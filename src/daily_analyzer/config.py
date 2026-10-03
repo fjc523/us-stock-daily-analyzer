@@ -194,6 +194,8 @@ class CodexSettings(ConfigModel):
 
 
 class TradingAgentsSettings(ConfigModel):
+    debate_mode: Literal['structured', 'legacy'] = 'structured'
+    research_manager_reads_reports: bool = True
     context_compaction: bool = True
     context_profiles: dict[str, Literal['full', 'brief']] = Field(default_factory=lambda: {
         'news_analyst': 'full', 'research_manager': 'full', 'portfolio_manager': 'full',

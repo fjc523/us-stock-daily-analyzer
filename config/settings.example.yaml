@@ -16,6 +16,9 @@ codex:
   min_version: "0.159.3"
 
 tradingagents:
+  # 完整报告直接核对；legacy仅恢复研究辩论路径。
+  research_manager_reads_reports: true
+  debate_mode: structured
   context_compaction: true
   # 未覆盖的角色沿用默认档位；完整版给新闻分析师/研究经理/组合经理。
   context_profiles:
