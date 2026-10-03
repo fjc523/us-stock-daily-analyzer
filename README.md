@@ -65,7 +65,7 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 “期权与持仓结构”两档上下文仅提供空头比例、股数、回补天数及真实数据日期。2026-10-04只读核验NVDA/TSLA富途期权链无权限，期权部分按规格不可行，不能提供IV/Greeks/PCR；空头通常半月更新，不能称实时。`tradingagents.position_structure_enabled: false` 关闭新增上下文，回放不读取当前空头快照。
 
-`tradingagents.sentiment_min_social_posts` 默认3：StockTwits不可用且窗口内标题/正文提及ticker或公司名的Reddit有效帖不足门槛时，情绪分析师在模型前直接返回“未评估（社交数据不足）”，不给分数/band；数据源状态列跳过原因，下游不得作为论据。设0恢复旧预取和模型提示。真实来源核验与离线分支测试不代表真实模型报告引用已验证，真实LLM效果保留 **NOT_TESTED**。
+`tradingagents.sentiment_min_social_posts` 默认3：StockTwits不可用或有效消息为0，同时窗口内标题/正文提及ticker或公司名的Reddit有效帖不足门槛时，情绪分析师在模型前直接返回“未评估（社交数据不足）”，不给分数/band；数据源状态列跳过原因，下游不得作为论据。设0恢复旧预取和模型提示。真实来源核验与离线分支测试不代表真实模型报告引用已验证，真实LLM效果保留 **NOT_TESTED**。
 
 
 ## 点位检验、历史门槛与输出一致性（T21/T22/T25/T26）
