@@ -264,7 +264,7 @@ def _status(result: Mapping[str, Any]) -> str:
     return _STATUS.get(raw.casefold(), raw)
 
 
-def _marks(result: Mapping[str, Any], retry_failure: Any = None) -> list[str]:
+def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_config: Mapping[str, Any] | None = None) -> list[str]:
     marks: list[str] = []
     if result.get("finished_after_open"):
         marks.append("开盘后生成")
@@ -297,6 +297,15 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None) -> list[str]:
         marks.append("新闻已截断")
     marks.extend(str(error) for error in result.get("late_news_errors", []))
     marks.extend(str(error) for error in result.get("late_macro_errors", []))
+    from tradingagents.agents.rating import flags_for_text
+    flags=result.get('decision_flags')
+    if not isinstance(flags,Mapping) or not flags:
+        # 老报告只读显式字段标记；不回写历史、不修正值。
+        flags={layer:flags_for_text(result.get(key),validation_config if validation_config is not None else {},layer=layer) for layer,key in [('rm','investment_plan'),('trader','trader_investment_plan'),('pm','final_trade_decision')]}
+    if any(row.get('allocation_flag') for row in flags.values() if isinstance(row,Mapping)):
+        marks.append('配置与评级不一致')
+    if any(row.get('rating_prob_mismatch') for row in flags.values() if isinstance(row,Mapping)):
+        marks.append('评级与概率不一致')
     return marks
 
 
@@ -636,7 +645,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "started_at": _pretty_timestamp(result.get("started_at")),
         "start_clock": _start_clock(result.get("started_at")) if result.get("started_at") else "",
         "finished_at": _pretty_timestamp(result.get("finished_at")),
-        "marks": _marks(result, retry), "path": detail_path,
+        "marks": _marks(result, retry, load_settings(root).tradingagents.model_dump() if root else None), "path": detail_path,
     }
 
 
@@ -698,6 +707,7 @@ def _detail_values(
     result: Mapping[str, Any],
     all_results: list[Mapping[str, Any]],
     retry: Any,
+    validation_config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     rating, rating_class = _rating(result)
     symbol = str(result.get("symbol") or "未知")
@@ -728,7 +738,7 @@ def _detail_values(
         {"label": "调用次数", "value": _find(result.get("llm_usage"), ("calls", "call_count", "total_calls"))},
         {"label": "Token 用量", "value": _find(result.get("llm_usage"), ("total_tokens", "tokens", "input_tokens"))},
     ]
-    marks = _marks(result, retry)
+    marks = _marks(result, retry, validation_config)
     if retry and not any("最近一次重跑失败" == mark for mark in marks):
         marks.append("最近一次重跑失败")
     return {
@@ -1006,7 +1016,7 @@ def _build_pages(build_root: Path, grouped: dict[str, list[dict[str, Any]]], roo
             all_results.append(result)
             all_symbols.setdefault(str(result.get("symbol") or "未知"), []).append(result)
             retry = _retry_failure(manifest, result)
-            detail_values = _detail_values(result, all_results + [item for item in grouped.get(day, []) if item is not result], retry)
+            detail_values = _detail_values(result, all_results + [item for item in grouped.get(day, []) if item is not result], retry, load_settings(root).tradingagents.model_dump())
             # 同一标的前后交易日链接需要完整日期序列，稍后补齐。
             same_symbol = [item for values in grouped.values() for item in values if str(item.get("symbol", "")).upper() == str(result.get("symbol", "")).upper()]
             same_symbol.sort(key=lambda item: str(item.get("_date")), reverse=True)

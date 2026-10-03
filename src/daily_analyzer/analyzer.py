@@ -337,6 +337,7 @@ def build_upstream_config(
             "lesson_min_settled_same_ticker": settings.tradingagents.lesson_min_settled_same_ticker,
             "cross_ticker_lessons": settings.tradingagents.cross_ticker_lessons,
             "price_plan_evaluation_enabled": settings.tradingagents.price_plan_evaluation_enabled,
+            "rating_probability_fields": settings.tradingagents.rating_probability_fields,
             "evaluation_outcomes_path": str(root / "data" / "evaluation" / "outcomes.jsonl"),
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,

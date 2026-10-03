@@ -82,3 +82,4 @@ SEC companyfacts 表体仍按 filing date 保持历史截止。新增官方 subm
 - `cross_ticker_lessons`：见README当前已交付说明。
 - `evaluation_outcomes_path`：见README当前已交付说明。
 - `price_plan_evaluation_enabled`：见README当前已交付说明。
+- `rating_probability_fields`：见README当前已交付说明。

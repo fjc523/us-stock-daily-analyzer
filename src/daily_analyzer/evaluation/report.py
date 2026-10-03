@@ -244,6 +244,8 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
 
     ]
     from .price_plans import point_report
+    from .calibration import calibration_report
+    lines += ["", point_report(rows), "", calibration_report(rows)]
     return "\n".join(lines) + "\n"
 
 

@@ -239,6 +239,8 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
         if key not in indexed:
             indexed[key] = new_record(result, settings, manual, services)
             added += 1
+        from .calibration import extract_probabilities
+        indexed[key].setdefault('probabilities',extract_probabilities(result))
         indexed[key].setdefault('decision_fingerprint',hashlib.sha256(str(result.get('final_trade_decision') or '').encode('utf-8')).hexdigest())
         if point_plans_enabled:
             indexed[key].setdefault('point_validity',point_validity(result))

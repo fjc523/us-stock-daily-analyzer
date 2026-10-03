@@ -55,7 +55,7 @@ def test_optional_schema_and_closed_class():
     assert model.stop_loss is None and model.first_target==110
     assert '**First Target**: 110.0' in render_pm_decision(model)
     closed=decision_schema(PortfolioDecision,{'price_plan_evaluation_enabled':False},'pm')
-    assert 'first_target' not in closed.model_fields
+    assert 'first_target' not in closed.model_fields and 'prob_outperform_20d' in closed.model_fields
     all_closed=decision_schema(PortfolioDecision,{'price_plan_evaluation_enabled':False,'rating_probability_fields':False},'pm')
     assert 'first_target' not in all_closed.model_fields and 'prob_outperform_20d' not in all_closed.model_fields
     old=LegacyPortfolioDecision(rating='Hold',executive_summary='摘要',investment_thesis='论点')
