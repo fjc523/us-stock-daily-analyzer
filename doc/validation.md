@@ -70,3 +70,10 @@ COHR/NVDA/QQQ/SMTC/TSLA五标固定桩在真实LangGraph执行structured与legac
 |TSLA|Underweight|Underweight|Underweight|NOT_TESTED|
 
 原基线交易员改4/7、组合经理相对交易员再改2/7，均向下；新比例未取得，不推算未来统计。生产源码加载与新模型业务结果分开报告，静态发布不会重写旧分析结论。
+
+
+## 本批生产加载与真实业务边界（2026-10-04）
+
+六项功能主提交：T7 `ace1f4a`、T8 `6ce5c1b`、T14/T15 `7ee4ef2`、T16/T24 `13619ab`。三仓维护分支/父gitlink普通推送一致。部署前API idle、锁可独占释放、无分析进程；静态发布保留旧build，仅查看器重启PID58165→17985，启动于北京时间00:08:51，解释器与cwd均项目路径，首页及两个只读API均200且分析idle。
+
+同解释器对下一分析环境加载配置、上游映射、新生成schema及SEC接口通过；六新默认开关正确，方向字段required。`/api/settings`仍只公开llm/run白名单，不声称其返回新flags；服务健康/重启证据与分析环境核验分开。没有触发分析或改订阅/参数，实际新模型业务输出、tokens/费用、方向改善与投资有效性仍 **NOT_TESTED**。最终文书提交不改变已加载功能源码。
