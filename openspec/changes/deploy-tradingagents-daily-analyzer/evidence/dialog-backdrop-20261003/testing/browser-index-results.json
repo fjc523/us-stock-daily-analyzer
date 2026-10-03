@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "name": "/index.html 5个入口枚举",
+      "entries": [
+        {
+          "id": "manage-settings",
+          "comparison": false
+        },
+        {
+          "id": "manage-watchlist",
+          "comparison": false
+        },
+        {
+          "id": "",
+          "comparison": true
+        },
+        {
+          "id": "",
+          "comparison": true
+        },
+        {
+          "id": "",
+          "source": "source-row-1",
+          "comparison": false
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "/index.html manage-settings 内部保持/外部关闭且无新增请求",
+      "status": "PASS"
+    },
+    {
+      "name": "/index.html manage-watchlist 内部保持/外部关闭且无新增请求",
+      "status": "PASS"
+    },
+    {
+      "name": "/index.html comparison-2 内部保持/外部关闭且无新增请求",
+      "status": "PASS"
+    },
+    {
+      "name": "/index.html comparison-3 内部保持/外部关闭且无新增请求",
+      "status": "PASS"
+    },
+    {
+      "name": "/index.html source-row-1 内部保持/外部关闭且无新增请求",
+      "status": "PASS"
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://127.0.0.1:65165/index.html",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:65165/api/analysis",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:65165/api/settings",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:65165/api/watchlist",
+      "method": "GET"
+    }
+  ],
+  "errors": [],
+  "config": {
+    "root": "/var/folders/k1/7_38h7855q3d2f2392564y480000gn/T/us-stock-dialog-fixture-20261003-83ueemfd",
+    "base": "http://127.0.0.1:65165",
+    "evidence": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing",
+    "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "tools": "/tmp/us-stock-dialog-testing-20261003-tools"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "独立测试产品指纹": {
+    "src/daily_analyzer/context/analysis_quote.py": {
+      "原始": "5b78ea3bb4301cc42c5605aece1ff6d61ff4bdd87ede0287d7111ad3f391614e",
+      "当前": "5b78ea3bb4301cc42c5605aece1ff6d61ff4bdd87ede0287d7111ad3f391614e",
+      "一致": true
+    },
+    "src/daily_analyzer/context/providers.py": {
+      "原始": "189cbf789accff08605ca263781aa6bd0a70338fa61f92bc36ceac32aecd9aab",
+      "当前": "189cbf789accff08605ca263781aa6bd0a70338fa61f92bc36ceac32aecd9aab",
+      "一致": true
+    },
+    "src/daily_analyzer/context/base.py": {
+      "原始": "91ad73d81e016537e157ba980cc7296dcd33973135aa661983cbdeaf5e3010ff",
+      "当前": "91ad73d81e016537e157ba980cc7296dcd33973135aa661983cbdeaf5e3010ff",
+      "一致": true
+    },
+    "src/daily_analyzer/data_sources/futu.py": {
+      "原始": "6df16d1ae59cb25d5a79020ed408a86d3883030fba3c8776f53ead3ad50c58c7",
+      "当前": "6df16d1ae59cb25d5a79020ed408a86d3883030fba3c8776f53ead3ad50c58c7",
+      "一致": true
+    },
+    "src/daily_analyzer/site/__init__.py": {
+      "原始": "2a1fb62e02f97559c44b1e3e63329717758b1550d2fd8c8fb93f13e1df3747b2",
+      "当前": "2a1fb62e02f97559c44b1e3e63329717758b1550d2fd8c8fb93f13e1df3747b2",
+      "一致": true
+    },
+    "src/daily_analyzer/site/templates.py": {
+      "原始": "f9d61050df41957a003b919e0cb96a50f9dc06b6a6b19d47b71609f69192a5ce",
+      "当前": "f9d61050df41957a003b919e0cb96a50f9dc06b6a6b19d47b71609f69192a5ce",
+      "一致": true
+    },
+    "src/daily_analyzer/source_status.py": {
+      "原始": "0bcbf5e6993f0ade1610fd4581d9f6bf289f26bfd9796bf1bd03c6524c26b7d5",
+      "当前": "0bcbf5e6993f0ade1610fd4581d9f6bf289f26bfd9796bf1bd03c6524c26b7d5",
+      "一致": true
+    }
+  },
+  "冻结共享测试指纹": {
+    "tests/test_source_status.py": {
+      "原始": "2da0f781ad6a5bbf23f581033df43c11312b92500062aa4040f9269c467b4539",
+      "当前": "2da0f781ad6a5bbf23f581033df43c11312b92500062aa4040f9269c467b4539",
+      "一致": true
+    },
+    "tests/test_context_providers.py": {
+      "原始": "556172127e658881ecfe20d5d34aed1344d9235b1ee360e19f229d3f46f582cd",
+      "当前": "556172127e658881ecfe20d5d34aed1344d9235b1ee360e19f229d3f46f582cd",
+      "一致": true
+    },
+    "tests/test_site.py": {
+      "原始": "b03a1c6ce13ec6ef7395d0a8a0715d026bd36ce99c226d7cc2cba51b3c88bf26",
+      "当前": "b03a1c6ce13ec6ef7395d0a8a0715d026bd36ce99c226d7cc2cba51b3c88bf26",
+      "一致": true
+    }
+  },
+  "共享文件逆向T2差量核验": {
+    "argv": [
+      "patch",
+      "-R",
+      "-p1",
+      "--batch",
+      "--fuzz=0"
+    ],
+    "exit_code": 0,
+    "stdout": "patching file 'src/daily_analyzer/site/templates.py'\npatching file 'tests/test_site.py'\npatching file README.md\n",
+    "stderr": "",
+    "说明": "仅临时目录逆向应用原始implementation-only.diff中三个共享文件片段，仓库产品只读",
+    "T1还原指纹": {
+      "src/daily_analyzer/site/templates.py": {
+        "原始T1": "e6f6895eae0c59ebc4d08d817444acdc76c6c98fdbf47ef6344d8ca55c938e86",
+        "逆向还原": "e6f6895eae0c59ebc4d08d817444acdc76c6c98fdbf47ef6344d8ca55c938e86",
+        "一致": true
+      },
+      "tests/test_site.py": {
+        "原始T1": "a49f75adbf6e9c5a7f5b49b9fdc7929dd686f48dda3d70694128c01d3f3467cf",
+        "逆向还原": "a49f75adbf6e9c5a7f5b49b9fdc7929dd686f48dda3d70694128c01d3f3467cf",
+        "一致": true
+      },
+      "README.md": {
+        "原始T1": "ae772eb4ec2b1be1b719d5edb7c297b21ab8820482d5e32aa37a147cfe5fff1b",
+        "逆向还原": "ae772eb4ec2b1be1b719d5edb7c297b21ab8820482d5e32aa37a147cfe5fff1b",
+        "一致": true
+      }
+    }
+  },
+  "T1原始浏览器结果核验": {
+    "dialog-backdrop-20261003/testing/browser-results.json": {
+      "检查数": 151,
+      "PASS": 151,
+      "非PASS": [],
+      "请求数": 75,
+      "errors": [],
+      "blocked": []
+    },
+    "dialog-backdrop-20261003/testing/browser-index-results.json": {
+      "检查数": 6,
+      "PASS": 6,
+      "非PASS": [],
+      "请求数": 4,
+      "errors": [],
+      "blocked": []
+    },
+    "dialog-backdrop-20261003/testing/deployment/production-results.json": {
+      "检查数": 23,
+      "PASS": 23,
+      "非PASS": [],
+      "请求数": 8,
+      "errors": [],
+      "blocked": []
+    },
+    "dialog-backdrop-20261003/testing/deployment/production-offline-results.json": {
+      "检查数": 4,
+      "PASS": 4,
+      "非PASS": [],
+      "请求数": 1,
+      "errors": [],
+      "blocked": []
+    }
+  },
+  "T2原始测试": {
+    "argv": [
+      ".venv/bin/python",
+      "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/run_offline.py",
+      "-q",
+      "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/test_independent_quotes.py",
+      "tests/test_context_providers.py",
+      "tests/test_data_sources.py",
+      "tests/test_site.py",
+      "tests/test_source_status.py"
+    ],
+    "exit_code": 0,
+    "stdout": "........................................................................ [ 49%]\n........................................................................ [ 98%]\n..                                                                       [100%]\n146 passed in 1.91s\n网络连接尝试： []\n",
+    "stderr": ""
+  },
+  "T1原始退出码": {
+    "pytest-exit-code.txt": "0\n",
+    "browser-exit-code.txt": "0\n",
+    "browser-index-exit-code.txt": "0\n",
+    "deployment/production-exit-code.txt": "0\n",
+    "deployment/production-offline-exit-code.txt": "0\n"
+  }
+}

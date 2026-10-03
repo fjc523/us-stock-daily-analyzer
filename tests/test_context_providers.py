@@ -912,3 +912,84 @@ def test_macro_expected_format_parses_only_us_style_titles(title, expected) -> N
         assert releases == []
     else:
         assert [(row["name"], row["actual"], row["estimate"], row["prior"]) for row in releases] == [(*expected, None)]
+
+
+@pytest.mark.parametrize("clock,stamp,session", [
+    ("08:31", "08:30", "pre"), ("12:09", "12:07", "regular"),
+    ("16:31", "16:29", "after"), ("02:31", "02:29", "overnight"),
+])
+def test_analysis_quote_four_sessions_raw_time(clock, stamp, session):
+    from daily_analyzer.context.analysis_quote import observation, raw_alpaca
+    cutoff = datetime.fromisoformat(f"2026-10-01T{clock}:00-04:00")
+    candidate = raw_alpaca({"latestTrade": {"p": 200.36, "t": f"2026-10-01T{stamp}:00-04:00"}}, "Alpaca feed=iex")
+    quote = observation("SMTC", cutoff, candidate)
+    assert quote["status"] == "可用" and quote["session"] == session
+    assert quote["price"] == 200.36 and quote["change_pct"] is None
+
+
+def test_analysis_quote_sdk_regular_time_and_no_extended_time_inference():
+    from daily_analyzer.context.analysis_quote import raw_futu, observation
+    row = {"last_price": 336.365, "data_date": "2026-10-01", "data_time": "12:08:59", "pre_price": 330}
+    cutoff = datetime.fromisoformat("2026-10-01T12:09:57-04:00")
+    quote = observation("COHR", cutoff, raw_futu(row, "regular", "富途订阅报价"))
+    assert quote["status"] == "可用" and quote["quote_time"].endswith("12:08:59-04:00")
+    from daily_analyzer.context.providers import _futu_segment
+    pre = _futu_segment(row, "pre", date(2026,10,1), date(2026,9,30), cutoff)
+    assert pre["quote_time"] is None and not pre["session_verified"]
+    assert pre["source_update_time"] == "2026-10-01 12:08:59"
+
+
+def test_future_raw_and_snapshot_refresh_are_not_trade_time():
+    from daily_analyzer.context.providers import _alpaca_segment
+    cutoff = datetime.fromisoformat("2026-10-01T08:31:00-04:00")
+    assert _alpaca_segment({"latestTrade":{"p":100}, "updated_at":cutoff.isoformat()}, "Alpaca feed=iex", date(2026,10,1),date(2026,9,30),cutoff) is None
+    candidate = _alpaca_segment({"latestTrade":{"p":100,"t":"2026-10-01T12:32:00Z"}}, "Alpaca feed=iex", date(2026,10,1),date(2026,9,30),cutoff)
+    assert candidate["status"].startswith("未来报价")
+
+
+def test_regular_observation_survives_historical_premarket_fallback_without_injection():
+    alpaca = FakeAlpaca(snapshots={"iex":{"NVDA":{"latestTrade":{"p":200.36,"t":"2026-10-01T16:07:39Z"}}}},
+        minute_bars={"NVDA":[{"t":"2026-10-01T12:30:00Z","c":101}]})
+    provider, _ = _extended_provider(FakeFutu(mode="unavailable"), alpaca)
+    block = provider.build(WatchlistItem(symbol="NVDA",type="stock"), "2026-10-01T12:09:40-04:00")
+    assert block.data["NVDA"]["pre"]["price"] == 101
+    assert block.data["NVDA"]["analysis_quote"]["price"] == 200.36
+    assert block.data["NVDA"]["analysis_quote"]["status"] == "可用"
+    assert "200.36" not in block.markdown
+
+
+def test_analysis_observation_is_absent_from_entire_model_context():
+    from copy import deepcopy
+    cutoff = "2026-10-01T08:31:00-04:00"
+    block = ContextBlock("extended_hours", "固定扩展表", {"NVDA": {"pre": {"status": "可用"}}}, datetime.fromisoformat(cutoff), ["富途"])
+    original = render_context({"extended_hours": block}, cutoff)
+    changed = deepcopy(block)
+    changed.data["NVDA"]["analysis_quote"] = {"status": "报价观测独有状态", "warning": "报价观测独有警示", "price": 987.65}
+    assert render_context({"extended_hours": changed}, cutoff) == original
+
+
+@pytest.mark.parametrize("stamp,valid", [
+    ("2026-10-02T20:31:00-04:00", False),
+    ("2026-10-04T20:31:00-04:00", True),
+    ("2026-09-06T20:31:00-04:00", False),
+])
+def test_analysis_overnight_uses_next_natural_trading_day(stamp, valid):
+    from daily_analyzer.context.analysis_quote import observation
+    cutoff = datetime.fromisoformat(stamp)
+    quote = observation("SMTC", cutoff, {"price": 200, "quote_time": stamp, "time_field": "latestTrade.t", "source": "Alpaca feed=overnight"})
+    assert (quote['status'] == '可用') == valid
+
+
+def test_active_overnight_stale_futu_analysis_fetches_fresh_alpaca_without_changing_extended_semantics():
+    row = _futu_row("NVDA", overnight_time="2026-10-01 01:00:00")
+    row["overnight_price"] = 99
+    futu = FakeFutu(rows={"US.NVDA": row})
+    alpaca = FakeAlpaca(snapshots={"overnight": {"NVDA": {"latestTrade": {"p":100.5,"t":"2026-10-01T06:30:00Z"}}}})
+    provider, _ = _extended_provider(futu, alpaca)
+    block = provider.build(WatchlistItem(symbol="NVDA", type="stock"), "2026-10-01T02:31:00-04:00")
+    assert block.data["NVDA"]["overnight"]["price"] == 99
+    assert block.data["NVDA"]["overnight"]["status"] == "可用"
+    quote = block.data["NVDA"]["analysis_quote"]
+    assert quote["price"] == 100.5 and quote["status"] == "可用"
+    assert quote["source"] == "Alpaca feed=overnight"
+    assert any(call[0] == "snapshots" and call[2] == "overnight" and call[1].count("NVDA") == 1 for call in alpaca.calls)

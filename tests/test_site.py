@@ -153,7 +153,9 @@ def test_site_builds_local_pages_and_sanitizes_report(tmp_path: Path) -> None:
     assert "仅供个人研究参考，不构成投资建议。" in detail
     assert "fetch(" not in home and "XMLHttpRequest" not in home
     assert "https://" not in home
-    assert "content=\"300\"" in home
+    assert 'http-equiv="refresh"' not in home
+    assert '"refresh_seconds": 300' in home
+    assert "global.setTimeout(refresh, site.refresh_seconds*1000)" in home
 
 
 def test_site_build_failure_preserves_previous_symlink_and_retains_three(tmp_path: Path) -> None:
@@ -248,7 +250,7 @@ def test_sector_ranking_uses_ticker_context_when_batch_context_has_no_sector(tmp
     assert "NVDA 相对板块：20日 +2.00%" not in overview
     assert "初请失业金" in home and "非农数据前值修订" in home and "盘前要闻 A" in home
     assert "错误样本宏观数据" not in home
-    assert "+1.25%" in overview and "信息截止" in overview
+    assert "真实行情时间未核验（旧报告）" in overview and "信息截止" in overview
 
 
 def test_summary_marks_read_extended_and_macro_context_block_statuses() -> None:
@@ -368,7 +370,7 @@ let value={busy:false,items:{},active_symbols:[]};
 let reloads=0;
 const delays=[];
 const watchManager={open:false};
-const global={document:{getElementById(id){return id==="analyze-all"?allButton:id==="watchlist-manager"?watchManager:message;},querySelectorAll(){return buttons;}},
+const global={document:{getElementById(id){return id==="analyze-all"?allButton:id==="watchlist-manager"?watchManager:message;},querySelectorAll(){return buttons;},querySelector(){return watchManager.open?watchManager:null;}},
   clearTimeout(){},setTimeout(fn,delay){delays.push(delay);return delays.length;},location:{reload(){reloads++;}}};
 async function api(data){
   if(data){
@@ -698,7 +700,7 @@ def test_source_status_shared_home_detail_and_legacy():
     assert "旧报告未记录数据源状态" in DETAIL.render(source_status=_source_status({}))
     assert "--warn:#a36b08" in BASE.render(ui_data={})
     assert "--warn:#e6ba68" in BASE.render(ui_data={})
-    assert '.source-dialog[open]' in BASE.render(ui_data={})
+    assert 'querySelector("dialog[open]")' in BASE.render(ui_data={})
 
 
 def test_sector_rank_keeps_only_complete_markdown_table():
@@ -733,28 +735,35 @@ def test_market_panel_hides_extended_hours_without_changing_context():
     assert context['extended_hours']['markdown']=='扩展时段明细样本'
 
 
-def test_premarket_cell_shows_price_with_change_and_quote_source():
+def _analysis_fixture(result, price=101.0, close=100.0, quote_time=None):
+    from daily_analyzer.context.analysis_quote import observation
+    from datetime import datetime
+    cutoff = datetime.fromisoformat(result["context_as_of"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York"))
+    quote = observation(result["symbol"], cutoff, {"price": price,
+        "quote_time": quote_time or cutoff.isoformat(), "time_field": "latestTrade.t", "source": "Alpaca feed=iex"}, close)
+    result["context_blocks"]["extended_hours"] = {"as_of": cutoff.isoformat(), "data": {result["symbol"]: {"analysis_quote": quote}}}
+    return quote
+
+
+def test_analysis_price_with_source_time_and_independent_benchmark():
     from daily_analyzer.site import _summary_row
     result = _result("TSLA", "2026-10-02")
-    result.pop("premarket_change_pct")
-    result["context_blocks"]["extended_hours"] = {"data": {"TSLA": {"pre": {
-        "price": 357.13, "change_pct": 0.8528, "status": "可用", "source": "富途快照",
-        "quote_time": "2026-10-02T06:39:39-04:00"}}}}
+    _analysis_fixture(result, price=357.13, close=None)
     row = _summary_row(result, None, "")
-    assert row["premarket_price"] == "357.13 美元" and row["premarket"] == "+0.85%"
-    assert "富途快照" in row["premarket_title"] and "06:39:39 美东" in row["premarket_title"]
+    assert row["premarket_price"] == "357.13 美元" and row["premarket"] == "—"
+    assert "Alpaca feed=iex" in row["premarket_title"] and "08:31:00 美东" in row["quote_time"]
+    assert "P收盘基准未核验" in row["premarket_title"]
 
 
-def test_stale_premarket_quote_hides_price_and_legacy_change_only():
+def test_stale_analysis_quote_and_old_report_have_explicit_reason():
     from daily_analyzer.site import _summary_row
     result = _result("TSLA", "2026-10-02")
     legacy = _summary_row(result, None, "")
-    assert legacy["premarket"] == "+1.25%" and legacy["premarket_price"] == ""
-    result.pop("premarket_change_pct")
-    result["context_blocks"]["extended_hours"] = {"data": {"TSLA": {"pre": {
-        "price": 350.0, "change_pct": None, "status": "过期"}}}}
+    assert legacy["premarket"] == "—" and legacy["premarket_price"] == ""
+    assert "真实行情时间未核验" in legacy["quote_reason"]
+    _analysis_fixture(result, quote_time="2026-10-02T07:00:00-04:00")
     row = _summary_row(result, None, "")
-    assert row["premarket"] == "—" and row["premarket_price"] == ""
+    assert row["premarket_price"] == "" and row["quote_reason"] == "过期"
 
 
 def test_report_status_shows_start_clock_after_date(tmp_path):
@@ -776,14 +785,12 @@ def test_home_row_renders_premarket_price_and_start_clock(tmp_path):
     path = tmp_path / "data/runs/2026-10-01/current/NVDA.json"
     result = json.loads(path.read_text())
     result.pop("premarket_change_pct")
-    result["context_blocks"]["extended_hours"] = {"data": {"NVDA": {"pre": {
-        "price": 101.0, "change_pct": 1.0, "status": "可用", "source": "富途快照",
-        "quote_time": "2026-10-01T08:29:00-04:00"}}}}
+    _analysis_fixture(result, quote_time="2026-10-01T08:29:00-04:00")
     _write_json(path, result)
     table = render_home(tmp_path).split('aria-label="自选建议与相对基准强弱"')[1].split("</table>")[0]
     assert '<span class="premarket-price">101.00 美元</span>+1.00%' in table
     assert "2026-10-01 报告 · 开始 20:31 北京 / 08:31 美东" in table
-    assert 'title="来源 富途快照；报价时间' in table
+    assert "分析时价格" in table and "08:29:00 美东" in table and "相对P收盘" in table
 
 
 def test_home_late_news_and_bound_cutoff_watch_render_and_hide_stale(tmp_path):
@@ -927,3 +934,74 @@ function action(symbol,index){return ids['manager-list'].children.find(row=>row.
     path.write_text(harness, encoding='utf-8')
     result = subprocess.run([node, str(path)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("managed", [False, True])
+def test_all_dialog_backdrops_require_an_outside_pointer_click(tmp_path, managed):
+    """执行公共脚本：背景点击、内部交互、拖动与关闭生命周期。"""
+    from daily_analyzer.site import render_home
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("当前环境没有 node，无法执行弹窗脚本")
+    _fixture(tmp_path)
+    html = render_home(tmp_path, managed=managed)
+    script = re.search(r'(  // 必须从背景按下.*?)(?=  global.document.querySelectorAll\("\[data-comparison\]"\))', html, re.S).group(1)
+    harness = r'''
+const assert=require('node:assert/strict');
+class Dialog {
+  constructor(name){this.name=name;this.open=true;this.events={};this.closed=0;}
+  addEventListener(name,fn){(this.events[name]??=[]).push(fn);}
+  emit(name,event={}){for(const fn of this.events[name]||[])fn(event);}
+  getBoundingClientRect(){return {left:100,right:500,top:100,bottom:400};}
+  close(){this.open=false;this.closed++;this.emit('close');}
+}
+const dialogs=['watchlist-manager','settings-manager','comparison-dialog','source-dialog'].map(name=>new Dialog(name));
+const global={document:{querySelectorAll(selector){assert.equal(selector,'dialog');return dialogs;}}};
+''' + script + r'''
+function event(dialog,x,y,extra={}){return {target:dialog,clientX:x,clientY:y,pointerId:1,button:0,isPrimary:true,detail:1,preventDefault(){},...extra};}
+function gesture(dialog,down,up=down,click=up){dialog.emit('pointerdown',down);dialog.emit('pointerup',up);dialog.emit('click',click);}
+for(const dialog of dialogs){
+  for(const [x,y] of [[100,100],[500,400],[200,200],[499,399]]){
+    gesture(dialog,event(dialog,x,y));assert.equal(dialog.open,true,dialog.name+' 内部空白或边框');
+  }
+  for(const tag of ['input','select','button','svg','circle']){
+    gesture(dialog,event(dialog,200,200,{target:{tag}}));assert.equal(dialog.open,true,tag);
+  }
+  gesture(dialog,event(dialog,200,200),event(dialog,50,50));assert.equal(dialog.open,true,'内部拖到外部');
+  gesture(dialog,event(dialog,50,50),event(dialog,200,200));assert.equal(dialog.open,true,'背景拖到内部');
+  gesture(dialog,event(dialog,50,50,{button:2}));assert.equal(dialog.open,true,'右键');
+  gesture(dialog,event(dialog,50,50,{isPrimary:false}));assert.equal(dialog.open,true,'非主指针');
+  gesture(dialog,event(dialog,50,50),event(dialog,50,50,{pointerId:2}));assert.equal(dialog.open,true,'另一指针释放');
+  dialog.emit('pointerdown',event(dialog,50,50));dialog.emit('pointercancel');
+  dialog.emit('pointerup',event(dialog,50,50));dialog.emit('click',event(dialog,50,50));assert.equal(dialog.open,true,'取消');
+  gesture(dialog,event(dialog,50,50),undefined,event(dialog,50,50,{detail:0}));assert.equal(dialog.open,true,'键盘点击');
+  let prevented=false;
+  gesture(dialog,event(dialog,50,50,{preventDefault(){prevented=true;}}));
+  assert.equal(prevented,true,'背景按下不触发焦点转移');assert.equal(dialog.open,false);assert.equal(dialog.closed,1);
+  dialog.open=true;dialog.emit('click',event(dialog,50,50));assert.equal(dialog.open,true,'重复打开清除旧手势');
+  gesture(dialog,event(dialog,550,450));assert.equal(dialog.open,false);assert.equal(dialog.closed,2);
+}
+'''
+    path = tmp_path / "all-dialog-backdrops.js"
+    path.write_text(harness, encoding="utf-8")
+    result = subprocess.run([node, str(path)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_analysis_quote_binds_original_block_microseconds_and_replay_cutoff():
+    from daily_analyzer.site import _summary_row
+    from daily_analyzer.context.analysis_quote import observation
+    result = _result("SMTC", "2026-10-02")
+    result["context_as_of"] = "2026-10-02T12:09:40-04:00"
+    cutoff = datetime.fromisoformat("2026-10-02T12:09:40.123456-04:00")
+    quote = observation("SMTC", cutoff, {"price":200.36,"quote_time":"2026-10-02T12:07:39-04:00","time_field":"latestTrade.t","source":"Alpaca feed=iex"})
+    result["context_blocks"]["extended_hours"] = {"as_of":cutoff.isoformat(),"data":{"SMTC":{"analysis_quote":quote}}}
+    assert _summary_row(result,None,"")["premarket_price"] == "200.36 美元"
+    quote["quote_time"] = "2026-10-02T12:09:40.123457-04:00"
+    assert "未来报价" in _summary_row(result,None,"")["quote_reason"]
+    frozen = datetime.fromisoformat("2026-10-01T08:31:00-04:00")
+    result["mode"] = "backfill"
+    result["news_cutoff_utc"] = frozen.isoformat()
+    quote = observation("SMTC",frozen,{"price":100,"quote_time":"2026-10-01T08:30:00-04:00","time_field":"minute.t","source":"Alpaca feed=iex 历史分钟线"})
+    result["context_blocks"]["extended_hours"] = {"as_of":frozen.isoformat(),"data":{"SMTC":{"analysis_quote":quote}}}
+    assert _summary_row(result,None,"")["premarket_price"] == "100.00 美元"

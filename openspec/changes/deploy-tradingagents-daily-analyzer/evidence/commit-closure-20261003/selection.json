@@ -1,0 +1,958 @@
+{
+  "selected": [
+    "README.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/design.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/proposal.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/html-report-viewer/spec.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/market-context-providers/spec.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/market-data-sources/spec.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md",
+    "src/daily_analyzer/context/base.py",
+    "src/daily_analyzer/context/providers.py",
+    "src/daily_analyzer/site/__init__.py",
+    "src/daily_analyzer/site/templates.py",
+    "src/daily_analyzer/source_status.py",
+    "tests/test_context_providers.py",
+    "tests/test_site.py",
+    "tests/test_source_status.py",
+    "src/daily_analyzer/context/analysis_quote.py",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execution-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-postcheck.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-preflight.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-process-exact.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-result.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-review-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/dialog-inventory.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/implementation-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/manager-handoff.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/review-issues.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/review-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-clicks.cjs",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-index-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-index-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-index.cjs",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round1-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round2-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round3-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser_fixture.py",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-final-diff-check-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-final-diff-check-output.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-final-openspec-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-final-openspec-output.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-results.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment-test-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/production-offline.cjs",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/production-readonly.cjs",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-output.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-round1-exit-code.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/pytest-round1-output.txt.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/test-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/coordination.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/opend-probe.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/sdk-fields.txt.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/statistics-detail.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/statistics.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/verification.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-review-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-risk-review.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/risk-card.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/roles.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/testing/planned-validation.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/authorization.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/files.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/frozen-hashes.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/handoff.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/implementation-only.diff.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/issues.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/roles.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-manager/index.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-manager/postacceptance-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-manager/product-hash-check.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-review/acceptance-matrix.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-review/final-review.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-review/final-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-review/round1-review.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/final-test-hashes.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/final-tests.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/product-stability.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round1-independent.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/run_offline.py",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/test_independent_quotes.py",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/precommit-report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/selection.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/files.txt",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/roles.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/review.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/review-verification.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/testing/report.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/testing/final-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/testing/initial-validation.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/testing/fingerprint-verification.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/review-selection-check.json"
+  ],
+  "excluded": [
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/implementation-baseline.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/implementation-baseline.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-1.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-1.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-10.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-10.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-11.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-11.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-12.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-12.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-13.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-13.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-14.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-14.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-15.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-15.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-16.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-16.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-17.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-17.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-18.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-18.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-2.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-2.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-3.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-3.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-4.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-4.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-5.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-5.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-6.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-6.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-7.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-7.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-8.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-8.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-9.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/closed-9.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-1.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-1.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-2.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-2.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-3.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-3.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-4.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-closed-4.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-page.html",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-page.html"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-来源-opened.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-来源-opened.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-走势图-opened.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-走势图-opened.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-1.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-1.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-2.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-2.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-3.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-3.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-4.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-opened-4.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-page.html",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-page.html"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-0.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-0.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-1.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-1.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-2.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-2.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-3.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-3.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-4.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/index-closed-4.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-1.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-1.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-10.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-10.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-11.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-11.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-12.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-12.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-13.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-13.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-14.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-14.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-15.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-15.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-16.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-16.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-17.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-17.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-18.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-18.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-2.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-2.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-3.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-3.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-4.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-4.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-5.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-5.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-6.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-6.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-7.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-7.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-8.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-8.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-9.png",
+      "reason": "浏览器大图或完整页面工件，文本结果已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/opened-9.png"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/__init__-site.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/__init__-site.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/alpaca-data_sources.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/alpaca-data_sources.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/base-context.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/base-context.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/config-daily_analyzer.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/config-daily_analyzer.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/credential-presence.json",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/credential-presence.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/current-summary.json",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/current-summary.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/files.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/files.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/futu-data_sources.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/futu-data_sources.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/git-after.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/git-after.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/git-before.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/git-before.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/log-matches.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/log-matches.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/probe.py",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/probe.py"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/process-focused.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/process-focused.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/processes.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/processes.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/production-log.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/production-log.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/protected-hashes-before.json",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/protected-hashes-before.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/providers-context.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/providers-context.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/runner-daily_analyzer.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/runner-daily_analyzer.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sdk-probe.log",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sdk-probe.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/settings.example.yaml.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/settings.example.yaml.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/settings.yaml.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/settings.yaml.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/site-matches.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/site-matches.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/source_status-daily_analyzer.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/source_status-daily_analyzer.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/time_utils-daily_analyzer.txt",
+      "reason": "运行日志/配置快照/源码重复转录或环境清单，非必要交付",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/time_utils-daily_analyzer.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/baseline.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/baseline.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/risk-card-final.txt",
+      "reason": "重复风险卡转录，原风险卡及审核报告已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/risk-card-final.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/risk-card-r1.txt",
+      "reason": "重复风险卡转录，原风险卡及审核报告已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/risk-card-r1.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/workspace-after-planning.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/workspace-after-planning.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/diagnosis-prompt.md",
+      "reason": "完整调用转录与提示，已有独立角色回执和报告",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/diagnosis-prompt.md"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/diagnosis-run.log",
+      "reason": "完整调用转录与提示，已有独立角色回执和报告",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/diagnosis-run.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/plan-prompt.md",
+      "reason": "完整调用转录与提示，已有独立角色回执和报告",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/plan-prompt.md"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/plan-run.log",
+      "reason": "完整调用转录与提示，已有独立角色回执和报告",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/receipts/plan-run.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline.diff",
+      "reason": "重复源码或全工作树基线，提交本身及冻结哈希足以复核",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execution-output.txt",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execution-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-config.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-config.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-output.txt",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-results.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round4-results.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/official-search-output.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/official-search-output.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/official-web-output.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/official-web-output.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sample-results.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sample-results.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sample-segments.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sample-segments.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/apply.json",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/apply.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/__pycache__/test_independent_quotes.cpython-313-pytest-9.1.1.pyc",
+      "reason": "缓存、完整运行样本或已有最终原文的重复输出；量化统计和最终结构化回执已纳入",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/__pycache__/test_independent_quotes.cpython-313-pytest-9.1.1.pyc"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execute.py",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execute.py"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execution-raw.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-execution-raw.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-preflight-raw.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-preflight-raw.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/implementation-baseline-status.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/implementation-baseline-status.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-config.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-config.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-index-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-index-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round1-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round1-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round2-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round2-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round2-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round2-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round3-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round3-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round3-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser-round3-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-offline-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/deployment/production-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/diff-check-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/diff-check-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/diff-check-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/diff-check-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-diff-check-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-diff-check-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-diff-check-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-diff-check-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-openspec-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-openspec-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-openspec-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/final-openspec-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/openspec-exit-code.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/openspec-exit-code.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/openspec-output.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/openspec-output.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-head.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-head.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-sha256.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-sha256.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-status.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/baseline-status.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/future-quotes.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/future-quotes.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/offline-reproduce.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/offline-reproduce.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/offline-reproduce.py",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/offline-reproduce.py"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/baseline.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/baseline.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-files.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-files.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-only.diff",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-only.diff"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-strict.log",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/planning-strict.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-final-sha256.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-final-sha256.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-product-baseline-check.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-product-baseline-check.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-r1-sha256.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/review/planning-r1-sha256.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-head.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-head.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-sha256.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-sha256.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-status.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-20261003/baseline-status.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline-status.txt",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline-status.txt"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/baseline.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r2.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r2.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r3.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r3.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r4.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check-r4.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/diff-check.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r2.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r2.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r3.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r3.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r4.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests-r4.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-tests.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/preimplementation-strict.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/preimplementation-strict.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r2.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r2.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r3.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r3.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r4.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict-r4.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/strict.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/final-tests.log",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/final-tests.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/plan.md",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/plan.md"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/role-request.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/role-request.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round1-hashes.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round1-hashes.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round1-independent.log",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round1-independent.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-test-hashes.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-test-hashes.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-tests.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-tests.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-tests.log",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-final-tests.log"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-product-stability.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-product-stability.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-report.md",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-report.md"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-validation.json",
+      "reason": "非必要过程、自测、重复标准输出、基线或执行部署工具；最终原始独立结果与问题台账已精选入库",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/round3-validation.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-round1-output.txt",
+      "reason": "原始文本有保留价值的尾空白/patch上下文空白；原文无损JSON封装随库交付，原文件本地不改",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-round1-output.txt",
+      "included_wrapper": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/pytest-round1-output.txt.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sdk-fields.txt",
+      "reason": "原始文本有保留价值的尾空白/patch上下文空白；原文无损JSON封装随库交付，原文件本地不改",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sdk-fields.txt",
+      "included_wrapper": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/sdk-fields.txt.json"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-only.diff",
+      "reason": "原始文本有保留价值的尾空白/patch上下文空白；原文无损JSON封装随库交付，原文件本地不改",
+      "retained_at": "/Users/zhoulei/Documents/us-stock-daily-analyzer/openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-only.diff",
+      "included_wrapper": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/implementation-only.diff.json"
+    }
+  ],
+  "sensitive_candidate_locations": [
+    {
+      "path": "tests/test_source_status.py",
+      "line": 81
+    },
+    {
+      "path": "tests/test_source_status.py",
+      "line": 88
+    }
+  ],
+  "sensitive_scan_conclusion": "两处疑似项均为 tests/test_source_status.py 中 fixture-fred-private 固定测试占位值，无真实密钥；其余入选文本未命中常见密钥赋值/私钥/AWS密钥模式。此检查是候选筛查，不声明穷尽所有秘密格式。",
+  "selected_count": 102,
+  "original_text_wrappers": {
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/pytest-round1-output.txt": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/pytest-round1-output.txt.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/diagnosis-raw/sdk-fields.txt": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/sdk-fields.txt.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-implementation/implementation-only.diff": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/commit-closure-20261003/original-text/implementation-only.diff.json"
+  }
+}

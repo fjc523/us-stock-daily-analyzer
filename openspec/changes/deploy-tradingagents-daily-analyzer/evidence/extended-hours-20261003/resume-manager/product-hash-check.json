@@ -1,0 +1,9 @@
+{
+  "src/daily_analyzer/context/analysis_quote.py": true,
+  "src/daily_analyzer/context/providers.py": true,
+  "src/daily_analyzer/context/base.py": true,
+  "src/daily_analyzer/data_sources/futu.py": true,
+  "src/daily_analyzer/site/__init__.py": true,
+  "src/daily_analyzer/site/templates.py": true,
+  "src/daily_analyzer/source_status.py": true
+}

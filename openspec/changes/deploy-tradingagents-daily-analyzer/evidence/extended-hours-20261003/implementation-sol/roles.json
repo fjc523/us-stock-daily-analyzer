@@ -1,0 +1,22 @@
+{
+  "性质": "经理提供的创建请求与成功工具回执，不是后端模型证明",
+  "implementation": {
+    "agent_id": "/root/implementation",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "fork_turns": "2"
+  },
+  "testing": {
+    "agent_id": "/root/testing",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "fork_turns": "2"
+  },
+  "review": {
+    "agent_id": "/root/review",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "fork_turns": "2"
+  },
+  "manager": "依 dev_codex 团队配置指定 GPT-6.1 Sol medium；当前无额外运行模型证明"
+}

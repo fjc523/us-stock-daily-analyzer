@@ -1,0 +1,28 @@
+{
+  "after": {
+    "count": 102,
+    "source_status": {
+      "('富途订阅报价', '时段未核验（无分时段时间）')": 102
+    },
+    "quote_time_min": null,
+    "quote_time_max": null
+  },
+  "overnight": {
+    "count": 102,
+    "source_status": {
+      "('Alpaca feed=overnight', '可用')": 102
+    },
+    "quote_time_min": "2026-10-01T03:59:00-04:00",
+    "quote_time_max": "2026-10-02T03:59:58-04:00"
+  },
+  "pre": {
+    "count": 102,
+    "source_status": {
+      "('Alpaca feed=iex', '非本时段数据')": 37,
+      "('富途快照', '可用')": 38,
+      "('Alpaca feed=iex 历史分钟线', '可用')": 27
+    },
+    "quote_time_min": "2026-10-01T15:16:02-04:00",
+    "quote_time_max": "2026-10-02T12:08:59-04:00"
+  }
+}

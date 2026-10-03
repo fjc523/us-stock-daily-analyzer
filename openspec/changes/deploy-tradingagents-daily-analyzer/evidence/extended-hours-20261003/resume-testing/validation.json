@@ -1,0 +1,23 @@
+[
+  {
+    "argv": [
+      "openspec",
+      "validate",
+      "deploy-tradingagents-daily-analyzer",
+      "--strict"
+    ],
+    "exit_code": 0,
+    "stdout": "Change 'deploy-tradingagents-daily-analyzer' is valid\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

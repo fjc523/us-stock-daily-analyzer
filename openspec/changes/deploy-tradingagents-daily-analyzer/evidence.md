@@ -520,3 +520,136 @@ README与fork说明已同步；本轮实现由主代理直接完成和复核，�
 当前模板SHA256与已部署回执一致（e6f6895eae0c59ebc4d08d817444acdc76c6c98fdbf47ef6344d8ca55c938e86），折叠外旧摘要循环已移除，HTTP页面已加载同一版新增弹窗脚本，确认新模板生效。当前报告的截止后监测无有效新闻折叠块，现场只确认折叠外重复摘要为0；有消息时的折叠归属、唯一标题与橙色提示由此前35项页面测试覆盖，未冒称本轮实际展开有消息的生产折叠框。OpenSpec全部严格校验仍为8项通过、0项失败。
 
 第18.2核销；本轮只提交第18组记录，不提交第19组产品、证据或其他并行修改。延后更新心跳automation-2已完成使命，收尾后删除；原每日真实观察心跳保留。
+
+## 19. 全部中间弹窗外部点击关闭（2026-10-03，独立角色闭环）
+
+经理基于实现、独立测试及只读审核的原始证据完成本轮源码与安全隔离验证验收。全部原生 dialog 使用公共指针/矩形判断，仅从背景按下并在背景释放的真实点击关闭；内部空白/边框、输入、下拉、操作按钮、图表及内部拖到外部保持打开。通过原生 close 保留关闭按钮、Esc、重复开关及订阅成功修改后关闭刷新。取消关闭时待执行的身份验证，未提交表单不保存；两类整页刷新统一检查所有打开弹窗，移除离线重复 meta refresh 旁路，原有 JS 60/300 秒周期保留。
+
+HTTP `/` 与 `/index.html` 均为动态管理首页，四类弹窗覆盖一致；离线首页、日总览和个股详情只覆盖其实际提供的走势比较/数据源弹窗，标的历史无弹窗。没有新增前端框架、远程依赖或产品请求接口，没有修改 TradingAgents、运行器、分析/行情/模型语义、配置凭据或历史结果。README 已同步。
+
+### 角色与交付文档
+
+- 实现：独立 `gpt-6.1-sol` / `medium`，未派子代理；[实现原始报告](evidence/dialog-backdrop-20261003/implementation-report.md)、[完整入口清单](evidence/dialog-backdrop-20261003/dialog-inventory.md)。
+- 测试：独立 `gpt-6.1-sol` / `medium`；[测试原始报告](evidence/dialog-backdrop-20261003/testing/test-report.md)。
+- 审核：独立 `gpt-6.1-sol` / `high`；[审核原始报告](evidence/dialog-backdrop-20261003/review-report.md)、[问题台账](evidence/dialog-backdrop-20261003/review-issues.md)。
+- [经理交付与角色创建回执](evidence/dialog-backdrop-20261003/manager-handoff.md)。原始首轮失败及各轮重跑结果均保留，未用最终通过覆盖失败历史。
+
+### 实际验证结果
+
+| 命令/范围 | 最终结果 | 原始证据 |
+| --- | --- | --- |
+| `.venv/bin/python -m pytest tests/test_site.py tests/test_viewer.py -q` | 退出 0；61 passed in 5.63s，覆盖脚本行为、渲染净化、既有管理及查看器回归 | [pytest 输出](evidence/dialog-backdrop-20261003/testing/pytest-output.txt)、[退出码](evidence/dialog-backdrop-20261003/testing/pytest-exit-code.txt) |
+| `.venv/bin/python openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/testing/browser_fixture.py` | 真实 headless Chrome 主矩阵退出 0；151 PASS、75 请求、0 页面错误；HTTP/file 全部可用入口、内外点击/拖动/关闭按钮/Esc/重复打开、两类刷新及隔离修改后刷新 | [点击与请求记录](evidence/dialog-backdrop-20261003/testing/browser-results.json)、[退出码](evidence/dialog-backdrop-20261003/testing/browser-exit-code.txt)、[打开截图](evidence/dialog-backdrop-20261003/testing/opened-1.png)、[关闭截图](evidence/dialog-backdrop-20261003/testing/closed-1.png) |
+| 同一 fixture 增加 `browser-index.cjs` 参数 | `/index.html` 真实补充退出 0；5 个入口、6 PASS、4 GET、0 页面错误，无 POST | [别名补充结果](evidence/dialog-backdrop-20261003/testing/browser-index-results.json)、[退出码](evidence/dialog-backdrop-20261003/testing/browser-index-exit-code.txt) |
+| `openspec validate deploy-tradingagents-daily-analyzer --strict` | 当前证据退出 0、提案有效；本次任务/evidence 同步后的最终校验由独立测试复跑并保留原始输出 | [校验输出](evidence/dialog-backdrop-20261003/testing/openspec-output.txt)、[退出码](evidence/dialog-backdrop-20261003/testing/openspec-exit-code.txt) |
+| `git diff --check` | 独立检查退出 0 | [输出](evidence/dialog-backdrop-20261003/testing/diff-check-output.txt)、[退出码](evidence/dialog-backdrop-20261003/testing/diff-check-exit-code.txt) |
+
+主矩阵仅两次允许的隔离 NVDA 暂停/恢复 POST，无分析 POST、参数 POST 或外网请求。未提交订阅代码输入后立即外关，650ms 内无保存或新增身份请求；参数未保存外关无 POST。隔离根目录为 `/var/folders/k1/7_38h7855q3d2f2392564y480000gn/T/us-stock-dialog-fixture-20261003-0ujvfsfj`；别名验证为 `/var/folders/k1/7_38h7855q3d2f2392564y480000gn/T/us-stock-dialog-fixture-20261003-83ueemfd`；测试依赖独立于项目，位于 `/tmp/us-stock-dialog-testing-20261003-tools`。
+
+审核问题 R1–R6 均已关闭，无开放产品或交付阻断：旧 meta 渲染断言由独立测试按授权更新并复跑；HTTP 别名文档由实现修正并独立实际点击复验；其他首轮失败是隔离脚本前置条件/导航异步等待/命令包装，原始原因和修正均记录于台账，没有不必要修改产品代码。
+
+### 未覆盖与生产限制
+
+NOT_TESTED：生产查看器/旧静态报告加载新模板；Safari/Firefox、移动触摸/触控笔、辅助技术、极窄屏幕、长时间滚动及系统下拉面板跨平台点击；真实正在执行分析的完成事件及真实行情/模型调用；主项目/TradingAgents 全套测试。真实 Chrome 鼠标/select 与隔离 busy→idle 刷新已有证据，未外推为生产或其他设备实测。
+
+本轮没有重启、停止、重载生产前端或查看器，没有执行 launchctl bootout/bootstrap/kickstart，没有终止分析进程或进程组，没有 git 提交、推送、合并、新分支或 Arc 操作。源代码完成不表示生产已生效，生效/重启待后续授权；第18组历史延后发布描述不构成本轮部署授权。第19组按经理验收勾选，10.3、10.7、18.2 仍保持未完成，primary 负责项目 Task 状态。
+
+### T1 生产恢复预检与等待协调（2026-10-03）
+
+用户后续授权最小静态前端重建及仅目标查看器重启，未授权终止分析、OpenD或其他服务。实现 worker 已完成只读预检，独立审核已复核最小方案：保留全部旧site-builds，新构建及site链接原子发布；仅目标 `gui/501/local.us-stock-daily-analyzer.viewer` 可重启。共享editable源码必须受primary/T2确认的短部署只读窗口保障，不能凭当前无T2产品diff认定后续不会写入，也不能改import/plist绕过协调。
+
+最新预检显示原分析20261002T114709-33696 completed 6/6且PID33696退出；查看器PID/PGID30866/30866无子分析，OpenD62968独立；生产API busy=false、active_symbols为空，T1冻结SHA一致。生产HTTP及离线页面仍未加载T1脚本，生产生效为 NOT_TESTED。维护锁会让API busy=true，方案已按审核修正为锁前确认空闲、持锁内只检查进程/批次无真实分析、释放锁后再确认API空闲。
+
+primary/T2短部署窗口协调尚未答复，因此**当前等待primary处理，未部署、构建、拿维护锁、重启或向进程发送信号**。没有修改启动import/plist、实际订阅参数、凭据或历史结果，不触碰T2并行材料，不声明部署完成。证据：[只读预检报告](evidence/dialog-backdrop-20261003/deployment-preflight.md)、[原始命令输出](evidence/dialog-backdrop-20261003/deployment-preflight-raw.txt)、[经理交付与协调记录](evidence/dialog-backdrop-20261003/manager-handoff.md)。本段只追加T1事实，既有并行文档及未完成任务状态保持。
+
+### T1 生产发布与代表弹窗生效已核实（2026-10-03 00:51后）
+
+primary停止T2会话 `vgaf2154_2`，回执status=stopped，用户明确T2冻结成立；经理据后续最小发布/目标重启授权解除协调等待。历史“未部署/等待”段保留为当时事实，本段更新当前T1状态：最小静态发布、仅目标查看器重启及独立生产只读点击验收通过，经理已审阅原始证据，T1生产代表四类弹窗及已发布离线首页的生效已核实。
+
+实施时间2026-10-03 00:51:18.555–00:51:22.483北京时间，脚本退出0。查看器PID/PGID从30866/30866变为68759/68759，新启动00:51:20；真实OpenD62968/62968及启动时间不变，无目标子分析需要终止。锁前API空闲，非truncate维护锁内复核源码与真实进程/批次，释放后API idle/busy=false、active=[]，持久原批次completed6/6保持。所有src跟踪及未跟踪门仅已验收T1模板，模板/测试/README冻结SHA一致，没有加载未验收T2产品源码，没有改变plist/venv/import环境。
+
+site从 `site-builds/20261002T163252895503Z-00f507` 原子切换至 `site-builds/T1-dialog-20261002T165119635316Z-7f957e`，新构建21页。原三个build全部保留可回退，没有执行旧构建清理。104项历史JSON/状态/锁文字/订阅及设置文件的执行前后SHA集合一致（不外推到未纳入比较文件），没有修改真实订阅、参数、凭据或分析结果。实际HTTP `/`、`/index.html`、日总览响应与21静态HTML均加载T1标记且无重复meta refresh。
+
+独立真实Chrome生产验证：HTTP四类代表弹窗内部空白/内容、内拖外、外关、重复打开、Esc及关闭按钮 **23 PASS、退出0**；已发布离线首页走势图/来源代表 **4 PASS、退出0**。HTTP仅8个允许的同源GET，离线仅1个file读取，无POST、身份/行情/模型请求、外网或页面错误。只读审核D1–D3全部关闭，开放部署阻断0；经理验收通过。详见[部署执行报告](evidence/dialog-backdrop-20261003/deployment-report.md)、[原始执行回执](evidence/dialog-backdrop-20261003/deployment-result.json)、[生产独立测试报告](evidence/dialog-backdrop-20261003/testing/deployment-test-report.md)、[生产独立审核报告](evidence/dialog-backdrop-20261003/deployment-review-report.md)、[经理交付](evidence/dialog-backdrop-20261003/manager-handoff.md)。
+
+本次生产收尾准确写入面为T1证据目录内预检报告/raw、一次性执行脚本/raw/output/exit/result、发布后HTML/进程精确核对、部署报告、独立deployment-review报告、测试production-readonly/production-offline脚本及testing/deployment原始JSON/HTML/output/exit/截图、测试原报告追加、经理handoff追加，以及本evidence尾追加；运行层仅新site-build目录内21页和site符号链接。完整相对路径清单见本段下方。未改T1冻结产品/测试/README，不包含 `.vantage/`、T2 `extended-hours-20261003/` 或其他并行来源。
+
+NOT_TESTED：生产全部历史页及全部比较/来源实例逐个实际点击；生产成功订阅修改后的关闭刷新、参数保存、生产长周期与真实分析完成态刷新；其他浏览器、移动触摸/触控笔、辅助技术、极窄屏/长滚动/系统下拉面板跨平台交互；真实行情/模型及全项目/子模块测试。生产写操作与真实分析保持不触发，隔离61项pytest及151+6实际点击证据继续有效。T1没有核销18.2：该项由primary并行第18组生产收尾独立核销，已在HEAD提交b94bb7655651564025f0874516d87ff4d621d75b（作者fjc523，2026-10-03 00:58:25+08:00，仅evidence.md与tasks.md），来源为本文件“第18组生产收尾”段；保留其完成状态。10.3、10.7仍未完成；primary可据本轮完整证据将T1标记完成，T2恢复由primary管理。本次没有提交、push、merge或新分支/Arc动作。
+
+本次生产收尾证据新增/追加文件（相对 `evidence/dialog-backdrop-20261003/`）：
+
+```text
+deployment-preflight.md
+deployment-preflight-raw.txt
+deployment-execute.py
+deployment-execution-raw.txt
+deployment-execution-output.txt
+deployment-execution-exit-code.txt
+deployment-result.json
+deployment-postcheck.json
+deployment-process-exact.json
+deployment-report.md
+deployment-review-report.md
+testing/production-readonly.cjs
+testing/production-offline.cjs
+testing/deployment-test-report.md
+testing/test-report.md
+manager-handoff.md
+testing/deployment/production-closed-1.png
+testing/deployment/production-closed-2.png
+testing/deployment/production-closed-3.png
+testing/deployment/production-closed-4.png
+testing/deployment/production-exit-code.txt
+testing/deployment/production-offline-exit-code.txt
+testing/deployment/production-offline-output.txt
+testing/deployment/production-offline-page.html
+testing/deployment/production-offline-results.json
+testing/deployment/production-offline-来源-opened.png
+testing/deployment/production-offline-走势图-opened.png
+testing/deployment/production-opened-1.png
+testing/deployment/production-opened-2.png
+testing/deployment/production-opened-3.png
+testing/deployment/production-opened-4.png
+testing/deployment/production-output.txt
+testing/deployment/production-page.html
+testing/deployment/production-results.json
+```
+
+运行层新增HTML（相对 `site-builds/T1-dialog-20261002T165119635316Z-7f957e/`，旧目录未改），并修改 `site` 链接：
+
+```text
+index.html
+symbols/NVDA.html
+symbols/SPY.html
+symbols/^GSPC.html
+symbols/TSLA.html
+symbols/INTC.html
+symbols/QQQ.html
+symbols/SMTC.html
+symbols/COHR.html
+days/2026-10-02/NVDA.html
+days/2026-10-02/index.html
+days/2026-10-02/SPY.html
+days/2026-10-02/TSLA.html
+days/2026-10-02/INTC.html
+days/2026-10-02/QQQ.html
+days/2026-10-02/SMTC.html
+days/2026-10-02/COHR.html
+days/2026-10-01/NVDA.html
+days/2026-10-01/index.html
+days/2026-10-01/SPY.html
+days/2026-10-01/^GSPC.html
+```
+
+## T2 dev_codex 规划恢复（2026-10-03）
+
+已保留旧T2调查和T1未提交工作。实现worker按gpt-6.1-sol medium创建，独立测试medium与审核high回执见 `evidence/extended-hours-20261003/implementation-sol/roles.json`；回执只证明调用参数与成功创建结果，不是后端运行模型认证。完整三项范围、旧报告定位、量化结果、官方依据和可选字段风险见同目录risk-card.md。20.1规划strict通过，20.2按AGENTS第2条等待可选持久数据字段确认；产品代码尚未修改，20.3–20.6未开始。没有新增真实行情请求、分析、订阅或生产部署。
+
+
+## T2 恢复轮源码与隔离验收（2026-10-03）
+
+用户批准可选analysis_quote后，三项源码闭环与独立测试/审核完成，任务20.1–20.6核销。最终独立146 passed、退出0、网络连接尝试[]；strict/diff通过，R-I01至R-I04返工核销。真实IEX覆盖告警保留，旧SMTC/COHR无原始同源时间证据不恢复价格；没有部署/重启/提交推送或历史迁移。完整角色回执、根因量化、纯差异清单、原始命令与未覆盖范围见 [经理交付索引](evidence/extended-hours-20261003/resume-manager/index.md)。
+
+## T1/T2 本地提交核对（2026-10-03）
+
+用户本轮已授权确认提案勾选和记录后本地提交相关提案与代码，不包含推送、生产部署/重启或真实分析。第19组源码及既有生产验收完成；第20组仅源码与隔离闭环完成，T2生产加载、真实四时段/回退率改善/旧历史价格恢复仍为NOT_TESTED。18.2由primary在b94bb76此前独立完成，以上历史“18.2未完成”仅为当时快照，本轮不修改该任务；10.3/10.7仍不核销。证据精选清单、未纳入原工件本地保存位置与提交前审阅报告见[提交闭环索引](evidence/commit-closure-20261003/precommit-report.md)。

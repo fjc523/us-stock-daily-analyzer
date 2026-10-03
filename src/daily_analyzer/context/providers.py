@@ -8,6 +8,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from .analysis_quote import active_window, observation, raw_futu, raw_alpaca
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
 from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
 
@@ -451,6 +452,11 @@ class ExtendedHoursProvider:
             payload, sources = self._backfill(symbols, trade_day, as_of)
         else:
             payload, sources = self._live(symbols, trade_day, price_end, as_of)
+        if mode == "backfill":
+            for symbol in symbols:
+                pre = payload[symbol]["pre"]
+                candidate = dict(pre, time_field="minute.t") if pre.get("quote_time") else None
+                payload[symbol]["analysis_quote"] = observation(symbol, as_of, candidate, pre.get("official_previous_close"))
         futu_warning = getattr(self.services.futu, "warning", None)
         if futu_warning:
             payload["warnings"] = [str(futu_warning)]
@@ -496,6 +502,11 @@ class ExtendedHoursProvider:
         source_names: list[str] = []
         futu = self.services.futu
         subscribed = dict(futu.get_quotes(symbols) or {})
+        snapshot_rows = {}
+        try:
+            active_session, _, _ = active_window(cutoff)
+        except ValueError:
+            active_session = None
         candidates: dict[str, dict[str, list[dict[str, Any]]]] = {
             symbol: {segment: [] for segment in ("after", "overnight", "pre")}
             for symbol in symbols
@@ -517,13 +528,14 @@ class ExtendedHoursProvider:
             needs_snapshot = [
                 symbol
                 for symbol in symbols
-                if any(
+                if observation(symbol, cutoff, raw_futu(subscribed.get(futu_symbol(symbol)), active_session, "富途订阅报价"))["status"] != "可用" or any(
                     not any(entry["status"] == "可用" for entry in candidates[symbol][segment])
                     for segment in ("after", "overnight", "pre")
                 )
             ]
             if needs_snapshot:
-                add_futu_rows(futu.get_snapshots(needs_snapshot) or {}, "富途快照")
+                snapshot_rows = futu.get_snapshots(needs_snapshot) or {}
+                add_futu_rows(snapshot_rows, "富途快照")
         elif futu.mode == "snapshot":
             add_futu_rows(subscribed, "富途快照")
 
@@ -532,17 +544,24 @@ class ExtendedHoursProvider:
             for symbol in symbols
             if not any(entry["status"] == "可用" for entry in candidates[symbol]["overnight"])
         ]
+        analysis_overnight = [symbol for symbol in symbols if active_session == "overnight" and not any(
+            observation(symbol, cutoff, raw_futu(rows.get(futu_symbol(symbol)), active_session, "富途"))["status"] == "可用"
+            for rows in (subscribed, snapshot_rows))]
+        overnight_symbols = list(dict.fromkeys([*missing_overnight, *analysis_overnight]))
         missing_premarket = [
-            symbol
-            for symbol in symbols
+            symbol for symbol in symbols
             if not any(entry["status"] == "可用" for entry in candidates[symbol]["pre"])
         ]
+        analysis_iex = [symbol for symbol in symbols if active_session != "overnight" and not any(
+            observation(symbol, cutoff, raw_futu(rows.get(futu_symbol(symbol)), active_session, "富途"))["status"] == "可用"
+            for rows in (subscribed, snapshot_rows))]
+        iex_symbols = list(dict.fromkeys([*missing_premarket, *analysis_iex]))
         try:
-            overnight = _alpaca_snapshots(self.services.alpaca, missing_overnight, "overnight")
+            overnight = _alpaca_snapshots(self.services.alpaca, overnight_symbols, "overnight")
         except Exception:
             overnight = {}
         try:
-            premarket = _alpaca_snapshots(self.services.alpaca, missing_premarket, "iex")
+            premarket = _alpaca_snapshots(self.services.alpaca, iex_symbols, "iex")
         except Exception:
             premarket = {}
 
@@ -589,6 +608,17 @@ class ExtendedHoursProvider:
                 segments[symbol][segment] = raw
                 if raw.get("source"):
                     source_names.append(raw["source"])
+            analysis_candidates = []
+            for rows, source in ((subscribed, "富途订阅报价" if futu.mode == "subscription" else "富途快照"), (snapshot_rows, "富途快照")):
+                candidate = raw_futu(rows.get(futu_symbol(symbol)), active_session, source)
+                if candidate:
+                    analysis_candidates.append(observation(symbol, cutoff, candidate, close))
+            feed = "overnight" if active_session == "overnight" else "iex"
+            candidate = raw_alpaca((overnight if feed == "overnight" else premarket).get(symbol), "Alpaca feed=" + feed)
+            if candidate:
+                analysis_candidates.append(observation(symbol, cutoff, candidate, close))
+            chosen = next((entry for entry in analysis_candidates if entry["status"] == "可用"), None)
+            segments[symbol]["analysis_quote"] = chosen or (analysis_candidates[0] if analysis_candidates else observation(symbol, cutoff, close=close))
         return segments, source_names
 
     def _backfill(
@@ -604,6 +634,8 @@ class ExtendedHoursProvider:
             for row in rows:
                 timestamp = _parse_datetime(_row_get(row, "t", "timestamp"), timezone.utc)
                 if timestamp is None or timestamp.date() != trade_day:
+                    continue
+                if timestamp >= end:
                     continue
                 if not (time(4, 0) <= timestamp.timetz().replace(tzinfo=None) < end_time):
                     continue
@@ -915,11 +947,14 @@ def _change_pct(price: Any, close: Any) -> float | None:
 
 
 def _session_bounds(session: str, trade_day: date, price_end: date) -> tuple[datetime, datetime]:
+    from ..time_utils import session_bounds
     if session == "after":
-        return datetime.combine(price_end, time(16), EASTERN), datetime.combine(price_end, time(20), EASTERN)
+        _, closed = session_bounds(price_end)
+        return closed, datetime.combine(price_end, time(20), EASTERN)
     if session == "overnight":
         return datetime.combine(trade_day - timedelta(days=1), time(20), EASTERN), datetime.combine(trade_day, time(4), EASTERN)
-    return datetime.combine(trade_day, time(4), EASTERN), datetime.combine(trade_day, time(9, 30), EASTERN)
+    opened, _ = session_bounds(trade_day)
+    return datetime.combine(trade_day, time(4), EASTERN), opened
 
 
 def _futu_segment(
@@ -940,12 +975,14 @@ def _futu_segment(
     source_update_time = row.get("update_time")
     quote_time = _parse_datetime(segment_timestamp)
     verified = quote_time is not None
-    if quote_time is None and segment == "pre":
-        quote_time = _parse_datetime(source_update_time)
+    if source_update_time is None and row.get("data_date") and row.get("data_time"):
+        source_update_time = f"{row['data_date']} {row['data_time']}"
     start, end = _session_bounds(segment, trade_day, price_end)
     status = "可用"
     if quote_time is None:
         status = "时段未核验（无分时段时间）"
+    elif quote_time > cutoff:
+        status = "未来报价（超过分析截止）"
     elif not start <= quote_time < end:
         status = "非本时段数据"
     elif segment == "pre" and time(4) <= cutoff.timetz().replace(tzinfo=None) < time(9, 30):
@@ -989,12 +1026,10 @@ def _alpaca_segment(
         return None
     timestamp = _parse_datetime(_row_get(trade, "t", "timestamp"), timezone.utc)
     if timestamp is None:
-        timestamp = _parse_datetime(_row_get(snapshot, "updated_at", "as_of"), timezone.utc)
-    if timestamp is None:
         return None
     segment = "overnight" if "overnight" in source else "pre"
     start, end = _session_bounds(segment, trade_day, price_end)
-    status = "可用" if start <= timestamp < end else "非本时段数据"
+    status = "未来报价（超过分析截止）" if timestamp > cutoff else ("可用" if start <= timestamp < end else "非本时段数据")
     if segment == "pre" and status == "可用" and time(4) <= cutoff.timetz().replace(tzinfo=None) < time(9, 30) and (cutoff - timestamp).total_seconds() > 30 * 60:
         status = "过期"
     daily = _snapshot_component(snapshot, "dailyBar") or _snapshot_component(snapshot, "daily_bar") or {}

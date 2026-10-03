@@ -112,7 +112,8 @@ class SourceStatusCollector:
                 for segments in data.values():
                     if not isinstance(segments, Mapping):
                         continue
-                    for segment in segments.values():
+                    for segment_name in ("after", "overnight", "pre"):
+                        segment = segments.get(segment_name)
                         if isinstance(segment, Mapping) and segment.get("status"):
                             valid = segment.get("status") in ("可用", "时段未核验（无分时段时间）")
                             record("扩展时段报价", segment.get("source") or "扩展时段来源", "success" if valid else "failed", segment.get("warning") or (None if valid else segment.get("status")))

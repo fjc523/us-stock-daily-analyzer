@@ -111,3 +111,10 @@ TradingAgents fork SHALL 新增两个上游配置键：
 #### Scenario: Yahoo 返回 429
 - **WHEN** Alpaca 日线请求失败，降级到 yfinance 时又返回 429
 - **THEN** 相关指标置为 null 并注明“数据源不可用”，分析继续
+
+### Requirement: 富途报价时间字段真实性
+行情适配 SHALL 读取订阅data_date/data_time与快照update_time，并保留原字段。整体当前价更新时间 MUST NOT 作为所有扩展价的独立成交时间；无法核验分段时间 SHALL 保留session_verified=false及原因，MUST NOT 为消除告警伪造时间或改变账号权益。
+
+#### Scenario: 订阅当前价时间与历史扩展价格并存
+- **WHEN** 返回data_date/data_time与pre_price但没有pre独立时间
+- **THEN** 明确当前价更新时间与盘前独立时间不同，保留真实覆盖/未核验说明

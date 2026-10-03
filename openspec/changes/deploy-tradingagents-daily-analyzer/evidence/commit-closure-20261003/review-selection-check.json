@@ -1,0 +1,153 @@
+{
+  "selected_count": 94,
+  "selected_bytes": 1082067,
+  "missing_selected": [],
+  "untracked_links": [
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-manager/index.md",
+      "target": "../resume-implementation/baseline.diff",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/manager-handoff.md",
+      "target": "testing/browser-output.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/manager-handoff.md",
+      "target": "testing/openspec-output.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/manager-handoff.md",
+      "target": "deployment-execution-raw.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-preflight.md",
+      "target": "deployment-preflight-raw.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-report.md",
+      "target": "deployment-execute.py",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-report.md",
+      "target": "deployment-execute.py",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-report.md",
+      "target": "deployment-execution-raw.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/dialog-backdrop-20261003/deployment-report.md",
+      "target": "deployment-execution-output.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+      "target": "baseline.diff",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+      "target": "baseline.json",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+      "target": "planning-files.json",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+      "target": "planning-strict.log",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/implementation-sol/handoff.md",
+      "target": "workspace-after-planning.diff",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/report.md",
+      "target": "final-tests.log",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/opened-1.png",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/closed-1.png",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/openspec-output.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/openspec-exit-code.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/diff-check-output.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/testing/diff-check-exit-code.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    },
+    {
+      "source": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence.md",
+      "target": "evidence/dialog-backdrop-20261003/deployment-preflight-raw.txt",
+      "documented_local_retention": true,
+      "exists_now": true
+    }
+  ],
+  "sensitive_candidate_locations": [
+    {
+      "path": "tests/test_source_status.py",
+      "line": 55
+    },
+    {
+      "path": "tests/test_source_status.py",
+      "line": 81
+    },
+    {
+      "path": "tests/test_source_status.py",
+      "line": 88
+    }
+  ]
+}

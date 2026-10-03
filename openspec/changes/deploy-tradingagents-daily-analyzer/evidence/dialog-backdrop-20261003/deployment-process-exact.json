@@ -1,0 +1,22 @@
+{
+  "observed_at": "2026-10-03T00:53:45.397456+08:00",
+  "command": "ps -axo pid,ppid,pgid,lstart,command",
+  "exit_code": 0,
+  "opend_executable_match": "/Applications/Futu_OpenD.app/Contents/MacOS/Futu_OpenD",
+  "rows": [
+    {
+      "pid": 62968,
+      "ppid": 1,
+      "pgid": 62968,
+      "lstart": "Fri Oct 2 16:28:09 2026",
+      "argv": "/Applications/Futu_OpenD.app/Contents/MacOS/Futu_OpenD"
+    },
+    {
+      "pid": 68759,
+      "ppid": 1,
+      "pgid": 68759,
+      "lstart": "Sat Oct 3 00:51:20 2026",
+      "argv": "/Users/zhoulei/Documents/us-stock-daily-analyzer/.venv/bin/python -m daily_analyzer serve"
+    }
+  ]
+}

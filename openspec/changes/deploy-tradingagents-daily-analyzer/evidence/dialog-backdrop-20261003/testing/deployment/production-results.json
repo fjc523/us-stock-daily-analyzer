@@ -1,0 +1,209 @@
+{
+  "base": "http://127.0.0.1:8765",
+  "checks": [
+    {
+      "name": "生产页面已加载",
+      "status": "PASS",
+      "base": "http://127.0.0.1:8765",
+      "backdropLogic": true,
+      "dialogRefreshGuard": true
+    },
+    {
+      "name": "生产弹窗入口枚举",
+      "status": "PASS",
+      "management": [
+        {
+          "kind": "管理订阅",
+          "trigger": "#manage-watchlist",
+          "dialog": "#watchlist-manager"
+        },
+        {
+          "kind": "分析参数",
+          "trigger": "#manage-settings",
+          "dialog": "#settings-manager"
+        },
+        {
+          "i": 2,
+          "kind": "走势比较"
+        },
+        {
+          "i": 0,
+          "kind": "数据源详情",
+          "source": "source-row-1"
+        }
+      ],
+      "details": [
+        {
+          "i": 0,
+          "kind": "数据源详情",
+          "source": "source-row-1"
+        },
+        {
+          "i": 1,
+          "kind": "数据源详情",
+          "source": "source-row-2"
+        },
+        {
+          "i": 2,
+          "kind": "走势比较"
+        },
+        {
+          "i": 3,
+          "kind": "走势比较"
+        },
+        {
+          "i": 4,
+          "kind": "数据源详情",
+          "source": "source-row-3"
+        },
+        {
+          "i": 5,
+          "kind": "走势比较"
+        },
+        {
+          "i": 6,
+          "kind": "数据源详情",
+          "source": "source-row-4"
+        },
+        {
+          "i": 7,
+          "kind": "走势比较"
+        },
+        {
+          "i": 8,
+          "kind": "数据源详情",
+          "source": "source-row-5"
+        },
+        {
+          "i": 9,
+          "kind": "走势比较"
+        },
+        {
+          "i": 10,
+          "kind": "数据源详情",
+          "source": "source-row-6"
+        }
+      ]
+    },
+    {
+      "name": "管理订阅 内部空白内容操作保持打开且未改值",
+      "status": "PASS"
+    },
+    {
+      "name": "管理订阅 内部开始拖到背景保持打开",
+      "status": "PASS"
+    },
+    {
+      "name": "管理订阅 外部关闭未新增业务请求",
+      "status": "PASS"
+    },
+    {
+      "name": "管理订阅 重开及Esc关闭",
+      "status": "PASS"
+    },
+    {
+      "name": "管理订阅 原关闭按钮",
+      "status": "PASS"
+    },
+    {
+      "name": "分析参数 内部空白内容操作保持打开且未改值",
+      "status": "PASS"
+    },
+    {
+      "name": "分析参数 内部开始拖到背景保持打开",
+      "status": "PASS"
+    },
+    {
+      "name": "分析参数 外部关闭未新增业务请求",
+      "status": "PASS"
+    },
+    {
+      "name": "分析参数 重开及Esc关闭",
+      "status": "PASS"
+    },
+    {
+      "name": "分析参数 原关闭按钮",
+      "status": "PASS"
+    },
+    {
+      "name": "走势比较 内部空白内容操作保持打开且未改值",
+      "status": "PASS"
+    },
+    {
+      "name": "走势比较 内部开始拖到背景保持打开",
+      "status": "PASS"
+    },
+    {
+      "name": "走势比较 外部关闭未新增业务请求",
+      "status": "PASS"
+    },
+    {
+      "name": "走势比较 重开及Esc关闭",
+      "status": "PASS"
+    },
+    {
+      "name": "走势比较 原关闭按钮",
+      "status": "PASS"
+    },
+    {
+      "name": "数据源详情 内部空白内容操作保持打开且未改值",
+      "status": "PASS"
+    },
+    {
+      "name": "数据源详情 内部开始拖到背景保持打开",
+      "status": "PASS"
+    },
+    {
+      "name": "数据源详情 外部关闭未新增业务请求",
+      "status": "PASS"
+    },
+    {
+      "name": "数据源详情 重开及Esc关闭",
+      "status": "PASS"
+    },
+    {
+      "name": "数据源详情 原关闭按钮",
+      "status": "PASS"
+    },
+    {
+      "name": "无被拦截请求或页面错误，无POST/身份/外网请求",
+      "status": "PASS"
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://127.0.0.1:8765/",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/analysis",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/watchlist",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/watchlist",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/watchlist",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/settings",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/settings",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:8765/api/settings",
+      "method": "GET"
+    }
+  ],
+  "errors": [],
+  "blocked": []
+}

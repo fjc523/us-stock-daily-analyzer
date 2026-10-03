@@ -1,0 +1,21 @@
+{
+  "unchanged_during_test": true,
+  "before": {
+    "src/daily_analyzer/context/analysis_quote.py": "5b78ea3bb4301cc42c5605aece1ff6d61ff4bdd87ede0287d7111ad3f391614e",
+    "src/daily_analyzer/context/providers.py": "189cbf789accff08605ca263781aa6bd0a70338fa61f92bc36ceac32aecd9aab",
+    "src/daily_analyzer/context/base.py": "91ad73d81e016537e157ba980cc7296dcd33973135aa661983cbdeaf5e3010ff",
+    "src/daily_analyzer/data_sources/futu.py": "6df16d1ae59cb25d5a79020ed408a86d3883030fba3c8776f53ead3ad50c58c7",
+    "src/daily_analyzer/site/__init__.py": "2a1fb62e02f97559c44b1e3e63329717758b1550d2fd8c8fb93f13e1df3747b2",
+    "src/daily_analyzer/site/templates.py": "f9d61050df41957a003b919e0cb96a50f9dc06b6a6b19d47b71609f69192a5ce",
+    "src/daily_analyzer/source_status.py": "0bcbf5e6993f0ade1610fd4581d9f6bf289f26bfd9796bf1bd03c6524c26b7d5"
+  },
+  "after": {
+    "src/daily_analyzer/context/analysis_quote.py": "5b78ea3bb4301cc42c5605aece1ff6d61ff4bdd87ede0287d7111ad3f391614e",
+    "src/daily_analyzer/context/providers.py": "189cbf789accff08605ca263781aa6bd0a70338fa61f92bc36ceac32aecd9aab",
+    "src/daily_analyzer/context/base.py": "91ad73d81e016537e157ba980cc7296dcd33973135aa661983cbdeaf5e3010ff",
+    "src/daily_analyzer/data_sources/futu.py": "6df16d1ae59cb25d5a79020ed408a86d3883030fba3c8776f53ead3ad50c58c7",
+    "src/daily_analyzer/site/__init__.py": "2a1fb62e02f97559c44b1e3e63329717758b1550d2fd8c8fb93f13e1df3747b2",
+    "src/daily_analyzer/site/templates.py": "f9d61050df41957a003b919e0cb96a50f9dc06b6a6b19d47b71609f69192a5ce",
+    "src/daily_analyzer/source_status.py": "0bcbf5e6993f0ade1610fd4581d9f6bf289f26bfd9796bf1bd03c6524c26b7d5"
+  }
+}

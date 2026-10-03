@@ -466,3 +466,20 @@ HTTP/离线页面仍只读数据。需要让旧 TSLA 即时显示比较时，将
 ## D18. 截止后新闻折叠与运行中前端更新
 
 外露内容不是CSS溢出，而是模板在details之外重复输出最多3条重大消息。删除这一重复输出，所有标题/时间只在details内部，折叠标题保留条数与重大消息颜色。当前手动分析与查看器共用进程组，批次期间不得用launchctl重启整个查看器；先实现并验证模板，前端更新采取不终止分析进程的方式。不修改数据、分析算法、来源或模型流程。
+
+
+## D19. 全部中间弹窗的外部点击关闭
+
+现有中间弹窗使用原生 dialog，范围包括 watchlist-manager、settings-manager、comparison-dialog 与 source-dialog。复用公共页面脚本统一登记外部点击关闭行为，同时覆盖本机 HTTP 与离线报告可用的弹窗，不依赖远程脚本或额外请求。以弹窗实际矩形范围判断外部区域，不能仅凭 event.target 为 dialog 判断，否则弹窗内部空白/边框可能被误判。内部输入、按钮、图表、滚动及从内部开始拖动到外部不应意外关闭；关闭时走原生 close 生命周期，保留管理订阅成功修改后的首页刷新和弹窗打开期间自动刷新暂停规则。点击外部只关闭，不代替保存或启动分析。
+
+风险集中于误关闭和关闭生命周期回归。实现 worker 采用局部公共逻辑，独立测试 worker 验证四类弹窗、内部交互和管理修改后的刷新，独立审核 worker 检查覆盖遗漏与回归。按仓库要求同步 README、测试与 evidence；真实页面验证不得改订阅或参数、调用行情/模型，也不得重启会终止分析的查看器。
+
+## D20：同源分析报价与扩展时段真实性
+
+复用T2旧调查，明确SDK整体data_date/data_time与update_time不是独立扩展成交时间。有限推断只保持session_verified=false与来源更新时间，不能伪造quote_time。严格保留IEX覆盖告警。扩展未开始、过期、未来、窗口外与未知时间分别说明；常规窗口复用NYSE日历。
+
+用户在本次重启说明已批准的兼容方案：extended_hours.data.<symbol>.analysis_quote为可选观测，字段及风险见implementation-sol/risk-card.md；schema_version与原pre/overnight/after不变。当前活跃时段选目标symbol同源原始价格与真实时间，附context_as_of cutoff；富途订阅→快照→Alpaca现有feed，回放固定cutoff。analysis_quote只作展示观测，不写入injected_context/Markdown，不用于LLM/策略/比较指标或扩展告警核销。source_status仅遍历原三段，避免常规观测污染扩展覆盖。首页涨跌幅明确相对P收盘，缺基准只隐藏涨幅。旧报告无analysis_quote时统一显示“真实行情时间未核验（旧报告）”，本轮不实现旧pre恢复白名单。历史恢复仅在另行取得已核验版本及原始同源字段证据后才可评估，例如Alpaca latestTrade.p/t或minute.c/t、Futu独立段时间；status/session_verified/quote_time不能单独证明来源，旧Alpaca可能退用snapshot.updated_at/as_of。当前不恢复SMTC/COHR旧价格，不解析模型参考价、不重写报告。
+
+用户批准本方案后实施持久新字段；批准记录见evidence/extended-hours-20261003/resume-implementation/authorization.md。观测cutoff严格绑定extended_hours块as_of原始微秒；live与结果context_as_of的秒精度核对，回放与news_cutoff_utc冻结时点核对，保留原时间字段语义。夜盘按所属自然日NYSE交易日核验，周五晚与假日前晚不伪称开市。产品代码、测试、独立审核、真实生效分别记录，隔离验证不能代替生产部署。
+
+本轮最终实现边界：旧报告无analysis_quote时统一显示“真实行情时间未核验（旧报告）”，不从旧pre建立恢复白名单。上述原始字段白名单为历史恢复必须满足的证据门槛，不代表本轮已经实现恢复；已知SMTC/COHR旧批次缺证据，历史恢复仍为NOT_TESTED。当前交付修复未来有效同源分析价不依赖涨幅基准，并保持历史文件只读。

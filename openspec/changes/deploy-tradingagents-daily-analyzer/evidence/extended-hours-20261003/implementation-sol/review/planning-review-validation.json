@@ -1,0 +1,23 @@
+[
+  {
+    "command": [
+      "openspec",
+      "validate",
+      "deploy-tradingagents-daily-analyzer",
+      "--strict"
+    ],
+    "exit_code": 0,
+    "stdout": "Change 'deploy-tradingagents-daily-analyzer' is valid\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

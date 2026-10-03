@@ -1,0 +1,26 @@
+{
+  "性质": "请求配置及创建成功回执，不证明后端实际模型",
+  "角色": [
+    {
+      "task": "/root/implementation",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "fork_turns": "2",
+      "spawn": "成功"
+    },
+    {
+      "task": "/root/testing",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "fork_turns": "2",
+      "spawn": "成功"
+    },
+    {
+      "task": "/root/review",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "fork_turns": "2",
+      "spawn": "成功"
+    }
+  ]
+}

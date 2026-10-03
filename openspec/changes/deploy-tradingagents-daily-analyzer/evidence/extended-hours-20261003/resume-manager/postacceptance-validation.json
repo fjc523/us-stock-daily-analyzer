@@ -1,0 +1,27 @@
+{
+  "role": "/root/testing",
+  "checks": [
+    {
+      "argv": [
+        "openspec",
+        "validate",
+        "deploy-tradingagents-daily-analyzer",
+        "--strict"
+      ],
+      "exit_code": 0,
+      "stdout": "Change 'deploy-tradingagents-daily-analyzer' is valid\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "scope": "验收后文档更新验证；产品测试未重复"
+}

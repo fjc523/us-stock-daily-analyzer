@@ -360,6 +360,9 @@ def _quality_flags(data: Any) -> list[str]:
     flags: list[str] = []
     if isinstance(data, Mapping):
         for key, value in data.items():
+            if key == "analysis_quote":
+                # 同源分析报价只作展示，不进入模型的数据质量段。
+                continue
             if key in {"warning", "warnings", "error", "index_warning"}:
                 values = value if isinstance(value, (list, tuple)) else [value]
                 flags.extend(str(item) for item in values if item)

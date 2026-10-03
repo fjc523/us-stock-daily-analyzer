@@ -1,0 +1,15 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/run_offline.py",
+    "-q",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/extended-hours-20261003/resume-testing/test_independent_quotes.py",
+    "tests/test_context_providers.py",
+    "tests/test_data_sources.py",
+    "tests/test_site.py",
+    "tests/test_source_status.py"
+  ],
+  "exit_code": 0,
+  "stdout": "........................................................................ [ 49%]\n........................................................................ [ 98%]\n..                                                                       [100%]\n146 passed in 1.91s\n网络连接尝试： []\n",
+  "stderr": ""
+}

@@ -12,7 +12,6 @@ BASE = _ENV.from_string(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · 美股每日分析</title>
-  {% if refresh_seconds and not managed %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
   <style>
     :root { color-scheme:light dark; --bg:#f5f6f8; --panel:#fff; --fg:#202c3b; --muted:#728093; --line:#e5e9ef; --accent:#355edb; --good:#157e63; --warn:#a36b08; --bad:#b45441; --soft:#eef2fc; --shadow:0 4px 24px #202c3b06; }
     @media(prefers-color-scheme:dark) { :root { --bg:#111923; --panel:#1b2532; --fg:#e6edf5; --muted:#9aaabd; --line:#2e3b4b; --accent:#a1b8ff; --good:#65ccaa; --warn:#e6ba68; --bad:#f6a291; --soft:#27354b; --shadow:none; } }
@@ -170,6 +169,34 @@ BASE = _ENV.from_string(
       global.location.href = site.root_prefix + target;
     });
   }
+  // 必须从背景按下并在背景释放，内部空白、边框和向外拖动都不关闭。
+  global.document.querySelectorAll("dialog").forEach(dialog=>{
+    let backdropPointer=null, backdropClick=false;
+    function outside(event){
+      const rect=dialog.getBoundingClientRect();
+      return event.target===dialog && (event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom);
+    }
+    function reset(){backdropPointer=null;backdropClick=false;}
+    dialog.addEventListener("pointerdown",event=>{
+      reset();
+      if(dialog.open && event.isPrimary!==false && event.button===0 && outside(event)){
+        backdropPointer=event.pointerId;
+        // 避免背景按下先让输入失焦，继而触发未提交代码的资料验证。
+        event.preventDefault();
+      }
+    });
+    dialog.addEventListener("pointerup",event=>{
+      backdropClick=backdropPointer===event.pointerId && outside(event);
+      backdropPointer=null;
+    });
+    dialog.addEventListener("pointercancel",reset);
+    dialog.addEventListener("close",reset);
+    dialog.addEventListener("click",event=>{
+      const shouldClose=dialog.open && backdropClick && event.detail>0 && outside(event);
+      reset();
+      if(shouldClose)dialog.close();
+    });
+  });
   global.document.querySelectorAll("[data-comparison]").forEach(button=>button.addEventListener("click",()=>{
     button.closest(".comparison").querySelector("dialog").showModal();
   }));
@@ -226,6 +253,7 @@ BASE = _ENV.from_string(
   global.document.getElementById("manage-watchlist").addEventListener("click", showManager);
   global.document.getElementById("close-manager").addEventListener("click",()=>manager.close());
   manager.addEventListener("close",()=>{
+    global.clearTimeout(validationTimer); ++validationVersion;
     if(managerChanged){managerChanged=false;global.location.reload();}
   });
   const codeInput=form.elements.symbol, typeInput=form.elements.type;
@@ -236,6 +264,7 @@ BASE = _ENV.from_string(
   function codeValue(){return codeInput.value.trim().toUpperCase();}
   function allowSubmit(){submitButton.disabled=!(verified && verified.symbol===codeValue() && (verified.type || typeInput.value));}
   async function validateCode(){
+    if(!manager.open) return;
     const code=codeValue(), version=++validationVersion;
     verified=null; allowSubmit(); typeField.hidden=true; typeInput.value="";
     if(!code){identityMessage.textContent="输入代码后自动验证和识别类型";return;}
@@ -257,7 +286,7 @@ BASE = _ENV.from_string(
     identityMessage.textContent="等待验证…"; global.clearTimeout(validationTimer);
     validationTimer=global.setTimeout(validateCode,500);
   });
-  codeInput.addEventListener("blur",()=>{if(!verified){global.clearTimeout(validationTimer);validateCode();}});
+  codeInput.addEventListener("blur",()=>{if(manager.open && !verified){global.clearTimeout(validationTimer);validateCode();}});
   typeInput.addEventListener("change",allowSubmit);
   form.addEventListener("submit",async event=>{
     event.preventDefault();
@@ -379,8 +408,8 @@ BASE = _ENV.from_string(
       analysisMessage.textContent=value.busy?"批次进度"+(progress?" · "+progress.completed+"/"+progress.total:""):"";
       if(value.busy){polling=true;analysisTimer=global.setTimeout(analysisStatus,3000);}
       else if(polling){
-        const manager=global.document.getElementById("watchlist-manager");
-        if(manager && manager.open) analysisTimer=global.setTimeout(analysisStatus,3000);
+        const openDialog=global.document.querySelector("dialog[open]");
+        if(openDialog) analysisTimer=global.setTimeout(analysisStatus,3000);
         else {polling=false;global.location.reload();}
       }
     } catch(error){analysisMessage.textContent=error.message;analysisTimer=global.setTimeout(analysisStatus,3000);}
@@ -414,10 +443,8 @@ BASE = _ENV.from_string(
   {% endif %}
   if (site.refresh_seconds > 0) {
     function refresh() {
-      const dialog=global.document.getElementById("watchlist-manager");
-      const settingsDialog=global.document.getElementById("settings-manager");
-      const detailOpen=global.document.querySelector(".comparison-dialog[open],.source-dialog[open]");
-      if ((dialog && dialog.open) || (settingsDialog && settingsDialog.open) || detailOpen) global.setTimeout(refresh, 10000);
+      const openDialog=global.document.querySelector("dialog[open]");
+      if (openDialog) global.setTimeout(refresh, 10000);
       else global.location.reload();
     }
     global.setTimeout(refresh, site.refresh_seconds*1000);
@@ -444,14 +471,14 @@ _SOURCE_STATUS = """{% macro source_badge(value) -%}
 """
 
 _ROWS = """
-{% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对基准强弱"><thead><tr><th>订阅标的</th><th>总体建议与点位</th><th>相对基准 · 百分点</th><th>盘前</th><th>报告状态</th><th></th></tr></thead><tbody>
+{% if rows %}<div class="table-wrap"><table class="watch-table" aria-label="自选建议与相对基准强弱"><thead><tr><th>订阅标的</th><th>总体建议与点位</th><th>相对基准 · 百分点</th><th>分析时价格</th><th>报告状态</th><th></th></tr></thead><tbody>
 {% for row in rows %}<tr>
   <td>{% if row.path %}<a class="symbol" href="{{ row.path }}">{{ row.symbol }}</a>{% else %}<span class="symbol">{{ row.symbol }}</span>{% endif %}<span class="subline">{{ row.name }}{% if row.name %} · {% endif %}{{ row.type }}</span>{% if row.proxy %}<span class="subline">以 {{ row.proxy }} 代理</span>{% endif %}</td>
   <td><span class="badge {{ row.rating_class }}">{{ row.rating }}</span><div class="advice">{{ row.advice }}</div><div class="allocation">{{ row.allocation }}</div><dl class="price-plans">{% for plan in row.plans %}<div><dt>{{ plan.label }}</dt><dd title="{{ plan.full_text }}">{{ plan.text }}</dd></div>{% endfor %}</dl></td>
   <td>{% for comp in row.comparisons %}<div class="comparison"><button type="button" class="comparison-trigger" data-comparison aria-label="查看{{ row.symbol }}相对{{ comp.symbol }}归一化走势"><span class="comparison-title"><strong>{{ comp.kind }} · {{ comp.name }} {{ comp.symbol }} ↗</strong><span class="{{ comp.tone }}">{{ comp.strength }}</span></span><span class="relative-grid">{% for days in ['5','20','60'] %}<span class="{{ comp.relative[days].tone }}{% if days == '20' %} focus{% endif %}"><small>{{ days }} 日</small>{{ comp.relative[days].text }}</span>{% endfor %}</span></button><span class="subline">{% if row.comparisons_supplement %}补充 · {% endif %}{{ comp.reason }}</span>
     <dialog class="comparison-dialog"><div class="section-heading" style="margin-top:0"><h2>{{ row.symbol }} / {{ comp.name }} {{ comp.symbol }}</h2><button type="button" data-close-comparison>关闭</button></div>
     {% if comp.chart %}<p class="small muted">最近60个交易日 · {{ comp.chart.start }} 至 {{ comp.chart.end }} · {{ comp.chart.count }}个共同有效收盘点。两条复权曲线从共同首日100开始，显示累计相对表现。这里的100是价格指数，不是仓位比例。</p><div class="chart-legend"><span class="stock-line">{{ row.symbol }}</span><span class="benchmark-line">{{ comp.symbol }}</span></div><svg class="relative-chart" viewBox="0 0 640 295" role="img" aria-label="{{ row.symbol }}与{{ comp.symbol }}复权归一化走势图"><title>共同首日为100的复权收盘价对比</title>{% for tick in comp.chart.ticks %}<line class="chart-grid" x1="58" x2="618" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text x="48" y="{{ tick.y }}" text-anchor="end">{{ tick.text }}</text>{% endfor %}<line class="chart-baseline" x1="58" x2="618" y1="{{ comp.chart.baseline_y }}" y2="{{ comp.chart.baseline_y }}"/>{% for series in comp.chart.series %}<polyline class="{{ series.color }}" points="{{ series.points }}"/>{% for dot in series.dots %}<circle class="chart-dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="6"><title>{{ dot.tip }}</title></circle>{% endfor %}{% endfor %}<text x="58" y="280">{{ comp.chart.start }}</text><text x="618" y="280" text-anchor="end">{{ comp.chart.end }}</text></svg><p class="small muted">来源：{{ comp.chart.sources }}。{% if row.comparisons_supplement %}本图为后补比较，原评级未重算。{% endif %}</p>{% else %}<p class="muted">图表数据不足；没有截至该报告日的共同有效日线。旧报告可在下次分析时生成曲线。</p>{% endif %}</dialog></div>{% else %}<span class="muted">{{ row.strength }}</span>{% endfor %}</td>
-  <td class="number"{% if row.premarket_title %} title="{{ row.premarket_title }}"{% endif %}><span class="mobile-label subline">盘前</span>{% if row.premarket_price %}<span class="premarket-price">{{ row.premarket_price }}</span>{{ row.premarket }}{% else %}{{ row.premarket }}{% endif %}</td>
+  <td class="number"{% if row.premarket_title %} title="{{ row.premarket_title }}"{% endif %}><span class="mobile-label subline">分析时价格</span>{% if row.premarket_price %}<span class="premarket-price">{{ row.premarket_price }}</span>{{ row.premarket }}{% if row.premarket != "—" %}<small class="subline">相对P收盘</small>{% endif %}<small class="subline">{{ row.quote_time }}</small>{% else %}<span class="small muted">{{ row.quote_reason }}</span>{% endif %}</td>
   <td><span data-report-summary><span class="small">{{ row.status }}</span><span class="subline">{{ row.duration }}</span></span>{% if managed %}<div class="analysis-progress" data-analysis-progress hidden role="status"><span data-stage></span><progress max="100"></progress><span class="subline" data-remaining></span><span class="subline" data-estimate-note></span></div>{% endif %}<span class="subline">{% if row.date != '—' %}{{ row.date }} 报告{% if row.start_clock %} · {{ row.start_clock }}{% endif %}{% endif %}</span>{{ source_details(row.source_status, "source-row-" ~ loop.index) }}{% if row.late_news_count %}<span class="subline">分析期间纳入 {{ row.late_news_count }} 条新增消息</span>{% endif %}{% if row.late_macro_count %}<span class="subline">分析期间补抓 {{ row.late_macro_count }} 条经济数据</span>{% endif %}{% if row.news_watch %}<details class="row-details{% if row.news_watch.major %} source-degraded{% endif %}" data-news-watch><summary>截止后新增 {{ row.news_watch.count }} 条消息</summary><p class="small muted">检查于 {{ row.news_watch.checked_at }} · 关键词仅作提示，未自动重跑</p>{% for article in row.news_watch.articles %}<p class="small{% if article.major %} source-degraded{% endif %}">{{ article.time }} · {% if article.url %}<a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a>{% else %}{{ article.title }}{% endif %}</p>{% endfor %}</details>{% endif %}<details class="row-details"><summary>时间与质量</summary><p>日线截至 {{ row.price_date }}；板块名次 {{ row.sector_rank }}；信息截止 {{ row.information_through }}；开始 {{ row.started_at }}；完成 {{ row.finished_at }}。</p><div class="marks">{% for mark in row.marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if row.error %}<p class="error">{{ row.error }}</p>{% endif %}</details></td>
   <td>{% if row.path %}<a class="small" href="{{ row.path }}">详情 ↗</a>{% endif %}{% if managed %}<button class="analyze-button" data-analyze="{{ row.symbol }}" title="重新获取数据并分析该标的">分析一次</button><span class="small error" data-analysis-error hidden role="status"></span>{% endif %}</td>
 </tr>{% endfor %}</tbody></table></div>{% for row in rows %}{{ source_dialog(row.source_status, "source-row-" ~ loop.index) }}{% endfor %}{% else %}<div class="table-wrap empty">还没有启用的订阅，点击「管理订阅」添加标的。</div>{% endif %}

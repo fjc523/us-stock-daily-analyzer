@@ -108,3 +108,12 @@ def test_disabled_stocktwits_is_grey_with_reason():
                        'error':'已停用：StockTwits 公共接口被 Cloudflare 拦截'})
     row = {row['category']: row for row in collector.snapshot({}, {})}['StockTwits']
     assert row['status'] == '未配置' and 'Cloudflare' in row['reason']
+
+
+def test_analysis_observation_never_counts_as_extended_coverage():
+    collector = SourceStatusCollector()
+    block = {'extended_hours': {'data': {'SMTC': {'pre': {'status': '数据不可用'},
+        'analysis_quote': {'status': '可用', 'source': '富途订阅报价'}}}}}
+    row = collector.snapshot(block, {'futu_enabled': True})[1]
+    assert row['status'] != '正常'
+    assert '富途订阅报价' not in row['source']

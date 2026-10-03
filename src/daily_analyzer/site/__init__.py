@@ -390,33 +390,39 @@ def _sector_data(
 
 
 def _summary_premarket(result: Mapping[str, Any]) -> dict[str, str]:
-    """盘前价格与涨跌幅取自同一时段；没有涨跌幅（过期、非本时段）时不显示价格。"""
-    direct = _first(
-        result,
-        ("premarket_change_pct", "pre_market_change_pct", "premarket_pct_change", "premarket_return"),
-    )
-    if direct is not None:
-        return {"change": _percentage(direct), "price": "", "title": ""}
-    block = _provider_block(result, "extended_hours")
+    """展示冻结分析报价；旧报告缺真实原始时间证据时明确提示。"""
+    from ..context.analysis_quote import observation
+    empty = {"change": "—", "price": "", "title": "真实行情时间未核验（旧报告）", "time": "", "reason": "真实行情时间未核验（旧报告）"}
+    symbol = str(result.get("analyzed_symbol") or result.get("symbol") or "")
+    block = _as_mapping(_provider_block(result, "extended_hours"))
     data = _block_data(block)
-    symbols = [str(result.get("symbol") or ""), str(result.get("analyzed_symbol") or "")]
-    for symbol in dict.fromkeys(symbol for symbol in symbols if symbol):
-        quote = _as_mapping(data.get(symbol))
-        premarket = _as_mapping(quote.get("pre"))
-        value = premarket.get("change_pct")
-        if value is not None:
-            price = premarket.get("price")
-            try:
-                price_text = f"{float(price):.2f} 美元" if price is not None else ""
-            except (TypeError, ValueError):
-                price_text = ""
-            title = "；".join(filter(None, [
-                f"{symbol} 盘前" if symbol != symbols[0] else "",
-                f"来源 {premarket['source']}" if premarket.get("source") else "",
-                f"报价时间 {_pretty_timestamp(premarket['quote_time'])}" if premarket.get("quote_time") else "",
-            ]))
-            return {"change": _percentage(value), "price": price_text, "title": title}
-    return {"change": "—", "price": "", "title": ""}
+    quote = _as_mapping(_as_mapping(data.get(symbol)).get("analysis_quote"))
+    if not quote:
+        return empty
+    try:
+        cutoff = datetime.fromisoformat(str(block.get("as_of")).replace("Z", "+00:00"))
+        saved_cutoff = datetime.fromisoformat(str(quote.get("cutoff")).replace("Z", "+00:00"))
+        if cutoff.tzinfo is None or saved_cutoff != cutoff or quote.get("symbol") != symbol:
+            raise ValueError
+        if result.get("mode") == "backfill":
+            anchor = datetime.fromisoformat(str(result.get("news_cutoff_utc")).replace("Z", "+00:00"))
+            if anchor.tzinfo is None or cutoff != anchor:
+                raise ValueError
+        else:
+            anchor = datetime.fromisoformat(str(result.get("context_as_of")).replace("Z", "+00:00"))
+            # 已有结果时间按秒持久化；block保留原始微秒，不放宽真实选价上界。
+            if anchor.tzinfo is None or cutoff.replace(microsecond=0) != anchor:
+                raise ValueError
+        cutoff = cutoff.astimezone(ZoneInfo("America/New_York"))
+    except (TypeError, ValueError):
+        return dict(empty, reason="分析截止或标的不匹配", title="分析截止或标的不匹配")
+    close = quote.get("official_previous_close") if quote.get("benchmark_verified") else None
+    checked = observation(symbol, cutoff, quote, close)
+    if checked["status"] != "可用":
+        return dict(empty, reason=checked["status"], title=checked["status"])
+    timestamp = _pretty_timestamp(quote.get("quote_time"))
+    title = "；".join(filter(None, [str(quote.get("source") or ""), str(quote.get("warning") or ""), "报价时间 " + timestamp, "涨跌幅相对P收盘" if checked.get("change_pct") is not None else "P收盘基准未核验"]))
+    return {"price": f"{float(checked['price']):.2f} 美元", "change": _percentage(checked.get("change_pct")), "time": timestamp, "title": title, "reason": ""}
 
 
 def _start_clock(value: Any) -> str:
@@ -606,7 +612,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "advice": _advice_summary(advice),
         "plans": plans, "allocation": _allocation_summary(result),
         "premarket": premarket["change"], "premarket_price": premarket["price"],
-        "premarket_title": premarket["title"],
+        "premarket_title": premarket["title"], "quote_time": premarket["time"], "quote_reason": premarket["reason"],
         "sector_rank": _display(sector.get("sector_rank") if sector.get("sector_rank") is not None
                                 else _summary_sector_rank(result)) if benchmark_kind == "sector" else "—",
         "sector_etf": sector.get("sector_etf") or "—",
