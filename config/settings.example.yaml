@@ -18,6 +18,7 @@ codex:
 tradingagents:
   earnings_expectations_enabled: true
   position_structure_enabled: true
+  sentiment_min_social_posts: 3
   # 方向由研究证据决定，执行条件单独给出；条件ATR目标仍遵守原门槛。
   risk_layer_direction_lock: true
   rating_timing_decoupled: true

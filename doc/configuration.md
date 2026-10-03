@@ -134,3 +134,4 @@ tradingagents:
 
 - `earnings_expectations_enabled`：见README当前已交付说明。
 - `position_structure_enabled`：见README当前已交付说明。
+- `sentiment_min_social_posts`：见README当前已交付说明。

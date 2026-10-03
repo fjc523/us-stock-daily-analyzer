@@ -77,3 +77,4 @@ SEC companyfacts 表体仍按 filing date 保持历史截止。新增官方 subm
 
 - `earnings_expectations_enabled`：见README当前已交付说明。
 - `position_structure_enabled`：见README当前已交付说明。
+- `sentiment_min_social_posts`：见README当前已交付说明。

@@ -201,6 +201,7 @@ class AnalyzerGraph(TradingAgentsGraph):
             identity = {**details, **identity}
         except Exception:
             pass
+        self._company_name = identity.get("company_name")
         if identity.get("company_name"):
             base = build_instrument_context(ticker, asset_type, identity, trade_date)
             from tradingagents.dataflows.date_window import is_historical
@@ -229,7 +230,7 @@ class AnalyzerGraph(TradingAgentsGraph):
         )
         full = initial['instrument_context']
         brief = full.removesuffix(self.injected_context) + self.brief_injected_context
-        initial.update(instrument_context_full=full, instrument_context_brief=brief,
+        initial.update(company_name=getattr(self, "_company_name", None) or "", instrument_context_full=full, instrument_context_brief=brief,
                        context_compaction=self.context_compaction, context_profiles=self.context_profiles)
         return initial
 
@@ -332,6 +333,7 @@ def build_upstream_config(
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
             "earnings_expectations_enabled": settings.tradingagents.earnings_expectations_enabled,
             "position_structure_enabled": settings.tradingagents.position_structure_enabled,
+            "sentiment_min_social_posts": settings.tradingagents.sentiment_min_social_posts,
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,
             "risk_layer_direction_lock": settings.tradingagents.risk_layer_direction_lock,
