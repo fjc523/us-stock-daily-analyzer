@@ -10,7 +10,7 @@ import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Literal, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -194,6 +194,13 @@ class CodexSettings(ConfigModel):
 
 
 class TradingAgentsSettings(ConfigModel):
+    context_compaction: bool = True
+    context_profiles: dict[str, Literal['full', 'brief']] = Field(default_factory=lambda: {
+        'news_analyst': 'full', 'research_manager': 'full', 'portfolio_manager': 'full',
+        'market_analyst': 'brief', 'fundamentals_analyst': 'brief', 'sentiment_analyst': 'brief',
+        'bull_researcher': 'brief', 'bear_researcher': 'brief', 'trader': 'brief',
+        'aggressive_debator': 'brief', 'conservative_debator': 'brief', 'neutral_debator': 'brief',
+    })
     output_language: str = "Chinese"
     max_debate_rounds: int = 1
     max_risk_discuss_rounds: int = 1

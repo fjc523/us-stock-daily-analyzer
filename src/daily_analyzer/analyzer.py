@@ -146,7 +146,17 @@ class AnalyzerGraph(TradingAgentsGraph):
                 framework += "\n当前为休市/收盘后分析；最近盘后报价日期与年龄见原after上下文，不能称实时可成交价。新闻按本次实际查询取得，日线与盘后价各有独立历史截止。"
         if item.type == "index":
             framework += f"\n订阅为指数{item.symbol}，以代理ETF {item.analysis_symbol}的价格给出点位。"
-        self.injected_context = framework + "\n\n" + render_context(self.context_blocks, context_as_of)
+        self.context_compaction = config.get('context_compaction', True)
+        self.context_profiles = dict(config.get('context_profiles') or {})
+        if self.context_compaction:
+            from daily_analyzer.context.compaction import render_compacted_context
+            self.injected_context = framework + "\n\n" + render_compacted_context(
+                self.context_blocks, context_as_of, validity=validity)
+            self.brief_injected_context = framework + "\n\n" + render_compacted_context(
+                self.context_blocks, context_as_of, profile='brief', validity=validity)
+        else:
+            self.injected_context = framework + "\n\n" + render_context(self.context_blocks, context_as_of)
+            self.brief_injected_context = self.injected_context
         self.tool_trace = ToolTraceCallback(clock, progress_path=self.state_log_dir.parent / "progress.json")
         self._clock = clock
         self._portfolio = portfolio
@@ -202,7 +212,7 @@ class AnalyzerGraph(TradingAgentsGraph):
     ):
         self.settle_pending(company_name)
         memory_ticker = str(self.item.symbol)
-        return self.propagator.create_initial_state(
+        initial = self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
@@ -214,6 +224,11 @@ class AnalyzerGraph(TradingAgentsGraph):
             ),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
+        full = initial['instrument_context']
+        brief = full.removesuffix(self.injected_context) + self.brief_injected_context
+        initial.update(instrument_context_full=full, instrument_context_brief=brief,
+                       context_compaction=self.context_compaction, context_profiles=self.context_profiles)
+        return initial
 
     def settle_pending(self, company_name: str) -> None:
         if self.mode == "backfill":
@@ -314,6 +329,8 @@ def build_upstream_config(
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,
+            "context_compaction": settings.tradingagents.context_compaction,
+            "context_profiles": settings.tradingagents.context_profiles,
             "checkpoint_enabled": False,
             "decision_horizon_trading_days": list(settings.decision.horizon_trading_days),
             "decision_plan_validity_trading_days": settings.decision.plan_validity_trading_days,

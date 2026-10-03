@@ -16,6 +16,12 @@ codex:
   min_version: "0.159.3"
 
 tradingagents:
+  context_compaction: true
+  # 未覆盖的角色沿用默认档位；完整版给新闻分析师/研究经理/组合经理。
+  context_profiles:
+    news_analyst: full
+    research_manager: full
+    portfolio_manager: full
   output_language: Chinese
   max_debate_rounds: 1
   max_risk_discuss_rounds: 1

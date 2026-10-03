@@ -109,7 +109,7 @@ def _home_tradingagents_metadata() -> dict[str, tuple[int, int, int]] | None:
 
 def _context(ticker: str, as_of: datetime) -> dict[str, ContextBlock]:
     return {
-        "fixture": ContextBlock(
+        "market_regime": ContextBlock(
             title="离线标的上下文",
             markdown=f"CONTEXT_{ticker}_UNIQUE\n盘前 148.20；夜盘 148.10；新闻发布时间 08:31 ET；固定测试数据，不是实盘报价。",
             data={"symbol": ticker},
