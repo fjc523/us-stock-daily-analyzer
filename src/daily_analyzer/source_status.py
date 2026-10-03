@@ -27,6 +27,17 @@ def clean_reason(value, secrets=()):
     return text[:240]
 
 
+def _clean_statement_metadata(value, secrets):
+    """元数据亦走既有脱敏；日期字符串、bool和数值不改变语义。"""
+    if isinstance(value, str):
+        return clean_reason(value, secrets)
+    if isinstance(value, Mapping):
+        return {key: _clean_statement_metadata(item, secrets) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_clean_statement_metadata(item, secrets) for item in value]
+    return value
+
+
 def _canonical_source(source):
     lower = source.lower()
     for token in ("alpaca", "fred", "cboe", "sec_edgar", "stocktwits", "reddit", "polymarket"):
@@ -97,6 +108,8 @@ class SourceStatusCollector:
                "duration_seconds": event.get("duration_seconds", 0),
                "symbol": event.get("symbol"),
                "recorded_at": event.get("recorded_at") or datetime.now(timezone.utc).isoformat()}
+        if isinstance(event.get('statement_metadata'), Mapping):
+            row['statement_metadata'] = _clean_statement_metadata(event['statement_metadata'], self.secrets)
         with self.lock:
             self.events.append(row)
 
@@ -129,7 +142,15 @@ class SourceStatusCollector:
         self._context(blocks)
         rows = []
         with self.lock:
-            events = list(self.events)
+            events = [dict(event, statement_metadata=_clean_statement_metadata(event['statement_metadata'], self.secrets))
+                      if isinstance(event.get('statement_metadata'), Mapping) else dict(event)
+                      for event in self.events]
+        # 旧seed未经过observe时，财报事件原字段仍须沿用同一脱敏。
+        for event in events:
+            if event.get('category') == '财报报表':
+                for key in ('error', 'source'):
+                    if isinstance(event.get(key), str):
+                        event[key] = clean_reason(event[key], self.secrets)
         for category in CATEGORIES:
             attempts = [dict(event) for event in events if event["category"] == category]
             if category in ("宏观指标", "VIX") and not fred_configured:
@@ -151,7 +172,20 @@ class SourceStatusCollector:
             reason = "；".join(dict.fromkeys(event.get("error", "") for event in attempts if event.get("error")))
             if status == "正常" and failed:
                 reason = "部分请求失败，主源仍可用；" + reason
+            statement_meta = {}
+            if category == '财报报表':
+                statement_events = [event for event in attempts if event.get('statement_metadata')]
+                if statement_events:
+                    statement_meta['statements'] = [dict(event['statement_metadata'], method=event.get('method')) for event in statement_events]
+                    last = statement_events[-1]['statement_metadata']
+                    statement_meta.update(latest_period=last.get('latest_period'), actual_source=last.get('actual_source'),
+                                          stale=any(event['statement_metadata'].get('stale') for event in statement_events))
+                    details = [f"{event.get('method')}表体期末{event['statement_metadata'].get('latest_period') or '未核验'}，实际来源{event['statement_metadata'].get('actual_source')}" + (f"；{event['statement_metadata']['reason']}" if event['statement_metadata'].get('reason') else '') for event in statement_events]
+                    reason = '；'.join(filter(None, [reason, *dict.fromkeys(details)]))
+                    if statement_meta['stale']:
+                        status = '降级'
             rows.append({"category": category, "source": "、".join(used) or "—", "status": status,
+                         **statement_meta,
                          "reason": reason,
                          "attempts": attempts, "recorded_at": attempts[-1].get("recorded_at") if attempts else None})
         return rows
