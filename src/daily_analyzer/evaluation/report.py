@@ -20,6 +20,43 @@ SCORES = {"Buy": 2, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -2}
 LAYERS = {"rm": "研究经理", "trader": "交易员", "pm": "组合经理"}
 
 
+def deduplicate(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """只读选择同日同代理；不推测缺失的完成时间。"""
+    groups = defaultdict(list)
+    for row in rows:
+        groups[(row["trade_date"], row.get("analysis_symbol") or row["symbol"])].append(row)
+    retained, fallbacks = [], []
+    for (day, symbol), group in sorted(groups.items()):
+        candidates = [row for row in group if row.get("type") == "index"] or group
+        finished = []
+        for row in candidates:
+            value = row.get("finished_at")
+            if value is None or value == "":
+                finished.append(None)
+                continue
+            try:
+                parsed = datetime.fromisoformat(value)
+                if parsed.tzinfo is None or parsed.utcoffset() is None:
+                    raise ValueError("缺少时区")
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"评估完成时间不可核验：{row.get('run_id')}/{row['symbol']} finished_at={value!r}") from exc
+            finished.append(parsed)
+        stable_key = lambda row: (str(row.get("run_id") or ""), row["symbol"])
+        if any(value is None for value in finished):
+            selected = max(candidates, key=stable_key)
+            fallbacks.append({"trade_date": day, "analysis_symbol": symbol,
+                              "reason": "优先候选缺finished_at，整组按run_id/symbol确定性选择",
+                              "selected_run_id": selected.get("run_id"), "selected_symbol": selected["symbol"]})
+        else:
+            selected = max(zip(candidates, finished), key=lambda pair: (pair[1], *stable_key(pair[0])))[0]
+        retained.append(selected)
+    return retained, {"original": len(rows), "retained": len(retained), "removed": len(rows) - len(retained), "fallbacks": fallbacks}
+
+
+def primary_metric(sample: dict[str, Any]) -> str:
+    return sample.get("record", {}).get("primary_metric") or "缺失主口径"
+
+
 def spearman(scores: list[float], returns: list[float]) -> float | None:
     """平均秩处理并列，常数评分或收益没有定义。"""
     if len(scores) < 2 or len(set(scores)) < 2 or len(set(returns)) < 2:
@@ -99,8 +136,18 @@ def samples_for(rows: list[dict[str, Any]], layer: str, window: int) -> list[dic
 
 
 def metrics(samples: list[dict[str, Any]], window: int) -> dict[str, Any]:
-    return {"n": len(samples), "hits": hit_rates(samples, window), "ic": rank_ic(samples),
-            "groups": {rating: summary([row["return"] for row in samples if row["score"] == score]) for rating, score in SCORES.items()}}
+    def descriptive(group):
+        return {"n": len(group), "hits": hit_rates(group, window),
+                "groups": {rating: summary([row["return"] for row in group if row["score"] == score]) for rating, score in SCORES.items()}}
+    grouped = {}
+    for metric in sorted({primary_metric(row) for row in samples}):
+        group = [row for row in samples if primary_metric(row) == metric]
+        grouped[metric] = descriptive(group)
+        if metric == "excess_vs_spy":
+            grouped[metric]["ic"] = rank_ic(group)
+    # 兼容入口只代表对SPY超额，绝对或未知口径不能重新进入IC。
+    excess = [row for row in samples if primary_metric(row) == "excess_vs_spy"]
+    return {**descriptive(samples), "ic": rank_ic(excess), "primary_metrics": grouped}
 
 
 def baseline_comparison(samples: list[dict[str, Any]], window: int) -> dict[str, Any]:
@@ -170,14 +217,15 @@ def bearish_warning(rows: list[dict[str, Any]]) -> bool:
 
 
 def analyze(rows: list[dict[str, Any]], *, window: int = 5, layer: str = "all") -> dict[str, Any]:
+    rows, deduplication = deduplicate(rows)
     layers = list(LAYERS) if layer == "all" else [layer]
-    result = {"rows": len(rows), "window": window, "warning": bearish_warning(rows), "layers": {}, "attribution": attribution(rows, window)}
+    result = {"rows": len(rows), "deduplication": deduplication, "window": window, "warning": bearish_warning(rows), "layers": {}, "attribution": attribution(rows, window)}
     for name in layers:
         samples = samples_for(rows, name, window)
         result["layers"][name] = {"metrics": metrics(samples, window), "baselines": baseline_comparison(samples, window),
             "daily": distributions(rows, name), "weekly": distributions(rows, name, weekly=True),
             "entry_groups": {basis: summary([s["return"] for s in samples if s["record"]["entry"]["basis"] == basis]) for basis in sorted({s["record"]["entry"]["basis"] for s in samples})},
-            "asset_groups": {metric: summary([s["return"] for s in samples if s["record"]["primary_metric"] == metric]) for metric in sorted({s["record"]["primary_metric"] for s in samples})},
+            "asset_groups": {metric: summary([s["return"] for s in samples if primary_metric(s) == metric]) for metric in sorted({primary_metric(s) for s in samples})},
             "sector_aux": summary([value for s in samples if (value := number(s["record"]["windows"][str(window)].get("excess_vs_sector"))) is not None])}
     return result
 
@@ -193,10 +241,18 @@ def _sample_note(n: int) -> str:
 
 
 def _metric_lines(label: str, result: dict[str, Any]) -> list[str]:
-    hits, ic = result["hits"], result["ic"]
-    return [f"{label}：{_sample_note(result['n'])}",
-            f"- 三分类命中率：{_value(hits['three'], percentage=True)}（{_sample_note(hits['three_n'])}）；符号命中率（不含Hold）：{_value(hits['sign'], percentage=True)}（{_sample_note(hits['sign_n'])}）。",
-            f"- Rank IC（{ic['mode']}）：均值 {_value(ic['mean'])}，标准差 {_value(ic['std'])}，t值 {_value(ic['t'])}；{_sample_note(ic['n'])}，有效横截面日期 {ic['valid_dates']}/{ic['eligible_dates']}。"]
+    hits = result["hits"]
+    lines = [f"{label}：{_sample_note(result['n'])}",
+             f"- 三分类命中率：{_value(hits['three'], percentage=True)}（{_sample_note(hits['three_n'])}）；符号命中率（不含Hold）：{_value(hits['sign'], percentage=True)}（{_sample_note(hits['sign_n'])}）。"]
+    if "ic" in result:
+        ic = result["ic"]
+        lines.append(f"- Rank IC（仅excess_vs_spy；{ic['mode']}）：均值 {_value(ic['mean'])}，标准差 {_value(ic['std'])}，t值 {_value(ic['t'])}；{_sample_note(ic['n'])}，有效横截面日期 {ic['valid_dates']}/{ic['eligible_dates']}。")
+    else:
+        lines.append("- 本口径不计算IC；绝对/未知收益不混入超额IC。")
+    for metric, group in result.get("primary_metrics", {}).items():
+        lines += ["", *_metric_lines(f"{label} / 主口径 {metric}", group)]
+        lines += _group_table(group["groups"], f"{metric}按评级分档收益")
+    return lines
 
 
 def _group_table(groups: dict[str, dict[str, Any]], label: str) -> list[str]:
@@ -208,9 +264,15 @@ def _group_table(groups: dict[str, dict[str, Any]], label: str) -> list[str]:
 
 
 def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datetime) -> str:
+    raw_rows = rows
+    rows, _ = deduplicate(raw_rows)
     window = result["window"]
+    dedup = result["deduplication"]
     lines = [f"# 评级评估报告 · {now.date().isoformat()}", "", f"生成时刻：{now.isoformat(timespec='seconds')}；窗口：{window}交易日；默认current筛选；{_sample_note(len(rows))}。", "",
              "本报告仅描述已观察样本，不证明策略有效性。真实未来窗口尚未成熟的记录保持 pending；未来运行验收为 NOT_TESTED。"]
+    lines += ["", f"C3代理去重：原始 {dedup['original']}，保留 {dedup['retained']}，重复剔除 {dedup['removed']}；C3分布、命中、收益、基线和归因共用保留集。C4点位/C5校准继续使用原始 {len(raw_rows)} 条记录。"]
+    for fallback in dedup["fallbacks"]:
+        lines.append(f"- 时间缺失降级：{fallback['trade_date']} / {fallback['analysis_symbol']}：{fallback['reason']}；保留 {fallback['selected_run_id']}/{fallback['selected_symbol']}。")
     if result["warning"]:
         lines += ["", '<span style="color:red">告警：最近10个实际交易日均有观测，PM 看多占比为0，且多数日市场环境偏强。</span>']
     statuses = Counter(row.get("windows", {}).get(str(window), {}).get("status", "未配置") for row in rows)
@@ -235,10 +297,10 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     for transition, groups in result["attribution"].items():
         lines += _group_table(groups, transition)
     lines += ["", "## 口径说明", "",
-        "1. 唯一键run_id+symbol；只读取is_current=true，按trade_date筛选；重复非current运行保留审计而不重复统计。收益为小数比例，未模拟资金、组合、交易成本。指数使用代理ETF；指数/配置宽基主口径绝对收益，股票/其他ETF主口径对SPY超额，股票板块超额为辅助；SPY代理对自身超额为空。",
+        "1. 存储唯一键run_id+symbol；只读取is_current=true，按trade_date筛选。C3按trade_date+analysis_symbol去重（旧记录缺代理回退symbol）：index优先，优先类型内真实带时区finished_at较晚者优先，同刻取run_id字典序较大者，再取symbol字典序较大者；优先候选缺完成时间时整组按run_id/symbol确定性选择并列明降级，不制造时间；非法非空或无时区时间拒绝。原始记录不改写。收益为小数比例，未模拟资金、组合、交易成本。指数使用代理ETF；指数/配置宽基主口径绝对收益，股票/其他ETF主口径对SPY超额，股票板块超额为辅助；SPY代理对自身超额为空。",
         "2. finished_at开盘前取当日开，开盘至实际收盘（含边界）取当日收盘近似；收盘后/休市取下一交易日开。XNYS含假日/半日市；开盘窗口N含入场日，收盘窗口N从下一交易日起；标的和基准入场类型/出场收盘相同；每个资产窗口在同一来源和同次复权快照取入场/出场，窗口pricing记录实际价格与来源，顶层entry.price保留首次展示观测（可能不同复权单位），不用于后续复权收益；只用完整日线，缺价不可用、未成熟pending。",
         "3. Buy/Overweight/Hold/Underweight/Sell评分=2/1/0/-1/-2。死区d=0.5×分析时ATR14/P_Close×sqrt(N)；收益>d涨、<-d跌、边界含在平。看多对应涨、Hold对应平、看空对应跌；缺ATR/P_Close不进入三分类。符号命中率排除Hold，收益0无方向命中。",
-        "4. Spearman采用并列平均秩；同日n≥5计算横截面，报告有效日期IC均值、样本标准差、t=均值/(标准差/sqrt(有效日期数))。无有效横截面改池化并注明。常数评分/收益IC未定义；仅一个有效日期或标准差0时标准差/t相应未定义；池化不报时间序列t。",
+        "4. IC仅在excess_vs_spy超额组内计算，raw_return绝对组只报命中率和分档收益，未知/缺主口径明示且不进入IC；兼容IC字段只代表超额组。Spearman采用并列平均秩；同日n≥5计算横截面，报告有效日期IC均值、样本标准差、t=均值/(标准差/sqrt(有效日期数))。无有效横截面改池化并注明。常数评分/收益IC未定义；仅一个有效日期或标准差0时标准差/t相应未定义；池化不报时间序列t。",
         "5. 评级组均值/中位数；95%区间为1000次固定种子20261003重采样均值的2.5/97.5百分位，确定可复现。小样本或单样本区间不证明有效性，n<30仅供参考。",
         "6. 四基线：永远Hold评分0；永远看多评分1；P_Close>分析时MA200评分1否则-1；截至分析P的20交易日收益>0评分1否则-1。模型与四基线共享收益、评级、ATR/P_Close、MA200及动量完备交集，剔除与缺项可重叠计数；常数基线IC未定义。",
         "7. 分布按日期/周一分组，缺评级不填Hold；市场环境保持原始记录。告警需要最近10个实际交易日均有评级观测、PM看多为0且超过半数日期多数记录环境偏强，缺日期不补造。三层改评级只统计双方评级与成熟主收益均可用的上/下调样本。",
@@ -247,7 +309,7 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     ]
     from .price_plans import point_report
     from .calibration import calibration_report
-    lines += ["", point_report(rows), "", calibration_report(rows)]
+    lines += ["", point_report(raw_rows), "", calibration_report(raw_rows)]
     return "\n".join(lines) + "\n"
 
 

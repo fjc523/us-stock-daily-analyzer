@@ -264,3 +264,127 @@ def test_split_or_source_switch_window_same_snapshot_keeps_reference(tmp_path, l
     frozen = copy.deepcopy(outcome)
     settle(tmp_path, now=stamp('2026-11-02T17:00:00-05:00'), services=Adjusted(), settings=EvaluationSettings())
     assert rows(tmp_path)[0]['windows']['5'] == frozen
+
+
+def c3_record(symbol, rating='Buy', value=.1, metric='excess_vs_spy', **fields):
+    """合成已知答案，只验证统计契约。"""
+    row = fixture_outcome(ratings={name: rating for name in ('rm', 'trader', 'pm')}, value=value)
+    row.update(symbol=symbol, analysis_symbol=symbol, run_id=symbol, type='stock',
+               finished_at='2026-10-02T16:00:00-04:00', primary_metric=metric)
+    row.update(fields)
+    return row
+
+
+def test_c3_mixed_metric_known_ic_and_baseline_groups():
+    from daily_analyzer.evaluation.report import render_report
+    ratings = ['Sell', 'Underweight', 'Hold', 'Overweight', 'Buy']
+    values = [c3_record(f'S{i}', rating, (i-2)/10) for i, rating in enumerate(ratings)]
+    values += [c3_record(f'A{i}', rating, (2-i)/10, 'raw_return') for i, rating in enumerate(ratings)]
+    values += [c3_record('UNKNOWN', 'Buy', -.9, 'legacy_unknown')]
+    missing = c3_record('MISSING');missing.pop('primary_metric');values.append(missing)
+    result = analyze(values)
+    for layer in result['layers'].values():
+        metric = layer['metrics']
+        assert metric['n'] == 12
+        assert metric['ic']['mean'] == pytest.approx(1)
+        assert metric['ic']['n'] == 5 and metric['ic']['mode'] == '横截面'
+        groups = metric['primary_metrics']
+        assert groups['raw_return']['n'] == 5 and 'ic' not in groups['raw_return']
+        assert groups['raw_return']['hits']['sign'] == 0
+        assert groups['raw_return']['groups']['Buy']['mean'] == -.2
+        assert 'ic' not in groups['legacy_unknown'] and 'ic' not in groups['缺失主口径']
+        for baseline in layer['baselines']['metrics'].values():
+            assert {key: group['n'] for key, group in baseline['primary_metrics'].items()} == {
+                'excess_vs_spy': 5, 'raw_return': 5, 'legacy_unknown': 1, '缺失主口径': 1}
+            assert baseline['ic']['n'] == 5
+    text = render_report(values, result, stamp('2026-10-03T10:00:00-04:00'))
+    assert 'raw_return按评级分档收益' in text and '缺失主口径' in text
+    assert '仅excess_vs_spy；横截面' in text
+    pooled = analyze(values[:3]+values[5:])['layers']['pm']['metrics']['ic']
+    assert pooled['n'] == 3 and pooled['mode'] == '池化' and pooled['mean'] == pytest.approx(1)
+
+
+def test_c3_index_priority_and_all_c3_shared_denominator():
+    from daily_analyzer.evaluation.report import deduplicate
+    etf = c3_record('SPY', 'Buy', 9, 'raw_return', type='etf', finished_at='2026-10-02T23:00:00-04:00')
+    index = c3_record('^GSPC', 'Sell', -.2, 'raw_return', type='index', analysis_symbol='SPY')
+    index['ratings'].update(rm='Buy', trader='Hold', pm='Sell')
+    original = copy.deepcopy([etf, index])
+    retained, info = deduplicate(original)
+    assert retained == [index] and info['removed'] == 1
+    result = analyze(original)
+    assert original == [etf, index]
+    assert result['rows'] == 1
+    assert result['layers']['pm']['daily'][0]['counts']['Sell'] == 1
+    assert result['layers']['pm']['weekly'][0]['n'] == 1
+    assert result['layers']['pm']['metrics']['groups']['Sell']['mean'] == -.2
+    assert result['layers']['pm']['baselines']['n'] == 1
+    assert result['attribution']['rm→trader']['下调']['n'] == 1
+    assert result['attribution']['trader→pm']['下调']['n'] == 1
+    # 告警也使用保留集；较晚的ETF看多不能抵消指数的偏空观测。
+    calendar = xcals.get_calendar('XNYS');last = pd.Timestamp('2026-10-02')
+    ten_days = []
+    for offset in range(-9, 1):
+        day = calendar.session_offset(last, offset).date().isoformat()
+        ten_days += [{**index, 'trade_date': day}, {**etf, 'trade_date': day}]
+    assert analyze(ten_days)['warning'] is True
+
+
+@pytest.mark.parametrize('reverse', [False, True])
+def test_c3_completion_timezone_runid_and_symbol_ties(reverse):
+    from daily_analyzer.evaluation.report import deduplicate
+    rows = [c3_record('EARLY', analysis_symbol='A', run_id='z', finished_at='2026-10-02T17:00:00+00:00'),
+            c3_record('LATE', analysis_symbol='A', run_id='a', finished_at='2026-10-02T14:00:00-04:00'),
+            c3_record('TIE_A', analysis_symbol='B', run_id='a', finished_at='2026-10-02T18:00:00+00:00'),
+            c3_record('TIE_Z', analysis_symbol='B', run_id='z', finished_at='2026-10-02T14:00:00-04:00'),
+            c3_record('SYMBOL_A', analysis_symbol='C', run_id='same'),
+            c3_record('SYMBOL_Z', analysis_symbol='C', run_id='same')]
+    retained, info = deduplicate(list(reversed(rows)) if reverse else rows)
+    assert [row['symbol'] for row in retained] == ['LATE', 'TIE_Z', 'SYMBOL_Z']
+    assert info['fallbacks'] == []
+
+
+def test_c3_missing_time_whole_group_fallback_and_legacy_symbol():
+    from daily_analyzer.evaluation.report import deduplicate
+    missing = c3_record('MISSING', analysis_symbol='A', run_id='z');missing.pop('finished_at')
+    present = c3_record('PRESENT', analysis_symbol='A', run_id='a', finished_at='2026-10-02T23:00:00-04:00')
+    legacy = c3_record('LEGACY');legacy.pop('analysis_symbol');legacy['finished_at'] = ''
+    values = [missing, present, legacy]
+    retained, info = deduplicate(values)
+    assert deduplicate(list(reversed(values))) == (retained, info)
+    assert [row['symbol'] for row in retained] == ['MISSING', 'LEGACY']
+    assert len(info['fallbacks']) == 2 and '整组' in info['fallbacks'][0]['reason']
+    assert 'finished_at' not in retained[0]
+    # 低优先级ETF缺时间不导致已有真实时间的index候选降级。
+    index = c3_record('INDEX', type='index', analysis_symbol='A')
+    assert deduplicate([missing, index])[1]['fallbacks'] == []
+
+
+@pytest.mark.parametrize('finished', ['bad', '2026-10-02T16:00:00', '   ', 123])
+def test_c3_nonempty_invalid_completion_rejected(finished):
+    with pytest.raises(ValueError, match='完成时间不可核验'):
+        analyze([c3_record('BAD', finished_at=finished)])
+
+
+def test_c3_evaluate_readonly_and_c4_c5_original_inputs(tmp_path, monkeypatch):
+    from daily_analyzer.evaluation import price_plans, calibration
+    index = c3_record('^GSPC', type='index', analysis_symbol='SPY', metric='raw_return')
+    etf = c3_record('SPY', type='etf', metric='raw_return')
+    original = [etf, index]
+    seen = []
+    def capture(name):
+        def report(records):
+            seen.append((name, copy.deepcopy(records)))
+            return name
+        return report
+    monkeypatch.setattr(price_plans, 'point_report', capture('C4'))
+    monkeypatch.setattr(calibration, 'calibration_report', capture('C5'))
+    path = tmp_path/'data/evaluation/outcomes.jsonl';path.parent.mkdir(parents=True)
+    path.write_text('\n'.join(json.dumps(row) for row in original)+'\n')
+    before = path.read_bytes()
+    result = evaluate(tmp_path, now=stamp('2026-10-03T10:00:00-04:00'))
+    assert path.read_bytes() == before and result['records'] == 2
+    assert seen == [('C4', original), ('C5', original)]
+    text = Path(result['path']).read_text()
+    assert '原始 2，保留 1，重复剔除 1' in text
+    assert 'C4点位/C5校准继续使用原始 2 条记录' in text
