@@ -1,0 +1,31 @@
+{
+  "checks": [
+    {
+      "command": [
+        "openspec",
+        "validate",
+        "deploy-tradingagents-daily-analyzer",
+        "--strict"
+      ],
+      "exit_code": 0,
+      "stdout": "Change 'deploy-tradingagents-daily-analyzer' is valid\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "R2产品及共享测试SHA一致": true,
+  "R2核心以来仅收尾变化": [
+    "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md"
+  ],
+  "first_commit": "12ff5653c9e9e1aee14d3c82e85b36b4b4e0133c",
+  "说明": "第二提交仅文书，尚未stage；未来最终HEAD另作High远端核验"
+}

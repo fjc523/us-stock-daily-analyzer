@@ -1,0 +1,72 @@
+{
+  "说明": "经理授权准备的第二限定文书收尾准确清单，尚未stage；首次commit-files快照不改；最终remote核验本机保留避免自引用",
+  "first_commit": "12ff5653c9e9e1aee14d3c82e85b36b4b4e0133c",
+  "files": [
+    "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/index.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/stage-r1.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/commit-push-r1.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/staged-r1.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/staged-r1-raw.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/remote-r1.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/remote-r1-raw.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/closure-handoff.md",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/delivery-r2-checks.json",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/delivery-r2-files.json"
+  ],
+  "file_count": 11,
+  "total_bytes": 311360,
+  "entries": [
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md",
+      "bytes": 31041,
+      "sha256": "3ecb8813c1895264da6145283c54f2fc316b8e718cdc7ee77d4bea26c8e7394e"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/index.md",
+      "bytes": 5638,
+      "sha256": "7a4ab6eb22ae3a073c67eba3485680efafebde4ae9e773788744f7c088d77f10"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/stage-r1.json",
+      "bytes": 26833,
+      "sha256": "1f8c70f531dff49b905aa9e77acb21813f12fe83977dc197d78fdfaf8653291c"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/commit-push-r1.json",
+      "bytes": 34191,
+      "sha256": "e20cc7164cfa9b6dde96ab9bb5f07fe510de1943576b469867ed6f9d5237a0ae"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/staged-r1.md",
+      "bytes": 3391,
+      "sha256": "89d5b64397ff54fc10fe15236b3c95a8d6c78a52b34314b311c32bbae774b460"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/staged-r1-raw.json",
+      "bytes": 39472,
+      "sha256": "1e66dcb96064e029b20c75855426091d40462e1dc9a7555bd1a195b27ae272ba"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/remote-r1.md",
+      "bytes": 2706,
+      "sha256": "d2b5b6943fcd95dfcb3582e29a9dc8140237bb5d4bc87a5b2d7819ee7089ce34"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/review-new/remote-r1-raw.json",
+      "bytes": 161281,
+      "sha256": "b1d50571fbffba7b907c22d6e4cb7e9762d16a2876cb419e6c609656cae006bf"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/closure-handoff.md",
+      "bytes": 1955,
+      "sha256": "0363f1046d53dec8da36b53fdc66d9518c77aee97209157e04d3802fa70aa420"
+    },
+    {
+      "path": "openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/implementation/delivery-r2-checks.json",
+      "bytes": 743,
+      "sha256": "a1850b9563498de060c2ecc7ba63552ffdcbb793ddf55f5abc941b7a0bc91fa1"
+    }
+  ],
+  "自身指纹": "不递归记录本manifest自身SHA，另由staged审核核验"
+}
