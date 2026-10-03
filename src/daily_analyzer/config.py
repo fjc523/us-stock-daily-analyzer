@@ -197,6 +197,8 @@ class TradingAgentsSettings(ConfigModel):
     earnings_expectations_enabled: bool = True
     position_structure_enabled: bool = True
     sentiment_min_social_posts: int = Field(default=3, ge=0)
+    lesson_min_settled_same_ticker: int = Field(default=10, ge=0)
+    cross_ticker_lessons: Literal["off", "stats", "text"] = "stats"
     risk_layer_direction_lock: bool = True
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True

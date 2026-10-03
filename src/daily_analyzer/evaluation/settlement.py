@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import hashlib
 import math
 import os
 import re
@@ -225,6 +226,7 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
         if key not in indexed:
             indexed[key] = new_record(result, settings, manual, services)
             added += 1
+        indexed[key].setdefault('decision_fingerprint',hashlib.sha256(str(result.get('final_trade_decision') or '').encode('utf-8')).hexdigest())
     current = set()
     for source in (root / "data/runs").glob("*/current/*.json"):
         row = read_json(source)
