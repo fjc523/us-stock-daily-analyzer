@@ -23,6 +23,13 @@ tradingagents:
   cross_ticker_lessons: stats
   price_plan_evaluation_enabled: true
   rating_probability_fields: true
+  # 显式null恢复旧配置提示；单位为该标的标准计划量%，不是账户资产比例。
+  allocation_bands:
+    Sell: {lower: 0, upper: 20, lower_inclusive: true, upper_inclusive: false}
+    Underweight: {lower: 20, upper: 80, lower_inclusive: true, upper_inclusive: false}
+    Hold: {lower: 80, upper: 120, lower_inclusive: true, upper_inclusive: true}
+    Overweight: {lower: 120, upper: 135, lower_inclusive: false, upper_inclusive: true}
+    Buy: {lower: 135, upper: 150, lower_inclusive: false, upper_inclusive: true}
   # 方向由研究证据决定，执行条件单独给出；条件ATR目标仍遵守原门槛。
   risk_layer_direction_lock: true
   rating_timing_decoupled: true

@@ -130,13 +130,6 @@ tradingagents:
 三个开关关闭时保留原Trader/PM提示、schema描述与点位规则；风险审阅开关关闭时保留原三角色提示。独立开关组合由图私有配置选择，不借全局set_config切模式；研究层T14/T15开关不由本组重置。
 
 
-### 中优先级投研增量
+### 中优先级投研开关
 
-- `earnings_expectations_enabled`：见README当前已交付说明。
-- `position_structure_enabled`：见README当前已交付说明。
-- `sentiment_min_social_posts`：见README当前已交付说明。
-- `lesson_min_settled_same_ticker`：见README当前已交付说明。
-- `cross_ticker_lessons`：见README当前已交付说明。
-- `evaluation_outcomes_path`：见README当前已交付说明。
-- `price_plan_evaluation_enabled`：见README当前已交付说明。
-- `rating_probability_fields`：见README当前已交付说明。
+上述新行为位于 `tradingagents`：`earnings_expectations_enabled`、`position_structure_enabled`、`price_plan_evaluation_enabled`、`rating_probability_fields` 默认为true；`sentiment_min_social_posts` 默认3（0旧情绪路径）；`lesson_min_settled_same_ticker` 默认10，`cross_ticker_lessons`默认stats（N0/text旧memory路径）；`allocation_bands`按README确认表默认，null只关闭配置约束。新增结果字段可选，不迁移旧报告，关闭分支按固定提交独立旧源码比较提示。自定义区间每档包含lower/upper与两个inclusive布尔值，不重叠；不会覆盖用户已提供表。概率0–1有限数值或明确未知文本，不以默认值代替模型未给出的概率。

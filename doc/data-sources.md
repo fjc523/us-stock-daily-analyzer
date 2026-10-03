@@ -73,13 +73,6 @@ SEC companyfacts 表体仍按 filing date 保持历史截止。新增官方 subm
 官方能力依据：[SEC EDGAR API说明](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)。submissions包含至少一年或1000条近期申报及旧文件目录；companyfacts聚合标准分类且整实体的事实。官方典型更新延迟是秒/分钟级且高峰可延长，因此单家公司缺期不能笼统归因成通常同步慢。2026-10-03轻量只读HTTP响应核实SMTC的2026-07-26 10-Q于8月26日提交，本机companyfacts三表仍4月26日；响应和回放证据只存本机ignored目录。
 
 
-### 中优先级投研增量
+### T9/T10/T11：新增来源与降级
 
-- `earnings_expectations_enabled`：见README当前已交付说明。
-- `position_structure_enabled`：见README当前已交付说明。
-- `sentiment_min_social_posts`：见README当前已交付说明。
-- `lesson_min_settled_same_ticker`：见README当前已交付说明。
-- `cross_ticker_lessons`：见README当前已交付说明。
-- `evaluation_outcomes_path`：见README当前已交付说明。
-- `price_plan_evaluation_enabled`：见README当前已交付说明。
-- `rating_probability_fields`：见README当前已交付说明。
+一致预期选择已实际核验五个股六类字段的yfinance；当前快照的历史回看EPS不构成历史抓取vintage。Alpha Vantage EARNINGS为历史业绩惊喜，另有EARNINGS_ESTIMATES可提供当前预期/人数/修正；本机无key，覆盖和PIT未核验，不扩大接入。EPS变化%使用(当前−过去)/过去，零/缺值不计算，负基数保留符号。期权链真实无权限仅保留空头分支，不能借静态合约元数据声称IV行情可得；空头数据日期缺失时显示未核验。来源状态新增一致预期、期权、空头和情绪。社交计数保留兼容字符串接口，开启时使用结构化属性，不从标题汇总文本猜有效数；旧K0按原文本路径。

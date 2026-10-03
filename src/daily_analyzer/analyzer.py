@@ -338,6 +338,7 @@ def build_upstream_config(
             "cross_ticker_lessons": settings.tradingagents.cross_ticker_lessons,
             "price_plan_evaluation_enabled": settings.tradingagents.price_plan_evaluation_enabled,
             "rating_probability_fields": settings.tradingagents.rating_probability_fields,
+            "allocation_bands": {name: band.model_dump() for name,band in settings.tradingagents.allocation_bands.items()} if settings.tradingagents.allocation_bands is not None else None,
             "evaluation_outcomes_path": str(root / "data" / "evaluation" / "outcomes.jsonl"),
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,

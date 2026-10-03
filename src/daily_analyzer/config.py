@@ -193,6 +193,19 @@ class CodexSettings(ConfigModel):
         return value
 
 
+class AllocationBand(ConfigModel):
+    """可修改的标准配置区间及端点归属。"""
+    lower: FiniteFloat
+    upper: FiniteFloat
+    lower_inclusive: bool = True
+    upper_inclusive: bool = True
+
+
+def default_allocation_bands():
+    from tradingagents.agents.rating import DEFAULT_ALLOCATION_BANDS
+    return {name: AllocationBand(**band) for name,band in DEFAULT_ALLOCATION_BANDS.items()}
+
+
 class TradingAgentsSettings(ConfigModel):
     earnings_expectations_enabled: bool = True
     position_structure_enabled: bool = True
@@ -201,6 +214,7 @@ class TradingAgentsSettings(ConfigModel):
     cross_ticker_lessons: Literal["off", "stats", "text"] = "stats"
     price_plan_evaluation_enabled: bool = True
     rating_probability_fields: bool = True
+    allocation_bands: dict[str, AllocationBand] | None = Field(default_factory=default_allocation_bands)
     risk_layer_direction_lock: bool = True
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True
@@ -218,6 +232,22 @@ class TradingAgentsSettings(ConfigModel):
     max_risk_discuss_rounds: int = 1
     stocktwits_enabled: bool = False
     late_news_refresh: bool = True
+
+    @field_validator("allocation_bands")
+    @classmethod
+    def validate_allocation_bands(cls, value):
+        if value is None:
+            return None
+        if set(value) != {'Buy','Overweight','Hold','Underweight','Sell'}:
+            raise ValueError('配置区间必须明确包含五档评级')
+        ordered=sorted(value.values(),key=lambda band:band.lower)
+        for band in ordered:
+            if band.lower < 0 or band.lower >= band.upper:
+                raise ValueError('配置区间必须满足0≤下沿<上沿')
+        for previous,following in zip(ordered,ordered[1:]):
+            if previous.upper>following.lower or (previous.upper==following.lower and previous.upper_inclusive and following.lower_inclusive):
+                raise ValueError('配置区间不得重叠')
+        return value
 
     @field_validator("output_language")
     @classmethod
