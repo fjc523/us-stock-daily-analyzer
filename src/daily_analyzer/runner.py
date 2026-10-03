@@ -578,6 +578,8 @@ def _analyze_item(
             "final_rating": str(rating),
             "rating_cn": _rating_cn(rating),
             "final_trade_decision": final_state.get("final_trade_decision"),
+            "decision_plan_validity_trading_days": shared_config.get("decision_plan_validity_trading_days", 5),
+            "structured": {key: final_state.get("structured_" + key) for key in ("research_plan", "trader_proposal", "pm_decision")},
             "late_news": final_state.get("late_news", []),
             "late_news_errors": final_state.get("late_news_errors", []),
             "late_macro": final_state.get("late_macro", []),

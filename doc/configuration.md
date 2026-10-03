@@ -138,3 +138,4 @@ tradingagents:
 - `lesson_min_settled_same_ticker`：见README当前已交付说明。
 - `cross_ticker_lessons`：见README当前已交付说明。
 - `evaluation_outcomes_path`：见README当前已交付说明。
+- `price_plan_evaluation_enabled`：见README当前已交付说明。

@@ -69,7 +69,7 @@ def last_complete_session(now: datetime) -> date:
     return candidate.date()
 
 
-def bar_prices(rows: list[dict[str, Any]], cutoff: date) -> dict[date, dict[str, float | None]]:
+def bar_prices(rows: list[dict[str, Any]], cutoff: date, *, include_extremes=False) -> dict[date, dict[str, float | None]]:
     """仅认确切日期；不以前后交易日或close替代open。"""
     output = {}
     for row in rows:
@@ -86,6 +86,8 @@ def bar_prices(rows: list[dict[str, Any]], cutoff: date) -> dict[date, dict[str,
         def price(keys):
             return next((value for key in keys if (value := number(row.get(key), positive=True)) is not None), None)
         output[day] = {"open": price(("o", "open", "Open")), "close": price(("c", "close", "Close", "adjclose", "Adj Close"))}
+        if include_extremes:
+            output[day].update(high=price(("h", "high", "High")), low=price(("l", "low", "Low")))
     return output
 
 
@@ -213,7 +215,18 @@ def write_outcomes(path: Path, rows: list[dict[str, Any]]) -> bool:
     return True
 
 
-def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], services: Any, now: datetime) -> dict[str, Any]:
+def point_validity(result):
+    """只读分析时显式有效期；旧记录无证明时标明默认5，不套当前配置。"""
+    value=result.get('decision_plan_validity_trading_days')
+    if isinstance(value,int) and not isinstance(value,bool) and value>0:
+        return {'days':value,'source':'analysis_result_explicit'}
+    matches=set(re.findall(r'点位方案有效期：分析当日起([1-9][0-9]*)个交易日。',str(result.get('injected_context') or '')))
+    if len(matches)==1:
+        return {'days':int(next(iter(matches))),'source':'legacy_injected_context_explicit'}
+    return {'days':5,'source':'legacy_default_5_unverified','note':'旧记录未保存可核验有效期，采用默认5交易日；不代表历史配置已证明'}
+
+
+def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], services: Any, now: datetime, *, point_plans_enabled=True, validity=5) -> dict[str, Any]:
     path = root / "data/evaluation/outcomes.jsonl"
     rows = load_outcomes(path)
     indexed = {(row["run_id"], row["symbol"]): row for row in rows}
@@ -227,6 +240,14 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
             indexed[key] = new_record(result, settings, manual, services)
             added += 1
         indexed[key].setdefault('decision_fingerprint',hashlib.sha256(str(result.get('final_trade_decision') or '').encode('utf-8')).hexdigest())
+        if point_plans_enabled:
+            indexed[key].setdefault('point_validity',point_validity(result))
+        if point_plans_enabled and 'point_plans' not in indexed[key]:
+            from .price_plans import extract_plans
+            indexed[key]['point_plans']=extract_plans(result)
+            anchor_data=block_data(result,'price_anchors')
+            close_anchor=(anchor_data.get('anchors') or {}).get('P_Close') or {}
+            indexed[key]['point_price_unit']={'source':anchor_data.get('source'), 'date':close_anchor.get('date'), 'close':number(close_anchor.get('value'),positive=True)}
     current = set()
     for source in (root / "data/runs").glob("*/current/*.json"):
         row = read_json(source)
@@ -239,7 +260,7 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
         if key not in cache:
             try:
                 raw, source = services.prices.bars(symbol, cutoff)
-                cache[key] = (bar_prices(raw, cutoff), source, raw)
+                cache[key] = (bar_prices(raw, cutoff, include_extremes=point_plans_enabled), source, raw)
             except Exception:
                 cache[key] = ({}, "不可用", [])
         return cache[key]
@@ -263,6 +284,25 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
             entry["price"] = entry_rows.get(day, {}).get(field)
             entry["source"] = source
             entry["basis"] = basis if entry["price"] is not None else "unavailable"
+        if point_plans_enabled and row.get('point_plans'):
+            from .price_plans import evaluate_plan
+            calendar=xcals.get_calendar('XNYS')
+            frozen=row.setdefault('point_validity',point_validity({}))
+            plan_validity=frozen['days']
+            valid_end=calendar.session_offset(pd.Timestamp(day),plan_validity-1).date()
+            mature=valid_end<=end
+            plan_bars,plan_source,_=prices(row['analysis_symbol'],valid_end) if mature else ({},None,[])
+            unit=row.get('point_price_unit') or {}
+            try:
+                anchor_close=plan_bars.get(date.fromisoformat(unit['date']),{}).get('close')
+            except (KeyError,TypeError,ValueError):
+                anchor_close=None
+            units_verified=bool(unit.get('source')==plan_source and unit.get('close') is not None and anchor_close is not None and math.isclose(unit['close'],anchor_close,rel_tol=1e-7,abs_tol=1e-7))
+            for plan in row['point_plans'].values():
+                if plan.get('outcome',{}).get('status') in ('settled','not_applicable'):
+                    continue
+                plan['outcome']=evaluate_plan(plan,plan_bars,start=day.isoformat(),end=valid_end.isoformat(),basis=basis,mature=mature,units_verified=units_verified)
+                plan['outcome'].update(validity_days=plan_validity,validity_source=frozen['source'],start=day.isoformat(),end=valid_end.isoformat(),price_source=plan_source)
         for outcome in row["windows"].values():
             if outcome["status"] == "settled":
                 continue
@@ -318,12 +358,16 @@ def settle(root: str | Path, *, now: datetime | None = None, services: Any = Non
     root = Path(root)
     now = now or datetime.now(NEW_YORK)
     environment = {}
+    point_plans_enabled=True
+    validity=5
     if settings is None:
         project = load_project_config(root)
         settings = project.settings.evaluation
+        point_plans_enabled=project.settings.tradingagents.price_plan_evaluation_enabled
+        validity=project.settings.decision.plan_validity_trading_days
         manual = {item.symbol: item.sector_etf for item in project.watchlist.items if item.sector_etf}
         for secret, name in ((project.credentials.alpaca_key_id, "APCA_API_KEY_ID"), (project.credentials.alpaca_secret_key, "APCA_API_SECRET_KEY")):
             if secret is not None:
                 environment[name] = secret.get_secret_value()
     with patch.dict(os.environ, environment), evaluation_lock(root):
-        return _settle(root, settings, manual or {}, services or SettlementServices(root), now)
+        return _settle(root, settings, manual or {}, services or SettlementServices(root), now, point_plans_enabled=point_plans_enabled, validity=validity)

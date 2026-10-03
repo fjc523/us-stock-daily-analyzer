@@ -199,6 +199,7 @@ class TradingAgentsSettings(ConfigModel):
     sentiment_min_social_posts: int = Field(default=3, ge=0)
     lesson_min_settled_same_ticker: int = Field(default=10, ge=0)
     cross_ticker_lessons: Literal["off", "stats", "text"] = "stats"
+    price_plan_evaluation_enabled: bool = True
     risk_layer_direction_lock: bool = True
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True
