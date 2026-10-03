@@ -2,3 +2,7 @@
 	path = TradingAgents
 	url = git@github.com:fjc523/TradingAgents.git
 	branch = codex/standard-position-plans
+[submodule "openspec"]
+	path = openspec
+	url = git@github.com:fjc523/us-stock-daily-analyzer-openspec.git
+	branch = codex/project-proposals

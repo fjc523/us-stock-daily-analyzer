@@ -7,7 +7,7 @@
 ## 运行前提
 
 - macOS、Python 3.13 或更高版本，以及可用的 Git 和网络连接。
-- 对本项目和 `fjc523/TradingAgents` fork 有 GitHub SSH 访问权限；首次克隆需取回子模块。
+- 对本项目、`fjc523/TradingAgents` fork 和私有规范仓库 `fjc523/us-stock-daily-analyzer-openspec` 均有 GitHub SSH 访问权限；首次克隆需取回两个子模块。
 - Codex CLI 不低于配置中的 `codex.min_version`（示例为 `0.159.3`），并已使用 ChatGPT 账号登录。可用 `codex --version` 和 `codex login status` 检查。项目只调用 Codex CLI，不读取或复制 Codex 登录凭据。
 - Alpaca 行情与新闻需要项目自己的 API 凭据。富途扩展时段数据需要在计划运行前启动并登录本机 Futu OpenD（默认 `127.0.0.1:11111`）；OpenD 不可用时会降级，扩展时段数据的来源和覆盖可能不同。
 - LaunchAgent 只在用户已登录的图形会话中运行。计划时刻电脑需开机；睡眠唤醒需要另外设置 macOS 定时唤醒。
@@ -22,7 +22,9 @@ python3.13 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
 ```
 
-若克隆时没有取回子模块：
+`--recurse-submodules` 同时初始化分析引擎 `TradingAgents/` 和规范 `openspec/`，父项目锁定它们的具体提交，不自动跟随维护分支。私有规范仓库无访问权限时初始化会失败，需由仓库所有者授予权限；不能用空目录替代规范。
+
+若克隆时没有取回子模块，或更新主项目后首次取得 `openspec/` 子模块：
 
 ```sh
 git submodule update --init --recursive

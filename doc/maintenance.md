@@ -20,6 +20,21 @@ git -C TradingAgents merge upstream/main
 
 完成测试和独立审核、并获主代理批准后，在 fork 的维护分支中提交并推送到有 SSH 权限的用户 fork，再回到主项目提交和推送 `TradingAgents` 子模块指针。运行时不会从其他项目导入代码或配置。
 
+## OpenSpec 私有子仓库维护
+
+`openspec/` 是 [fjc523/us-stock-daily-analyzer-openspec](https://github.com/fjc523/us-stock-daily-analyzer-openspec) 的标准Git子模块，专用及默认维护分支为 `codex/project-proposals`，`.gitmodules` 已登记。提案、设计、tasks和specs仍在原路径，继续从项目根运行 `openspec validate deploy-tradingagents-daily-analyzer --strict`。验证工件 `**/evidence/` 和 `.DS_Store` 保留本地且由子仓库忽略；不要强制添加或清理本机证据。迁移前旧正文仍保留在父Git历史，迁移后父只跟踪openspec gitlink。
+
+首次/既有克隆使用安装文档的递归初始化命令，并确保账号拥有此私有仓库权限。初始化通常处于父锁定提交的detached HEAD，维护前检查工作树并切到登记维护分支：
+
+```sh
+git -C openspec status --short
+git -C openspec fetch origin
+git -C openspec switch codex/project-proposals
+openspec validate deploy-tradingagents-daily-analyzer --strict
+```
+
+完成范围适合的验证和独立审核后，在openspec维护分支精确暂存正文、中文提交并普通推送；随后回到父项目精确提交/推送 `openspec` gitlink及必要文档。父项目仍锁定具体提交，禁止未核验的 `git submodule update --remote` 自动升级。功能代码与服务不依赖提案仓库内容，不为文书迁移重启生产。不要将TradingAgents改动混进本任务。
+
 ## 项目协作约定
 
 - 所有说明、注释和文档使用中文。主项目维护配置、运行编排、上下文、站点与部署；TradingAgents 通用能力改动放在 `TradingAgents/` 子模块，分别测试、独立审核并获主代理批准后再推送和更新子模块指针。
