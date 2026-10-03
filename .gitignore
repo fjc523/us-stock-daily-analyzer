@@ -10,3 +10,8 @@ config/*.yaml
 !config/*.example.yaml
 config/secrets.env
 .claude/
+
+# 本机任务数据与验证工件保留本地，不进入版本库
+.DS_Store
+.vantage/tasks/
+openspec/changes/**/evidence/
