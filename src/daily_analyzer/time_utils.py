@@ -67,9 +67,9 @@ def select_run_window(date_value: str | None, now: datetime) -> RunWindow:
     current = as_new_york(now)
     today = current.date()
     if date_value is None:
-        if not is_trading_day(today) or current >= session_bounds(today)[1]:
-            raise NoTradingSessionError("当前没有可分析的交易日；下一个交易日将在锚点时刻自动分析")
-        trade_day = today
+        # 当前手动请求保留请求自然日；日线只采用最近完整收盘。
+        price_end = today if is_trading_day(today) and current >= session_bounds(today)[1] else previous_trading_day(today)
+        return RunWindow(today, price_end, "live", None)
     else:
         trade_day = parse_trade_date(date_value)
         if trade_day > today:

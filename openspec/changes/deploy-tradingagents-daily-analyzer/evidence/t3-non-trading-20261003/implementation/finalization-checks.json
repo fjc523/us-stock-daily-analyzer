@@ -1,0 +1,51 @@
+{
+  "checks": [
+    {
+      "command": [
+        "openspec",
+        "validate",
+        "deploy-tradingagents-daily-analyzer",
+        "--strict"
+      ],
+      "exit_code": 0,
+      "stdout": "Change 'deploy-tradingagents-daily-analyzer' is valid\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "R2产品及共享测试指纹一致": true,
+  "R2冻结以来变动": [
+    "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md"
+  ],
+  "允许收尾变化": "tasks.md仅21.4/21.5勾与21.6待执行状态，其余产品冻结不变",
+  "sha256": {
+    "README.md": "a135f665f2aba4e49bea2737b2eac5f364d383e3dc8fd9267650ddf1e32faa20",
+    "src/daily_analyzer/time_utils.py": "cb43538597de43139d2fe9fe0ac8d0eeebf28a6b8005021b50c0cb84e911ac00",
+    "src/daily_analyzer/runner.py": "d931693ed2075f491341d703039cdf3eb8c1c24093265ed092c6688d7fc153d2",
+    "src/daily_analyzer/analyzer.py": "956af8916130da95cd37820d6137087330f6b1a3684a52aa3b5b8e2a5e64e812",
+    "src/daily_analyzer/live_information.py": "4e14367b254c1b809325a0054a2ec19d5e37fc53b2f7259334df17ca41c91f40",
+    "src/daily_analyzer/context/analysis_quote.py": "77d1c53a80c87d1a221d43b1829b84a79512f014417386f58f5dd9390ee18c18",
+    "src/daily_analyzer/context/providers.py": "f2a676dae2c1d487750eb59fb0a15c93d2195ba2b94e441c32befa6e9e153902",
+    "src/daily_analyzer/site/__init__.py": "c9dc44b821c41cf09bf3624321c293e6eeb45509f7c3086105492aebb727d960",
+    "src/daily_analyzer/site/templates.py": "fbda170c5369cc30898e396fa7dcaf0ee7c68b70e4e57bb08bc6ed79dec167d5",
+    "tests/test_time_utils.py": "23794f96b84d425adcfa647bd7444727c2c9adc205dccfb7f62e2bcbccc66f48",
+    "tests/test_viewer.py": "313263650f183bf21fab382a7dd46ef77ddb106cb3bbdd1b99c883d14c56ab8a",
+    "tests/test_non_trading_analysis.py": "d06603354e5481c99e5e947316bdc14b9895c76caada4fa2f9c1f6f61618ade0",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/proposal.md": "7a6a8803c4456c2d2582ce7fea7c69695968f503bb0b6ac4b4f378eef472b055",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/design.md": "fea230c414b4dc181cf55022ebe4bdf235d01824197b64a0c6370020264303dc",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/tasks.md": "0abc70e04b042eb37b17b4c6ea1a151e9d438d09f91374ca78637ffc0ef1f08b",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/daily-analysis-run/spec.md": "b20716f149d008ccf10813c85821f845ffeffeda23500442d1bc6d04d4fc2e4d",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/html-report-viewer/spec.md": "b6297ddd7b5dbbc2c071d830b96fcfcc339ecab92f1b4e39698220f6afa651b1",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/market-context-providers/spec.md": "9fe29796b0d0aa561a300b1047a36d3e38b2b893134206845a34acf021c5a59b",
+    "openspec/changes/deploy-tradingagents-daily-analyzer/specs/scheduled-deployment/spec.md": "4cec96ff624529173574f556bb5e36fa7fcf5e284480b5f98d57ca9eb2edbd9f"
+  }
+}

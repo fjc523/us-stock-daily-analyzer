@@ -1,0 +1,255 @@
+........................................................................ [ 34%]
+........................................................................ [ 68%]
+............................F....................................F.      [100%]
+=================================== FAILURES ===================================
+_ test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_memory _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x117b92eb0>
+tmp_path = PosixPath('/private/var/folders/k1/7_38h7855q3d2f2392564y480000gn/T/pytest-of-zhoulei/pytest-1890/test_real_analyzer_graph_runs_0')
+
+    def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_memory(
+        monkeypatch, tmp_path: Path
+    ) -> None:
+        fixed_today = lambda: LIVE_DATE
+        from daily_analyzer.data_sources.futu import FutuDataSource
+        monkeypatch.setattr(FutuDataSource, "identity", lambda *args: {})
+        from tradingagents.dataflows.errors import VendorUnavailableError
+        def no_futu_daily(*args, **kwargs):
+            raise VendorUnavailableError("离线测试不连接OpenD")
+        monkeypatch.setattr(FutuDataSource, "daily_bars", no_futu_daily)
+        monkeypatch.setattr(FutuDataSource, "_call", no_futu_daily)
+        monkeypatch.setattr(date_window, "get_current_date", fixed_today)
+        monkeypatch.setattr(trading_graph_module, "get_current_date", fixed_today)
+        monkeypatch.setattr(
+            trading_graph_module,
+            "resolve_instrument_identity",
+            lambda ticker: {"company_name": f"测试企业 {ticker}"},
+        )
+    
+        data_calls = []
+        calls_lock = threading.Lock()
+    
+        def fake_route_to_vendor(name, *args, **kwargs):
+            with calls_lock:
+                data_calls.append((name, *args, kwargs))
+            if name == "get_news":
+                return f"固定新闻样例：{args[0]}"
+            raise AssertionError(f"未打桩的数据工具被调用：{name}")
+    
+        monkeypatch.setattr(tools_module, "route_to_vendor", fake_route_to_vendor)
+    
+        llm_calls = []
+        llm_calls_lock = threading.Lock()
+    
+        def fake_codex_run(runner, prompt: str, schema: dict):
+            payload = json.loads(prompt)
+            messages = payload.get("messages", [])
+            properties = schema.get("properties", {})
+            tool_specs = payload.get("tools", [])
+            news_tool_available = any(
+                tool.get("function", {}).get("name") == "get_news"
+                for tool in tool_specs
+            )
+            news_tool_returned = any(
+                message.get("role") == "tool" and message.get("name") == "get_news"
+                for message in messages
+            )
+            with llm_calls_lock:
+                llm_calls.append(
+                    {
+                        "model": runner.model,
+                        "effort": runner.reasoning_effort,
+                        "role": getattr(runner, "role", None),
+                        "prompt": prompt,
+                        "text": _message_text(prompt),
+                        "stage": "研究经理" if "recommendation" in properties else "交易员" if "action" in properties else "组合经理" if "rating" in properties else "分析师/辩论",
+                    }
+                )
+    
+            if "kind" in properties:
+                if news_tool_available and not news_tool_returned:
+                    output = {
+                        "kind": "tool_calls",
+                        "content": "",
+                        "tool_calls": [
+                            {
+                                "name": "get_news",
+                                "arguments_json": json.dumps(
+                                    {"start_date": "2026-09-25", "end_date": "2026-10-02"}
+                                ),
+                            }
+                        ],
+                    }
+                else:
+                    output = {
+                        "kind": "final",
+                        "content": "离线分析报告：只使用固定测试样例。",
+                        "tool_calls": [],
+                    }
+            elif "recommendation" in properties:
+                output = {
+                    "recommendation": "Hold",
+                    "rationale": "固定样例证据有限。",
+                    "strategic_actions": "继续观察。",
+                }
+            elif "action" in properties:
+                output = {
+                    "action": "Hold",
+                    "reasoning": "按固定样例保持观察。",
+                    "entry_price": None,
+                    "stop_loss": None,
+                    "position_sizing": None,
+                    "reference_price": "148.20 USD，2026-10-02 08:31 ET，固定测试样例",
+                    "entry_plan": "148.0–148.2；仅固定测试条件；跌破148失效；依据测试盘前价",
+                    "add_plan": "不适用；等待仓位与信号确认",
+                }
+            elif "rating" in properties:
+                output = {
+                    "rating": "Hold",
+                    "executive_summary": "固定离线样例建议保持观察。",
+                    "investment_thesis": "本次输出仅用于验证图集成。",
+                    "price_target": None,
+                    "time_horizon": None,
+                    "reference_price": "148.20 USD，2026-10-02 08:31 ET，固定测试样例",
+                    "entry_plan": "暂不建仓；等待固定样例证据补齐",
+                    "add_plan": "暂不加仓；等待固定样例证据补齐",
+                }
+            elif "content" in properties:
+                output = {"content": "离线辩论样例。"}
+            else:
+                raise AssertionError(f"测试未覆盖的模型输出 Schema：{schema}")
+            return SimpleNamespace(output=output, events={})
+    
+        monkeypatch.setattr(codex_runner_module.CodexExecRunner, "run", fake_codex_run)
+    
+        settings = _project_settings()
+        project_root = tmp_path / "project"
+        batch_dir = tmp_path / "runs" / "live-batch"
+        memory_path = project_root / "data" / "tradingagents" / "memory" / "trading_memory.md"
+        memory_path.parent.mkdir(parents=True)
+        seed = _memory_seed()
+        memory_path.write_bytes(seed)
+        home_before = _home_tradingagents_metadata()
+    
+        live_clock = FixtureClock(LIVE_CONTEXT_TIME)
+        graphs = {
+>           ticker: _new_graph(
+                ticker,
+                "live",
+                settings,
+                project_root,
+                batch_dir,
+                trade_date=LIVE_DATE,
+                price_data_end_date="2026-10-01",
+                context_as_of=LIVE_CONTEXT_TIME,
+                clock=live_clock,
+            )
+            for ticker in ("NVDA", "AAPL")
+        }
+
+tests/test_graph_integration.py:294: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_graph_integration.py:150: in _new_graph
+    return AnalyzerGraph(
+src/daily_analyzer/analyzer.py:156: in __init__
+    super().__init__(
+TradingAgents/tradingagents/graph/trading_graph.py:74: in __init__
+    set_config(self.config)
+TradingAgents/tradingagents/dataflows/config.py:41: in set_config
+    _merge(_config, config)
+TradingAgents/tradingagents/dataflows/config.py:25: in _merge
+    for key, value in deepcopy(config).items():
+                      ^^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:137: in deepcopy
+    y = copier(x, memo)
+        ^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:222: in _deepcopy_dict
+    y[deepcopy(key, memo)] = deepcopy(value, memo)
+                             ^^^^^^^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:163: in deepcopy
+    y = _reconstruct(x, memo, *rv)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:260: in _reconstruct
+    state = deepcopy(state, memo)
+            ^^^^^^^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:137: in deepcopy
+    y = copier(x, memo)
+        ^^^^^^^^^^^^^^^
+../../miniconda3/lib/python3.13/copy.py:222: in _deepcopy_dict
+    y[deepcopy(key, memo)] = deepcopy(value, memo)
+                             ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+x = <unlocked _thread.lock object at 0x117d5bdd0>
+memo = {4859102272: {'late_news_refresh': False, 'price_plan_stop_atr_min': 1.0, 'price_plan_stop_atr_normal': (1.5, 2.0), 'p...dicators': 'alpaca,futu,yfinance', 'fundamental_data': 'sec_edgar,yfinance', 'news_data': 'alpaca,yfinance', ...}, ...}
+_nil = []
+
+    def deepcopy(x, memo=None, _nil=[]):
+        """Deep copy operation on arbitrary Python objects.
+    
+        See the module's __doc__ string for more info.
+        """
+    
+        d = id(x)
+        if memo is None:
+            memo = {}
+        else:
+            y = memo.get(d, _nil)
+            if y is not _nil:
+                return y
+    
+        cls = type(x)
+    
+        copier = _deepcopy_dispatch.get(cls)
+        if copier is not None:
+            y = copier(x, memo)
+        else:
+            if issubclass(cls, type):
+                y = _deepcopy_atomic(x, memo)
+            else:
+                copier = getattr(x, "__deepcopy__", None)
+                if copier is not None:
+                    y = copier(memo)
+                else:
+                    reductor = dispatch_table.get(cls)
+                    if reductor:
+                        rv = reductor(x)
+                    else:
+                        reductor = getattr(x, "__reduce_ex__", None)
+                        if reductor is not None:
+>                           rv = reductor(4)
+                                 ^^^^^^^^^^^
+E                           TypeError: cannot pickle '_thread.lock' object
+
+../../miniconda3/lib/python3.13/copy.py:152: TypeError
+_______ test_macro_context_injects_yields_and_attempts_calendar_fallback _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x117c86ac0>
+
+    def test_macro_context_injects_yields_and_attempts_calendar_fallback(monkeypatch):
+        from daily_analyzer.context.providers import MacroReleasesProvider
+        from daily_analyzer.context.base import ProviderServices,render_context
+        import tradingagents.dataflows.router as router
+        monkeypatch.setattr(router,'route_to_vendor',lambda *args:'美债样本DGS10：5.29%，2026-09-30')
+        source=SimpleNamespace(calendars=lambda *args:{'earnings':[],'economics':[],'warnings':['财报日历不可用：权限','经济日历不可用：权限']})
+        yahoo=SimpleNamespace(earnings_calendar=lambda *args:[{'security':'US.TSLA','日期':'2026-10-21'}],economic_calendar=lambda *args:[{'title':'美国经济样本'}])
+        services=ProviderServices(futu=SimpleNamespace(),futu_data=source,yahoo=yahoo,prices=SimpleNamespace(),index_metadata=SimpleNamespace(),
+            alpaca=SimpleNamespace(news=lambda *args,**kw:{'articles':[]}))
+        provider=MacroReleasesProvider(services)
+        now=datetime(2026,10,2,6,tzinfo=ZoneInfo('America/New_York'))
+        provider.prepare({'trade_date':date(2026,10,2),'price_data_end_date':date(2026,10,1),'context_as_of':now,
+            'items':[{'symbol':'TSLA','type':'stock'}]})
+        block=provider.build({'symbol':'TSLA','type':'stock'},now)
+        text=render_context({'macro_releases':block},now)
+        assert '美债样本DGS10：5.29%' in text
+>       assert block.data['calendars']['earnings'][0]['security']=='US.TSLA'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/test_alternative_sources.py:204: IndexError
+=========================== short test summary info ============================
+FAILED tests/test_graph_integration.py::test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_memory
+FAILED tests/test_alternative_sources.py::test_macro_context_injects_yields_and_attempts_calendar_fallback
+2 failed, 209 passed in 7.66s
+外网尝试： []
+测试期间源码变更： []

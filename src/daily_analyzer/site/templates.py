@@ -522,7 +522,7 @@ HOME = _ENV.from_string(_SOURCE_STATUS + """<section id="status-banner" class="b
 <div class="form-grid"><label>并行分析标的数<input name="parallel" type="number" min="1" max="4" step="1" required></label><label>并行模型调用数<input name="calls" type="number" min="1" step="1" required></label></div>
 <p class="small muted">模型与推理强度从本机 Codex 模型目录自动载入，保存时再次校验。标的并行数控制同时分析几只；调用并行数控制所有标的共享的模型调用上限。</p><p id="settings-message" class="error toast" role="status"></p><button class="primary" type="submit">保存参数</button></form></dialog>{% endif %}
 """)
-OVERVIEW = _ENV.from_string(_SOURCE_STATUS + """<p class="muted">交易日 {{ trade_date }} · 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对基准收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
+OVERVIEW = _ENV.from_string(_SOURCE_STATUS + """<p class="muted">分析请求日 {{ trade_date }}（美东）· 当日结果汇总</p><div class="section-heading"><h2>当日研判</h2><span class="small muted">相对基准收益单位：百分点</span></div>""" + _ROWS + _CONTEXT)
 DETAIL = _ENV.from_string(_SOURCE_STATUS + """<p><span class="badge {{ rating_class }}">{{ rating }}</span>　{{ symbol }}{% if proxy %}（以 {{ proxy }} 代理分析）{% endif %}　{{ type_label }}　{{ mode_label }}　<a class="small" href="{{ history }}">查看标的历史 ↗</a></p>
 <p class="small muted">附加上下文截至 {{ context_as_of }}；日线截至 {{ price_data_end_date }}；工具数据最晚查询于 {{ last_data_query_at }}。</p>
 <div class="marks">{% for mark in marks %}<span class="mark">{{ mark }}</span>{% endfor %}</div>{% if error %}<p class="error">{{ error }}</p>{% endif %}

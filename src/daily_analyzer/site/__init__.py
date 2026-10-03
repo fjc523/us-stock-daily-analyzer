@@ -391,7 +391,7 @@ def _sector_data(
 
 def _summary_premarket(result: Mapping[str, Any]) -> dict[str, str]:
     """展示冻结分析报价；旧报告缺真实原始时间证据时明确提示。"""
-    from ..context.analysis_quote import observation
+    from ..context.analysis_quote import observation, recent_after_window
     empty = {"change": "—", "price": "", "title": "真实行情时间未核验（旧报告）", "time": "", "reason": "真实行情时间未核验（旧报告）"}
     symbol = str(result.get("analyzed_symbol") or result.get("symbol") or "")
     block = _as_mapping(_provider_block(result, "extended_hours"))
@@ -417,11 +417,16 @@ def _summary_premarket(result: Mapping[str, Any]) -> dict[str, str]:
     except (TypeError, ValueError):
         return dict(empty, reason="分析截止或标的不匹配", title="分析截止或标的不匹配")
     close = quote.get("official_previous_close") if quote.get("benchmark_verified") else None
-    checked = observation(symbol, cutoff, quote, close)
+    window = recent_after_window(cutoff) if result.get("mode") == "live" else None
+    if window and str(result.get("price_data_end_date")) != window[0].date().isoformat():
+        return dict(empty, reason="最近盘后与日线截止不匹配", title="最近盘后与日线截止不匹配")
+    checked = observation(symbol, cutoff, quote, close, recent_after=window is not None)
     if checked["status"] != "可用":
         return dict(empty, reason=checked["status"], title=checked["status"])
     timestamp = _pretty_timestamp(quote.get("quote_time"))
-    title = "；".join(filter(None, [str(quote.get("source") or ""), str(quote.get("warning") or ""), "报价时间 " + timestamp, "涨跌幅相对P收盘" if checked.get("change_pct") is not None else "P收盘基准未核验"]))
+    title = "；".join(filter(None, [str(quote.get("source") or ""), str(checked.get("warning") or ""),
+        f"距获取时点 {checked['age_seconds'] / 3600:.1f} 小时" if checked.get("age_seconds") is not None else "",
+        "报价时间 " + timestamp, "涨跌幅相对P收盘" if checked.get("change_pct") is not None else "P收盘基准未核验"]))
     return {"price": f"{float(checked['price']):.2f} 美元", "change": _percentage(checked.get("change_pct")), "time": timestamp, "title": title, "reason": ""}
 
 
@@ -732,8 +737,9 @@ def _detail_values(
         "symbol": symbol,
         "proxy": result.get("analyzed_symbol") if result.get("type") == "index" else None,
         "type_label": {"stock": "个股", "etf": "ETF", "index": "指数"}.get(str(result.get("type")), _display(result.get("type"))),
-        "mode_label": "回放" if result.get("mode") == "backfill" else "实时",
+        "mode_label": "回放" if result.get("mode") == "backfill" else "当前分析",
         "times": [
+            {"label": "分析请求自然日（美东）", "value": _display(result.get("upstream_trade_date"))},
             {"label": "开始分析", "value": _pretty_timestamp(result.get("started_at"))},
             {"label": "附加上下文时刻", "value": _pretty_timestamp(result.get("context_as_of"))},
             {"label": "日线截止交易日", "value": _display(result.get("price_data_end_date"))},

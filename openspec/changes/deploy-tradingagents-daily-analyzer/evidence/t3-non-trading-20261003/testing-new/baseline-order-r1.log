@@ -1,0 +1,44 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+________________________ test_HEAD宏观fallback同样失败则属于既有失败 ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10789e8b0>
+
+    def test_HEAD宏观fallback同样失败则属于既有失败(monkeypatch):
+        import daily_analyzer.context.providers as current
+        import test_alternative_sources
+        baseline = load_baseline('src/daily_analyzer/context/providers.py', 'daily_analyzer.context.t3_baseline_providers')
+        monkeypatch.setattr(current, 'MacroReleasesProvider', baseline.MacroReleasesProvider)
+>       test_alternative_sources.test_macro_context_injects_yields_and_attempts_calendar_fallback(monkeypatch)
+
+openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/testing-new/test_baseline_classification.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10789e8b0>
+
+    def test_macro_context_injects_yields_and_attempts_calendar_fallback(monkeypatch):
+        from daily_analyzer.context.providers import MacroReleasesProvider
+        from daily_analyzer.context.base import ProviderServices,render_context
+        import tradingagents.dataflows.router as router
+        monkeypatch.setattr(router,'route_to_vendor',lambda *args:'美债样本DGS10：5.29%，2026-09-30')
+        source=SimpleNamespace(calendars=lambda *args:{'earnings':[],'economics':[],'warnings':['财报日历不可用：权限','经济日历不可用：权限']})
+        yahoo=SimpleNamespace(earnings_calendar=lambda *args:[{'security':'US.TSLA','日期':'2026-10-21'}],economic_calendar=lambda *args:[{'title':'美国经济样本'}])
+        services=ProviderServices(futu=SimpleNamespace(),futu_data=source,yahoo=yahoo,prices=SimpleNamespace(),index_metadata=SimpleNamespace(),
+            alpaca=SimpleNamespace(news=lambda *args,**kw:{'articles':[]}))
+        provider=MacroReleasesProvider(services)
+        now=datetime(2026,10,2,6,tzinfo=ZoneInfo('America/New_York'))
+        provider.prepare({'trade_date':date(2026,10,2),'price_data_end_date':date(2026,10,1),'context_as_of':now,
+            'items':[{'symbol':'TSLA','type':'stock'}]})
+        block=provider.build({'symbol':'TSLA','type':'stock'},now)
+        text=render_context({'macro_releases':block},now)
+        assert '美债样本DGS10：5.29%' in text
+>       assert block.data['calendars']['earnings'][0]['security']=='US.TSLA'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/test_alternative_sources.py:204: IndexError
+=========================== short test summary info ============================
+FAILED openspec/changes/deploy-tradingagents-daily-analyzer/evidence/t3-non-trading-20261003/testing-new/test_baseline_classification.py::test_HEAD宏观fallback同样失败则属于既有失败
+1 failed, 1 passed in 0.84s
+外网尝试： []
+测试期间源码变更： []

@@ -61,7 +61,7 @@
 ### Requirement: 运行模式与上游日期适配
 系统 SHALL 按以下规则确定模式与上游参数（T 为美东今天，P(D) 为 D 的上一交易日）：
 - 未指定 `--date`，T 是交易日且早于收盘：模式 `live`；`trade_date`=T，`price_data_end_date`=P(T)，不设 `news_cutoff_utc`；
-- 未指定 `--date`，T 非交易日或已收盘：手动模式以退出码 3 结束，提示“当前没有可分析的交易日”；
+- 未指定 `--date`，T 非交易日或已收盘：手动模式仍为 `live`，`trade_date`=请求美东自然日T，`price_data_end_date`=最近已经完整收盘的 NYSE 交易日，不设新闻冻结；定时模式仍按原条件跳过；
 - `--date D`，D == T 且早于收盘：模式 `live`；参数同上，以 D 代替 T；
 - `--date D`，D < T，或 D == T 已收盘：模式 `backfill`；`trade_date`=D，`price_data_end_date`=P(D)，`news_cutoff_utc`=D 08:31 ET；
 - `--date D`，D > T 或 D 非交易日：以退出码 2 拒绝。
@@ -78,7 +78,7 @@
 
 #### Scenario: 周五收盘后手动运行
 - **WHEN** 美东周五 17:00 执行 `run`，不带 `--date`
-- **THEN** 以退出码 3 结束，提示下一个交易日会在锚点时刻自动运行
+- **THEN** 当前手动分析立即开始，日线截止当天完整收盘，使用最近可核验盘后报价和本次最新信息；不转为08:31回放
 
 #### Scenario: 指定未来日期
 - **WHEN** 美东 2026-10-02（周五）执行 `run --date 2026-10-05`
@@ -228,3 +228,10 @@
 #### Scenario: 缺少有效实时报价
 - **WHEN** 只有上一交易日日线和未核验时段的扩展数据
 - **THEN** 明示参考价的历史日期与质量，提供有证据的条件方案或等待原因，不声称实时可成交
+
+### Requirement: 休市当前分析的日期区分
+无显式历史日期的手动入口 SHALL 允许周末及NYSE节假日分析。请求自然日与最近完整交易日 MUST 分别记录于既有upstream_trade_date与price_data_end_date；目标时段 MUST 明确休市，MUST NOT 声称请求日有交易或开盘。行情日期取真实quote_time，信息获取取context_as_of/data_queries/information_through。历史回放规则及调度/并发/锁/追加/单写者不变。
+
+#### Scenario: 周日查询周末新消息
+- **WHEN** 周日手动启动分析且有周六发布的新闻
+- **THEN** 日线截至周五，最近盘后价保留周五真实时间，新闻查询覆盖周六消息且记录本次查询时间，不使用周五08:31冻结

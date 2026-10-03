@@ -240,9 +240,9 @@ def test_manual_launch_command_busy_window_and_result(tmp_path):
     with pytest.raises(ConfigurationError, match="启用"):
         launcher.start("AAPL")
     launcher.clock = lambda: datetime(2026, 10, 2, 17, tzinfo=NEW_YORK)
-    with pytest.raises(ValueError, match="交易日"):
-        launcher.start("NVDA")
-    assert len(calls) == 1
+    launcher.popen = lambda command, **kwargs: calls.append((command, kwargs)) or SimpleNamespace(poll=lambda: None)
+    assert launcher.start("NVDA")["status"] == "running"
+    assert len(calls) == 2
 
 
 def test_manual_analysis_http_is_async_and_reports_busy(tmp_path):

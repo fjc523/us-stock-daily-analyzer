@@ -21,7 +21,7 @@
 - **THEN** 该 ETF 只注入这两个块
 
 ### Requirement: 收盘类数据的统一口径
-`market_regime` 与 `sector_strength` SHALL 只使用截至适用交易日 D 的上一交易日 P（由 XNYS 日历计算）收盘的日线：
+`market_regime` 与 `sector_strength` SHALL 只使用截至完整日线截止 P（由 XNYS 日历计算）收盘的日线：盘前/盘中及历史回放为适用交易日 D 的上一交易日；当前收盘后为当天，休市为最近实际交易日：
 - **数据源**：Alpaca `feed=sip`、`adjustment=all`；失败时退回 yfinance `auto_adjust=True`，并在 `sources` 中注明。`^VIX` 只取 yfinance，失败时为 null。
 - **N 日收益**：`close[P] / close[P 往前第 N 个交易日] − 1`。
 - **N 日均线**：截至 P（含 P）最近 N 个交易日收盘价的算术平均。
@@ -188,3 +188,22 @@
 #### Scenario: 无独立夜盘时间
 - **WHEN** 08:31 ET读取富途夜盘价但只有当前价更新时间
 - **THEN** 不把08:31 ET写成夜盘成交时间；保留未核验或使用有真实时间的有效回退
+
+### Requirement: 休市及收盘后最近可核验盘后上下文
+当前手动请求在休市或收盘后 SHALL 获取最近已收盘NYSE交易日实际收盘至20:00 ET窗口内可核验盘后观测。价格与真实时间 MUST 同源；缺独立富途盘后时间、权限不足或窗口外 SHALL 明确降级/缺失，不使用普通收盘价或之后的新价冒充盘后。Alpaca IEX有限覆盖 MUST 说明。非交易日市场要闻查询 SHALL 覆盖最近交易日收盘至实际上下文获取时刻，最新工具查询 SHALL 不套用历史08:31截止。
+
+#### Scenario: 周末可核验周五盘后
+- **WHEN** 周六读取周五19:58 ET的IEX盘后分钟线
+- **THEN** 原after上下文显示该真实时间、来源及数据年龄/IEX覆盖限制，analysis_quote沿用可选观测而不用于模型；未来/普通收盘/无时间不能替代
+
+#### Scenario: 盘后时间证据缺失
+- **WHEN** 富途有after_price但无独立after_update_time且其他来源失败
+- **THEN** 明确最近盘后未核验或缺失，不能以update_time冒充盘后成交时间
+
+#### Scenario: 收盘边界不冒充盘后
+- **WHEN** latestTrade时间恰好为普通16:00或半日13:00且只有p/t
+- **THEN** 保守拒绝作为盘后；分钟线也须来自盘后且其完整分钟已结束，独立富途after证据另行核验
+
+#### Scenario: 实时工具不接纳同日未来消息
+- **WHEN** 新闻或社交实际工具返回晚于本次检索时点的发布时间，或运行期间出现晚于初始context_as_of的新消息
+- **THEN** 前者被过滤；后者在早于本次实际检索时点时仍可进入；不冻结整个live运行、不改变历史回放截止

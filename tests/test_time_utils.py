@@ -5,7 +5,6 @@ import pytest
 
 from daily_analyzer.time_utils import (
     NEW_YORK,
-    NoTradingSessionError,
     scheduled_decision,
     select_run_window,
 )
@@ -39,10 +38,13 @@ def test_historical_replay_and_future_rejection() -> None:
         select_run_window("2026-09-26", now)
 
 
-def test_manual_run_without_session_is_rejected_but_schedule_skips() -> None:
+def test_manual_run_without_session_is_live_but_schedule_skips() -> None:
     saturday = datetime(2026, 10, 3, 9, 0, tzinfo=NEW_YORK)
-    with pytest.raises(NoTradingSessionError):
-        select_run_window(None, saturday)
+    window = select_run_window(None, saturday)
+    assert window.mode == "live"
+    assert window.trade_date.isoformat() == "2026-10-03"
+    assert window.price_data_end_date.isoformat() == "2026-10-02"
+    assert window.news_cutoff_utc is None
     assert scheduled_decision(
         "08:30 America/New_York",
         saturday,

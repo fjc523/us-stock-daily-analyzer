@@ -135,6 +135,15 @@ class AnalyzerGraph(TradingAgentsGraph):
             f"点位方案有效期：分析当日起{validity}个交易日。\n"
             "单标的标准仓位=100%，是该标的计划持仓量，不是账户总资产比例或现有持仓买卖比例。"
         )
+        if mode == "live":
+            framework += f"\n分析请求美东自然日：{context_as_of.astimezone(_NEW_YORK).date().isoformat()}（不表示当天开市）。"
+            from daily_analyzer.live_information import install_live_information_adapter
+            from daily_analyzer.context.analysis_quote import recent_after_window
+            install_live_information_adapter()
+            # 配置会被上游deepcopy；闭包保留带锁Callable，不复制其内部锁。
+            config = {**config, '_daily_live_information_clock': lambda: clock()}
+            if recent_after_window(context_as_of) is not None:
+                framework += "\n当前为休市/收盘后分析；最近盘后报价日期与年龄见原after上下文，不能称实时可成交价。新闻按本次实际查询取得，日线与盘后价各有独立历史截止。"
         if item.type == "index":
             framework += f"\n订阅为指数{item.symbol}，以代理ETF {item.analysis_symbol}的价格给出点位。"
         self.injected_context = framework + "\n\n" + render_context(self.context_blocks, context_as_of)
@@ -152,6 +161,14 @@ class AnalyzerGraph(TradingAgentsGraph):
         )
         original_get_args = self.propagator.get_graph_args
         self.propagator.get_graph_args = lambda: original_get_args(callbacks=callback_list)
+
+    def propagate(self, *args, **kwargs):
+        if self.mode != "live":
+            return super().propagate(*args, **kwargs)
+        from daily_analyzer.live_information import live_information_scope
+        # 上游构造会更新进程默认配置；独立作用域防止默认私有clock污染其他调用。
+        with live_information_scope(self._clock):
+            return super().propagate(*args, **kwargs)
 
     @property
     def analysis_symbol(self) -> str:

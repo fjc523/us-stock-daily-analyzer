@@ -1,0 +1,13 @@
+# T3 修改前风险卡
+
+历史快照说明：本文件保留产品修改前的风险与pending阶段，末尾状态不是当前交付结论。当前实现/独立测试/High复审与经理验收均已通过，见同级问题台账及上级index；提交远端闭环仍待执行。
+
+授权：用户明确非交易日也可分析，最近盘后价与最新可检索信息；已授权规划/常规局部实现/独立验证闭环后精确提交普通推送。无需新schema、配置、账号或付费决策。
+
+根因：time_utils.select_run_window无日期拒绝休市/收盘，显式历史日期按08:31回放；launcher复用此拒绝；runner._target_session与成功/失败开盘标记直接查非交易日session_bounds；analysis_quote.active_window/observation按当日活跃时段拒绝周末报价；ExtendedHoursProvider普通_live用请求日窗口，MacroReleasesProvider只从当日零点取新闻可能漏周末前一日消息。
+
+最小父仓库适配与逐路径验收见D21；TradingAgents.graph._validate_trade_date只拒未来日期、不拒非交易日；tools日期以请求自然日截新闻，而price_data_end_date独立截日线，因此保持子模块只读即可。上游in_window未冻结实时日期不等于P；查询trace与late fetched_at仍记录实际时刻。
+
+兼容性：沿用mode live/backfill及既有upstream_trade_date/price_data_end_date/quote_time/cutoff等字段，界面把当前字段含义明确为请求日而非必为交易日；analysis_quote不入LLM，原after上下文给真实盘后。无新增必填格式与schema升级，不重写旧报告。注意盘后P含当天、半日实际收盘、截至完整一分钟的c/t、IEX覆盖与陈旧提示、前端重新验证冻结关联、人工追加只同请求自然日。生产/真实模型/真实权限/实际部署效果NOT_TESTED；T1/T2已推送证据和175旧工件不改。
+
+阶段：仅规划，产品未改；strict后等经理与独立Sol6.1 high规划门禁。

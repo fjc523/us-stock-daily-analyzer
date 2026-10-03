@@ -302,6 +302,8 @@ def _context_timestamp(blocks: Mapping[str, Mapping[str, Any]]) -> dict[str, Any
 def _target_session(mode: str, started_at: datetime, trade_day: date) -> str:
     if mode == "backfill":
         return "回放"
+    if not is_trading_day(trade_day):
+        return "休市日（最近盘后）"
     opened, closed = session_bounds(trade_day)
     if started_at < opened:
         return "盘前"
@@ -535,9 +537,9 @@ def _analyze_item(
                      *(row.get("fetched_at", "") for row in final_state.get("late_news", [])),
                      *(row.get("fetched_at", "") for row in final_state.get("late_macro", [])))
         )
-        open_time, _ = session_bounds(window.trade_date)
-        started_after_open = window.mode == "live" and started_at > open_time
-        finished_after_open = window.mode == "live" and finished_at > open_time
+        open_time = session_bounds(window.trade_date)[0] if is_trading_day(window.trade_date) else None
+        started_after_open = bool(window.mode == "live" and open_time and started_at > open_time)
+        finished_after_open = bool(window.mode == "live" and open_time and finished_at > open_time)
         final_state = jsonable(final_state)
         reports = {
             name: final_state.get(name)
@@ -638,13 +640,9 @@ def _analyze_item(
             batch_dir / "llm_calls.jsonl", item.symbol
         )
         if started_at is not None and finished_at is not None:
-            open_time, _ = session_bounds(window.trade_date)
-            result["started_after_open"] = (
-                window.mode == "live" and started_at > open_time
-            )
-            result["finished_after_open"] = (
-                window.mode == "live" and finished_at > open_time
-            )
+            open_time = session_bounds(window.trade_date)[0] if is_trading_day(window.trade_date) else None
+            result["started_after_open"] = bool(window.mode == "live" and open_time and started_at > open_time)
+            result["finished_after_open"] = bool(window.mode == "live" and open_time and finished_at > open_time)
         if graph is not None:
             try:
                 result["data_queries"] = graph.tool_trace.snapshot()

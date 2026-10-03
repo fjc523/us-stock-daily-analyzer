@@ -8,7 +8,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from .analysis_quote import active_window, observation, raw_futu, raw_alpaca
+from .analysis_quote import active_window, recent_after_window, observation, raw_futu, raw_alpaca
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
 from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
 
@@ -467,11 +467,13 @@ class ExtendedHoursProvider:
         payload["premarket_relative_to_spy_pct"] = relative
         lines = ["| 标的 | 时段 | 最新价 | 来源前收盘 | 相对 P 收盘 | 成交量 | 最高 | 最低 | 报价时间 | 来源 | 状态 |", "|---|---|---:|---:|---:|---:|---:|---:|---|---|---|"]
         for symbol in symbols:
-            for session, label in (("after", "上一交易日盘后"), ("overnight", "夜盘"), ("pre", "盘前")):
+            for session, label in (("after", "最近交易日盘后"), ("overnight", "夜盘"), ("pre", "盘前")):
                 segment = payload.get(symbol, {}).get(session, {})
                 status = segment.get("status") or "数据不可用"
                 if segment.get("warning"):
                     status = f"{status}（{segment['warning']}）"
+                if segment.get("age_seconds") is not None:
+                    status += f"；距获取时点 {segment['age_seconds'] / 3600:.1f} 小时"
                 lines.append(
                     f"| {symbol} | {label} | {_format_number(segment.get('price'))} | "
                     f"{_format_number(segment.get('source_previous_close'))} | "
@@ -499,6 +501,8 @@ class ExtendedHoursProvider:
     def _live(
         self, symbols: list[str], trade_day: date, price_end: date, cutoff: datetime
     ) -> tuple[dict[str, Any], list[str]]:
+        if recent_after_window(cutoff) is not None:
+            return self._recent_after(symbols, price_end, cutoff)
         source_names: list[str] = []
         futu = self.services.futu
         subscribed = dict(futu.get_quotes(symbols) or {})
@@ -620,6 +624,75 @@ class ExtendedHoursProvider:
             chosen = next((entry for entry in analysis_candidates if entry["status"] == "可用"), None)
             segments[symbol]["analysis_quote"] = chosen or (analysis_candidates[0] if analysis_candidates else observation(symbol, cutoff, close=close))
         return segments, source_names
+
+    def _recent_after(self, symbols, price_end, cutoff):
+        """保留最近盘后同源证据；收盘价不能填补缺失的盘后观测。"""
+        start, end = recent_after_window(cutoff)
+        read_end = min(cutoff, end)
+        if start.date() != price_end:
+            raise ValueError("最近盘后窗口与完整日线截止不一致")
+        futu = self.services.futu
+        candidates = {symbol: [] for symbol in symbols}
+
+        def add_futu(rows, source):
+            for symbol in symbols:
+                candidate = raw_futu(rows.get(futu_symbol(symbol)), "after", source)
+                if candidate:
+                    candidates[symbol].append(observation(symbol, cutoff, candidate, recent_after=True))
+
+        try:
+            rows = futu.get_quotes(symbols) or {}
+        except Exception:
+            rows = {}
+        if futu.mode in {"subscription", "snapshot"}:
+            add_futu(rows, "富途订阅报价" if futu.mode == "subscription" else "富途快照")
+        missing = lambda: [symbol for symbol in symbols if not any(row["status"] == "可用" for row in candidates[symbol])]
+        if futu.mode == "subscription" and missing():
+            try:
+                add_futu(futu.get_snapshots(missing()) or {}, "富途快照")
+            except Exception:
+                pass
+        if missing():
+            try:
+                snapshots = _alpaca_snapshots(self.services.alpaca, missing(), "iex")
+            except Exception:
+                snapshots = {}
+            for symbol in missing():
+                candidate = raw_alpaca(snapshots.get(symbol), "Alpaca feed=iex")
+                if candidate:
+                    candidates[symbol].append(observation(symbol, cutoff, candidate, recent_after=True))
+        if missing() and read_end > start:
+            try:
+                minute_rows = self.services.alpaca.iex_minute_bars(missing(), start, read_end)
+            except Exception:
+                minute_rows = {}
+            for symbol in missing():
+                valid = []
+                for row in minute_rows.get(symbol, []):
+                    stamp = _parse_datetime(_row_get(row, "t", "timestamp"), timezone.utc)
+                    candidate = {"price": _row_get(row, "c", "close"),
+                                 "quote_time": stamp.isoformat() if stamp else None,
+                                 "time_field": "minute.t", "source": "Alpaca feed=iex 历史分钟线",
+                                 "warning": "IEX 覆盖不完整"}
+                    checked = observation(symbol, cutoff, candidate, recent_after=True)
+                    if checked["status"] == "可用":
+                        valid.append(checked)
+                if valid:
+                    candidates[symbol].append(max(valid, key=lambda row: row["quote_time"]))
+        payload, sources = {}, []
+        for symbol in symbols:
+            close = self._previous_close(symbol, price_end)
+            chosen = next((row for row in candidates[symbol] if row["status"] == "可用"), None)
+            chosen = chosen or (candidates[symbol][0] if candidates[symbol] else {})
+            quote = observation(symbol, cutoff, chosen, close, recent_after=True)
+            # 可选展示报价不参与模型；原after块保留同一真实盘后证据。
+            after = {**_empty_segment(quote["status"]), **quote,
+                     "session_verified": quote["status"] == "可用"}
+            payload[symbol] = {"after": after, "overnight": _empty_segment("非当前分析时段"),
+                               "pre": _empty_segment("非当前分析时段"), "analysis_quote": quote}
+            if quote.get("source"):
+                sources.append(quote["source"])
+        return payload, _source_list(sources)
 
     def _backfill(
         self, symbols: list[str], trade_day: date, cutoff: datetime, *, end_time: time = time(8, 31)
@@ -752,6 +825,10 @@ class MacroReleasesProvider:
         trade_day = _trade_date(self.batch)
         as_of = _cutoff_datetime(cutoff)
         start = datetime.combine(trade_day, time.min, EASTERN)
+        if str(_value(self.batch, "mode", "live")) == "live":
+            window = recent_after_window(as_of)
+            if window is not None:
+                start = window[0]
         news_warning = []
         try:
             from tradingagents.dataflows.vendor_observer import observed_call
