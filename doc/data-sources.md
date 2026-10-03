@@ -71,3 +71,8 @@ SEC companyfacts 表体仍按 filing date 保持历史截止。新增官方 subm
 来源状态“财报报表”包含每次报表实际来源/表体期末、应有期/提交日、是否陈旧及原因；保留旧字段，并将期末与原因写入现有详情文案，陈旧不能显示“正常”；新增元数据文本亦走既有脱敏，保持日期及布尔语义。基本面分析师提示要求陈旧表头时首段披露最新季报未取得、实际期末，并指出同比/环比不可靠。能从submissions真实items字段找到Item2.02时，补充最近财报发布8-K**申报日**（不冒充财报召开日）；缺字段就跳过。
 
 官方能力依据：[SEC EDGAR API说明](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)。submissions包含至少一年或1000条近期申报及旧文件目录；companyfacts聚合标准分类且整实体的事实。官方典型更新延迟是秒/分钟级且高峰可延长，因此单家公司缺期不能笼统归因成通常同步慢。2026-10-03轻量只读HTTP响应核实SMTC的2026-07-26 10-Q于8月26日提交，本机companyfacts三表仍4月26日；响应和回放证据只存本机ignored目录。
+
+
+### 中优先级投研增量
+
+- `earnings_expectations_enabled`：见README当前已交付说明。

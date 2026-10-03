@@ -16,6 +16,7 @@ codex:
   min_version: "0.159.3"
 
 tradingagents:
+  earnings_expectations_enabled: true
   # 方向由研究证据决定，执行条件单独给出；条件ATR目标仍遵守原门槛。
   risk_layer_direction_lock: true
   rating_timing_decoupled: true

@@ -194,6 +194,7 @@ class CodexSettings(ConfigModel):
 
 
 class TradingAgentsSettings(ConfigModel):
+    earnings_expectations_enabled: bool = True
     risk_layer_direction_lock: bool = True
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True

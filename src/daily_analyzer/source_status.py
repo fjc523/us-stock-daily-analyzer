@@ -5,8 +5,10 @@ import re
 import threading
 
 CATEGORIES = ("日线", "扩展时段报价", "新闻", "财报报表", "估值", "内部人交易",
-              "财报日历", "经济日历", "宏观指标", "VIX", "板块映射", "StockTwits", "Reddit", "预测市场")
+              "财报日历", "经济日历", "一致预期", "期权", "空头", "情绪", "宏观指标", "VIX", "板块映射", "StockTwits", "Reddit", "预测市场")
 METHOD_CATEGORY = {
+    "sentiment_assessment": "情绪",
+    "get_earnings_expectations": "一致预期",
     "load_ohlcv": "日线", "get_stock_data": "日线", "get_indicators": "日线", "daily_bars": "日线",
     "vix": "VIX", "get_news": "新闻", "get_global_news": "新闻",
     "get_fundamentals": "估值", "get_insider_transactions": "内部人交易",
@@ -82,6 +84,8 @@ def _fallback_used(category, attempts, used, config):
             if str(event.get("source", "")).lower() != expected:
                 return True
         return False
+    if category in {"一致预期", "空头"}:
+        return False
     primary = _primary_source(category, config)
     if primary:
         return any(_canonical_source(source) != primary for source in used)
@@ -121,6 +125,9 @@ class SourceStatusCollector:
             data = block.get("data") if isinstance(block, Mapping) else None
             if not isinstance(data, Mapping):
                 continue
+            if name == "position_structure":
+                record("期权", "futu", "failed", data.get("option_reason") or data.get("reason"))
+                record("空头", "yfinance", "success" if data.get("short_status") == "available" else "no_data", data.get("short_reason") or data.get("reason") or ("数据日期：" + str(data.get("short_date") or "未核验")))
             if name == "extended_hours":
                 for segments in data.values():
                     if not isinstance(segments, Mapping):
@@ -169,6 +176,8 @@ class SourceStatusCollector:
                 status = "未配置"
             else:
                 status = "未使用"
+            if category == "情绪" and any(event["outcome"] == "skipped" for event in attempts):
+                status = "跳过"
             reason = "；".join(dict.fromkeys(event.get("error", "") for event in attempts if event.get("error")))
             if status == "正常" and failed:
                 reason = "部分请求失败，主源仍可用；" + reason

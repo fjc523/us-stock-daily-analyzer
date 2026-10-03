@@ -121,6 +121,7 @@ class AnalyzerGraph(TradingAgentsGraph):
         portfolio: Any = None,
         clock: Callable[[], datetime] = datetime.now,
     ) -> None:
+        config = {**config, "analysis_mode": mode}
         self.item = item
         self.mode = mode
         self.state_log_dir = Path(state_log_dir)
@@ -329,6 +330,7 @@ def build_upstream_config(
             "output_language": settings.tradingagents.output_language,
             "max_debate_rounds": settings.tradingagents.max_debate_rounds,
             "max_risk_discuss_rounds": settings.tradingagents.max_risk_discuss_rounds,
+            "earnings_expectations_enabled": settings.tradingagents.earnings_expectations_enabled,
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,
             "risk_layer_direction_lock": settings.tradingagents.risk_layer_direction_lock,
@@ -343,6 +345,7 @@ def build_upstream_config(
             "decision_plan_validity_trading_days": settings.decision.plan_validity_trading_days,
         }
     )
+    config["tool_vendors"]["get_earnings_expectations"] = "yfinance"
     for key, value in settings.price_plan.model_dump().items():
         config[f"price_plan_{key}"] = value
     from daily_analyzer.data_sources.futu import get_shared_data_source
