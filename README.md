@@ -72,8 +72,20 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 三层模型成功结构化返回会以 `structured.{research_plan,trader_proposal,pm_decision}` 原样保存实际 `model_dump()`；自由文本回退诚实留空。交易员新增可选 `first_target`，PM新增可选 `stop_loss/first_target`，旧记录正常渲染。`tradingagents.price_plan_evaluation_enabled: false` 恢复原点位字段和提示。`settle` 增量读取旧结果的显式区间/止损/不适用首句，按分析时结果显式字段或旧注入文本冻结有效期（默认入场起点含当天5交易日）；旧记录无法核验时单列默认5来源，后续配置不改既有窗口，用同来源同复权完整OHLC检验并写入独立outcomes，`evaluate` 增加“点位方案”。未成熟保留pending；收盘近似入场当日日线路径、缺方向正确止损/目标、拆股单位无法核验均标不可判；触发率仅纳入成熟且触发布尔可判的样本，止损/目标/R仅纳入退出路径可判样本，避免缺止损的已触发样本被当作未触发。同日双触保守止损；跳空止损按开盘，未退出按期末收盘；日线MFE/MAE只是区间近似，不宣称精确盘中路径。真实未来成熟收益为 **NOT_TESTED**。
 
-`tradingagents.lesson_min_settled_same_ticker: 10` 默认要求10条全量可见结算事实后才注入同标反思；不足只事实表，达标加方向命中率和最近3反思。优先C2真实5/10/20日主收益，旧memory5日alpha明确标旧口径；C2 current与memory正文精确指纹一致才继承反思，同日重跑不误挂旧教训。`cross_ticker_lessons` 支持off/stats/text，默认stats按评级及资产主口径分组均值/n；text使用真实旧memory跨标记录。N=0且text恢复旧注入与经理提示逐字，不删除或改写反思。
+`tradingagents.lesson_min_settled_same_ticker: 10` 默认要求10条全量可见结算事实后才注入同标反思；不足只事实表，达标加方向命中率和最近3反思。优先C2真实5/10/20日主收益，旧memory5日tag收益可能为raw或excess，明确标为口径未核验的旧来源；C2 current与memory正文精确指纹一致才继承反思，同日重跑不误挂旧教训。`cross_ticker_lessons` 支持off/stats/text，默认stats按评级及资产主口径分组均值/n；text使用真实旧memory跨标记录。N=0且text恢复旧注入与经理提示逐字，不删除或改写反思。
 
 `tradingagents.rating_probability_fields: true` 默认在RM/PM输出可选5/20日跑赢概率及20日收益区间，概率以资产主口径为准。20日P切档：Buy≥0.65、Overweight[0.55,0.65)、Hold[0.45,0.55)、Underweight[0.35,0.45)、Sell<0.35。概率错档只记录各层 `decision_flags.*.rating_prob_mismatch` 并首页提示，不自动改评级。关闭恢复旧字段/提示；缺值不补0.5。“校准”章只用对应窗口成熟且概率可用样本，报告Brier、五等宽箱ECE和同样本经验基准率（样本内描述，不是OOS）；n<30注明不足，无成熟样本不报确定结论。
 
 `tradingagents.allocation_bands` 默认Sell[0,20)、Underweight[20,80)、Hold[80,120]、Overweight(120,135]、Buy(135,150]；单位仍是单标的标准计划量%，不改真实账户业务口径。用户可配置lower/upper/lower_inclusive/upper_inclusive，区间不得重叠；显式null恢复原配置提示并关闭D3校验，其他开关不随之关闭。三层越界只记 `decision_flags.*.allocation_flag`，首页显示“配置与评级不一致”，不修正评级/值、不设schema上限、不计算实际买卖量。旧结果缺flags可只读解析显式评级/配置作提示。真实模型新概率/配置输出均 **NOT_TESTED**，固定历史模型桩不升级为真实业务效果。
+
+## 第一轮投研返工（T29）
+
+本轮按十个问题分别闭环：方向声明宽松归一与实际schema生成顺序、长度条数软校验、评级主口径对齐、契约/全量测试、旧反思及行业映射、独立开关、确定性方向标记与同代理IC。不会重写历史评级、反思tag或已settled收益；真实模型遵守及未成熟收益仍NOT_TESTED。C3代理保留规则须用户明确后实施。
+
+方向声明容忍“否。”、“否，沿用…”和“是”加中英冒号/逗号及多行非空证据，归一后保存；裸“是”仍拒绝。研究经理实际schema按开启字段先生成分歧裁决/引用核对再评级，关闭字段不追加、Legacy原schema保持；引用核对超200字或分歧点非3–5条保留内容，仅记`evidence_check_overlength`/`cruxes_count`。
+
+D1开启时评级统一用C1主口径，框架按标的type及可配置`evaluation.broad_market_etfs`说明宽基/指数绝对收益或股票/行业ETF对SPY超额。PM方向锚定及强制声明只受B3控制，时机解耦/5–20日周期只受D1控制；Trader方向锚定仍为两开关OR。三层`direction_change_mismatch`只标记已明确评级不一致且未给“是+证据”，不改评级/配置；成熟分层归因单列标记一致、不一致和缺失。
+
+旧memory结算对明确宽基/指数使用自身raw和“绝对收益”反思提示，不要求SPY收益；旧tag格式和决策正文不改。C5保留旧tag来源统计并明确收益口径未核验，不将其当作C2超额。行业查找记`sector_lookup: mapped/none/failed`，仅failed且未有任一窗口settled时重试；成功映射及确认无映射冻结。实际三标映射及授权首次metadata补全证据保留ignored；身份、评级、主口径及78个旧窗口不变，78窗仍pending，不产生未来收益。
+
+T29九项已完成独立功能审核（R1–R3闭合）。主仓/TradingAgents首次全量各执行一次，原始失败节点逐项修复测试契约及离线隔离后全部复验通过；保留首次失败日志，Windows平台旧新失败单列，未执行真实模型integration。C3代理保留规则待用户确认，当前仅`Refs T29`部分交付，不关闭T29。

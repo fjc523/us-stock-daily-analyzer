@@ -84,21 +84,28 @@ class YahooDataSource:
             return None
 
     def sector_etf(self, symbol: str) -> str | None:
+        return self.sector_lookup(symbol)['benchmark']
+
+    def sector_lookup(self, symbol: str) -> dict[str, Any]:
+        """确认无映射与查询失败分开；失败不缓存且可重试。"""
         normalized = symbol.strip().upper()
         cache_path = self.project_root / "data" / "cache" / "sector_map.json"
         with self._cache_lock:
             cache = self._read_sector_cache(cache_path)
             cached = cache.get(normalized)
             if isinstance(cached, str):
-                return cached or None
+                return {'status':'mapped' if cached else 'none','benchmark':cached or None}
             try:
                 from tradingagents.dataflows.vendors.yahoo.common import yf_retry
-                sector = yf_retry(lambda: self._ticker(normalized).info).get("sector")
-            except Exception:
-                return None
+                info = yf_retry(lambda: self._ticker(normalized).info)
+                if not isinstance(info,Mapping) or not info:
+                    return {"status":"failed","benchmark":None,"reason":"来源为空"}
+                sector = info.get("sector")
+            except Exception as exc:
+                return {'status':'failed','benchmark':None,'reason':type(exc).__name__}
             etf = SECTOR_TO_ETF.get(str(sector)) if sector else None
             if etf is None:
-                return None
+                return {'status':'none','benchmark':None}
             cache[normalized] = etf
             try:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -107,8 +114,8 @@ class YahooDataSource:
                     encoding="utf-8",
                 )
             except OSError:
-                return etf
-            return etf
+                return {'status':'mapped','benchmark':etf}
+            return {'status':'mapped','benchmark':etf}
 
     def economic_calendar(self, start: date | str, end: date | str) -> list[dict[str, Any]] | None:
         try:

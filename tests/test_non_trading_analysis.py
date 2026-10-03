@@ -157,7 +157,8 @@ def test_实际Alpaca工具与AV回退按每次查询过滤(monkeypatch):
 
 
 @pytest.mark.parametrize("failed", [False, True])
-def test_休市runner成功及失败都不声称开盘(tmp_path, failed):
+def test_休市runner成功及失败都不声称开盘(tmp_path, failed, monkeypatch):
+    monkeypatch.setattr("daily_analyzer.runner._codex_version", lambda settings: "固定版本")
     root = _project(tmp_path, ('NVDA',))
     now = stamp('2026-10-03T11:00:00-04:00')
     _FakeGraph.fail_symbols = {"NVDA"} if failed else set()

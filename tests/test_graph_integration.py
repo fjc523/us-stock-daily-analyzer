@@ -146,6 +146,8 @@ def _new_graph(
         project_root=root,
         has_alpha_vantage=False,
     )
+    # 此集成用例验证旧反思传递，显式恢复旧注入路径；默认事实门槛另有专项覆盖。
+    config.update(lesson_min_settled_same_ticker=0, cross_ticker_lessons="text")
     item = WatchlistItem(symbol=ticker, type="stock", analysts=["market", "news"])
     return AnalyzerGraph(
         item=item,
@@ -169,6 +171,13 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
     monkeypatch, tmp_path: Path
 ) -> None:
     fixed_today = lambda: LIVE_DATE
+    # 本组只验证图、批次追加和历史保护；自动结算以明确缺价固定桩保持pending。
+    class OfflineSettlementServices:
+        def __init__(self, root):
+            self.prices = SimpleNamespace(bars=lambda *args: ([], "fixture_missing_prices"))
+        def sector_lookup(self, symbol):
+            return {"status": "none", "benchmark": None}
+    monkeypatch.setattr("daily_analyzer.evaluation.settlement.SettlementServices", OfflineSettlementServices)
     from daily_analyzer.data_sources.futu import FutuDataSource
     monkeypatch.setattr(FutuDataSource, "identity", lambda *args: {})
     from tradingagents.dataflows.errors import VendorUnavailableError

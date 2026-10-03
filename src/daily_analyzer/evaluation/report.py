@@ -120,13 +120,15 @@ def baseline_comparison(samples: list[dict[str, Any]], window: int) -> dict[str,
 def attribution(rows: list[dict[str, Any]], window: int) -> dict[str, Any]:
     result = {}
     for previous, following in (("rm", "trader"), ("trader", "pm")):
-        groups = {"上调": [], "下调": []}
+        groups = {"上调": [], "下调": [], "方向声明不一致": [], "方向声明一致": [], "方向标记缺失": []}
         for row in rows:
             outcome = row.get("windows", {}).get(str(window), {})
             value = number(outcome.get("primary_return"))
             before, after = (SCORES.get(row.get("ratings", {}).get(layer)) for layer in (previous, following))
             if outcome.get("status") != "settled" or value is None or before is None or after is None:
                 continue
+            flag=(row.get('decision_flags') or {}).get(following,{}).get('direction_change_mismatch')
+            groups['方向声明不一致' if flag is True else '方向声明一致' if flag is False else '方向标记缺失'].append(value)
             if after != before:
                 groups["上调" if after > before else "下调"].append(value)
         result[f"{previous}→{following}"] = {name: summary(values) for name, values in groups.items()}

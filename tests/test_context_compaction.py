@@ -158,7 +158,7 @@ def test_analyzer_state_contains_both_profiles_and_disabled_golden(monkeypatch, 
     expected_framework = ('## 决策框架\n运行时点：2026-10-02T09:00:00-04:00；附加上下文截至：2026-10-02T09:00:00-04:00；'
                           '信息截止：2026-10-02T13:00:00+00:00。\n最新完整日线日期P：2026-10-01。\n'
                           '方向与目标配置周期：未来5–20个交易日；点位方案有效期：分析当日起5个交易日。\n'
-                          '单标的标准仓位=100%，是该标的计划持仓量，不是账户总资产比例或现有持仓买卖比例。')
+                          '单标的标准仓位=100%，是该标的计划持仓量，不是账户总资产比例或现有持仓买卖比例。\n评级主口径：相对 SPY 超额（自身收益减SPY收益）。')
     assert old.injected_context == expected_framework + '\n\n' + render_context(fixture_blocks(), AS_OF)
     state = old.create_run_state('SMTC', '2026-10-02')
     assert state['instrument_context_full'] == state['instrument_context_brief'] == state['instrument_context']

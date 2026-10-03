@@ -125,16 +125,30 @@ class SettlementServices:
         self.metadata = IndexMetadataSource()
 
     def sector(self, symbol: str) -> str | None:
+        return self.sector_lookup(symbol)['benchmark']
+
+    def sector_lookup(self, symbol: str) -> dict[str, Any]:
         try:
-            info = self.metadata.lookup([symbol]).get(symbol, {})
-            if info.get("benchmark_kind") == "sector":
-                return info.get("benchmark_symbol")
+            info=self.metadata.lookup([symbol]).get(symbol,{})
+            if info.get('benchmark_kind')=='sector' and info.get('benchmark_symbol'):
+                return {'status':'mapped','benchmark':info['benchmark_symbol']}
         except Exception:
             pass
-        try:
-            return self.yahoo.sector_etf(symbol)
-        except Exception:
-            return None
+        return self.yahoo.sector_lookup(symbol)
+
+
+def lookup_sector(services, symbol):
+    """兼容旧测试/适配器，真实接口必须返回明确三态。"""
+    try:
+        method=getattr(services,'sector_lookup',None)
+        if callable(method):
+            result=method(symbol)
+            if isinstance(result,dict) and result.get('status') in {'mapped','none','failed'}:
+                return result
+        benchmark=services.sector(symbol)
+        return {'status':'mapped' if benchmark else 'none','benchmark':benchmark}
+    except Exception as exc:
+        return {'status':'failed','benchmark':None,'reason':type(exc).__name__}
 
 
 def new_record(result: dict[str, Any], settings: EvaluationSettings, manual: dict[str, str], services: Any) -> dict[str, Any]:
@@ -146,13 +160,17 @@ def new_record(result: dict[str, Any], settings: EvaluationSettings, manual: dic
     kind = result["type"]
     primary = "raw_return" if kind == "index" or (kind == "etf" and symbol in settings.broad_market_etfs) else "excess_vs_spy"
     sector = None
+    sector_lookup="none"
     if kind == "stock":
         data = block_data(result, "sector_strength")
         sector = manual.get(symbol)
         if sector is None and data.get("symbol") == symbol and data.get("sector_etf"):
             sector = data["sector_etf"]
         if sector is None:
-            sector = services.sector(symbol)
+            lookup=lookup_sector(services,symbol)
+            sector=lookup['benchmark'];sector_lookup=lookup['status']
+        else:
+            sector_lookup="mapped"
     anchors = block_data(result, "price_anchors").get("anchors") or {}
     values = {key: number(row.get("value")) for key, row in anchors.items() if isinstance(row, dict)}
     momentum = None
@@ -170,7 +188,7 @@ def new_record(result: dict[str, Any], settings: EvaluationSettings, manual: dic
         "ratings": {"rm": plan_rating(plans["rm"], "Recommendation"), "trader": plan_rating(plans["trader"], "Action"), "pm": RATINGS.get(str(result.get("final_rating")).upper())},
         "target_allocation": {layer: allocation(text) for layer, text in plans.items()},
         "entry": {**plan, "planned_basis": plan["basis"], "price": None, "source": None},
-        "sector_benchmark": sector, "primary_metric": primary,
+        "sector_benchmark": sector, "sector_lookup":sector_lookup, "primary_metric": primary,
         "anchors": values, "momentum_20d": momentum, "market_regime": regime.get("label"),
         "windows": {str(days): {"status": "pending", "exit_date": exit_date(plan, days).isoformat(), "raw_return": None, "excess_vs_spy": None, "excess_vs_sector": None, "primary_return": None} for days in settings.settlement_windows},
         "settled_at": None,
@@ -231,6 +249,7 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
     rows = load_outcomes(path)
     indexed = {(row["run_id"], row["symbol"]): row for row in rows}
     added = 0
+    created=set()
     for source in sorted((root / "data/runs").glob("*/batches/*/results/*.json")):
         result = read_json(source)
         if result.get("status") != "success" or result.get("mode") != "live":
@@ -239,8 +258,10 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
         if key not in indexed:
             indexed[key] = new_record(result, settings, manual, services)
             added += 1
+            created.add(key)
         from .calibration import extract_probabilities
         indexed[key].setdefault('probabilities',extract_probabilities(result))
+        indexed[key].setdefault('decision_flags',result.get('decision_flags') or {})
         indexed[key].setdefault('decision_fingerprint',hashlib.sha256(str(result.get('final_trade_decision') or '').encode('utf-8')).hexdigest())
         if point_plans_enabled:
             indexed[key].setdefault('point_validity',point_validity(result))
@@ -269,6 +290,15 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
     settled = 0
     for key, row in sorted(indexed.items()):
         row["is_current"] = key in current
+        # 旧null无三态证明，仅在任何窗口尚未settled时迁移为可重试；成功/确认none冻结。
+        if row.get('type')=='stock':
+            row.setdefault('sector_lookup','mapped' if row.get('sector_benchmark') else 'failed')
+            if key not in created and row['sector_lookup']=='failed' and not any(outcome.get('status')=='settled' for outcome in row.get('windows',{}).values()):
+                lookup=lookup_sector(services,row['symbol'])
+                row['sector_lookup']=lookup['status']
+                row['sector_benchmark']=lookup['benchmark']
+                if lookup.get('reason'):row['sector_lookup_reason']=lookup['reason']
+                else:row.pop('sector_lookup_reason',None)
         entry = row["entry"]
         day = date.fromisoformat(entry["date"])
         basis = entry.get("planned_basis", entry["basis"])

@@ -52,7 +52,7 @@ def _route_macro(monkeypatch, impls, indicator):
         with run_config(config):
             text=router.route_to_vendor('get_macro_indicators',indicator,'2026-10-02')
     finally:reset_vendor_observer(token)
-    return text,collector.snapshot({}, config)[8]
+    return text,next(row for row in collector.snapshot({}, config) if row["category"] == "宏观指标")
 
 
 def test_public_yields_are_primary_for_treasury(monkeypatch):

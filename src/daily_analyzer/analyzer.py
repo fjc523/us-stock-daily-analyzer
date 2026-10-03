@@ -138,6 +138,10 @@ class AnalyzerGraph(TradingAgentsGraph):
             f"点位方案有效期：分析当日起{validity}个交易日。\n"
             "单标的标准仓位=100%，是该标的计划持仓量，不是账户总资产比例或现有持仓买卖比例。"
         )
+        if config.get('rating_timing_decoupled', True):
+            broad={str(symbol).upper() for symbol in config.get('broad_market_etfs', ['SPY','QQQ','IWM','DIA','VOO','IVV','VTI'])}
+            absolute=item.type=='index' or (item.type=='etf' and item.symbol.upper() in broad)
+            framework += '\n评级主口径：'+('绝对收益（自身收益）' if absolute else '相对 SPY 超额（自身收益减SPY收益）')+'。'
         if mode == "live":
             framework += f"\n分析请求美东自然日：{context_as_of.astimezone(_NEW_YORK).date().isoformat()}（不表示当天开市）。"
             from daily_analyzer.live_information import install_live_information_adapter
@@ -234,10 +238,10 @@ class AnalyzerGraph(TradingAgentsGraph):
                        context_compaction=self.context_compaction, context_profiles=self.context_profiles)
         return initial
 
-    def settle_pending(self, company_name: str) -> None:
+    def settle_pending(self, company_name: str, asset_type: str | None = None) -> None:
         if self.mode == "backfill":
             return
-        super().settle_pending(str(self.item.symbol))
+        super().settle_pending(str(self.item.symbol), asset_type=self.item.type)
 
     def record_decision(self, company_name: str, trade_date: str, final_state: dict) -> None:
         self._log_state(trade_date, final_state)
@@ -339,6 +343,7 @@ def build_upstream_config(
             "price_plan_evaluation_enabled": settings.tradingagents.price_plan_evaluation_enabled,
             "rating_probability_fields": settings.tradingagents.rating_probability_fields,
             "allocation_bands": {name: band.model_dump() for name,band in settings.tradingagents.allocation_bands.items()} if settings.tradingagents.allocation_bands is not None else None,
+            "broad_market_etfs": list(settings.evaluation.broad_market_etfs),
             "evaluation_outcomes_path": str(root / "data" / "evaluation" / "outcomes.jsonl"),
             "stocktwits_enabled": settings.tradingagents.stocktwits_enabled,
             "late_news_refresh": settings.tradingagents.late_news_refresh,
