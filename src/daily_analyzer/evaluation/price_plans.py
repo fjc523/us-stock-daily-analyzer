@@ -22,7 +22,12 @@ def parse_plan(text):
     """区间或首句不适用之外均记解析失败。"""
     text=str(text or '').strip()
     if text.startswith('不适用'):
-        # 日期、突破、区间或多个待选价位不能冒充唯一回踩等待价。
+        # 固定双阈值模板分别保留回踩与突破，其他歧义仍不猜测。
+        dual = re.search(r'等待回踩至\s*\$?([0-9]+(?:\.[0-9]+)?)\s*(?:美元)?\s*或突破\s*\$?([0-9]+(?:\.[0-9]+)?)\s*(?:美元)?\s*确认', text)
+        if dual:
+            wait, breakout = (number(value, positive=True) for value in dual.groups())
+            if wait is not None and breakout is not None:
+                return {'parse_status':'not_applicable','text':text,'wait_price':wait,'breakout_price':breakout,'wait_price_reason':None}
         tail=text.split('等待',1)[1] if '等待' in text else ''
         candidates=re.findall(r'(?<![\d.-])(?:\$\s*)?([0-9]+(?:\.[0-9]+)?)\s*美元',tail)
         ambiguous=bool(re.search(r'突破|区间|[0-9]+(?:\.[0-9]+)?\s*[–—~-]\s*[0-9]+(?:\.[0-9]+)?\s*美元', re.sub(r'(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}(?![0-9])','日期',tail)))
@@ -73,7 +78,9 @@ def evaluate_plan(plan, bars, *, start, end, basis, mature=True, units_verified=
     if plan.get('parse_status')=='not_applicable':
         wait=plan.get('wait_price')
         reached=any(row['low']<=wait<=row['high'] for _,row in selected) if wait else None
-        return {**base,'status':'not_applicable','wait_price':wait,'wait_reached':reached,'reason':None if wait else plan.get('wait_price_reason','无可解析的明确等待价位')}
+        breakout=plan.get('breakout_price')
+        confirmed=any(row['close']>breakout for _,row in selected) if breakout else None
+        return {**base,'status':'not_applicable','wait_price':wait,'wait_reached':reached,'breakout_price':breakout,'breakout_confirmed':confirmed,'reason':None if wait else plan.get('wait_price_reason','无可解析的明确等待价位')}
     low,high=plan['low'],plan['high'];short=plan.get('kind')=='减仓';direction=-1 if short else 1
     for index,(day,bar) in enumerate(selected):
         if bar['low']<=high and bar['high']>=low:
@@ -82,6 +89,15 @@ def evaluate_plan(plan, bars, *, start, end, basis, mature=True, units_verified=
     else:
         return {**base,'status':'settled','triggered':False}
     base.update(triggered=True,trigger_date=day,entry_price=entry)
+    if short:
+        # 减仓不是做空交易；只检验避免持有至期末的方向收益，不借多头止损/目标。
+        terminal=selected[-1][1]['close']
+        considered=[row for _,row in selected[trigger:]]
+        return {**base,'status':'settled','exit_price':terminal,'exit_date':selected[-1][0],'exit_reason':'减仓有效期末',
+                'direction_adjusted_return':(entry-terminal)/entry,
+                'mfe_pct':max(0.,max(entry-row['low'] for row in considered))/entry,
+                'mae_pct':max(0.,max(row['high']-entry for row in considered))/entry,
+                'path_note':'日线极值为区间近似，触发日入场前后及极值先后不可分；减仓无专门回补止损，不计算R'}
     stop,target=number(plan.get('stop_loss'),positive=True),number(plan.get('first_target'),positive=True)
     risk=direction*(entry-stop) if stop is not None else None
     if risk is None or risk<=0 or target is None or direction*(target-entry)<=0:
@@ -113,12 +129,14 @@ def evaluate_plan(plan, bars, *, start, end, basis, mature=True, units_verified=
 def point_report(rows):
     """确定统计的分母与不可判/未成熟样本并列。"""
     lines=['## 点位方案','','无资金/仓位/费用/滑点模拟；同日双触保守止损，日线极值近似不能证明盘中路径。']
-    groups=defaultdict(list);statuses=Counter()
+    groups=defaultdict(list);reductions=defaultdict(list);waiting=[];statuses=Counter()
     for row in rows:
         for plan in row.get('point_plans',{}).values():
             outcome=plan.get('outcome') or {'status':'pending'};statuses[outcome['status']]+=1
             for key in [('评级',row.get('ratings',{}).get('pm') or '未提供'),('标的',row['symbol']),('类型',plan['kind'])]:
-                groups[key].append(outcome)
+                (reductions if plan['kind']=='减仓' else groups)[key].append(outcome)
+            if outcome.get('wait_price') is not None or outcome.get('breakout_price') is not None:
+                waiting.append((row['symbol'],plan['kind'],outcome))
     lines += ['状态：'+('；'.join(f'{name} n={n}' for name,n in sorted(statuses.items())) or '无记录，未成熟/未配置'),'',
               '|分组|值|触发可判n|退出可判触发n|不可判n|触发率|止损率|目标率|平均R|中位R|同日双触|','|---|---|---|---|---|---|---|---|---|---|---|']
     lines.append('触发率仅以成熟且触发布尔值可判样本为分母；止损/目标/双触以退出路径可判的已触发样本为分母，R仅取有真实R值的样本。')
@@ -133,6 +151,20 @@ def point_report(rows):
         lines.append('|'+ '|'.join(map(str,[kind,key,len(trigger_known),len(exits),sum(out['status']=='indeterminate' for out in group),ratio(len(known_trigger),len(trigger_known)),ratio(stop,len(exits)),ratio(target,len(exits)),f'{statistics.mean(rs):.3f}' if rs else '不可计算',f'{statistics.median(rs):.3f}' if rs else '不可计算',ratio(dual,len(exits))]))+'|')
         if len(trigger_known)<30 or len(exits)<30:lines.append(f'{kind} {key}：样本不足，仅供参考。')
         if exits and dual/len(exits)>.2:lines.append(f'{kind} {key}双触超过20%，建议另议Alpaca分钟线细化；本任务不自动请求分钟线。')
+    lines += ['', '### 减仓独立检验', '', '减仓不进入上述平均R/中位R；方向收益=(成交价−期末收盘价)/成交价；MFE/MAE为百分比，不借多头止损/目标。',
+              '|分组|值|触发可判n|已触发成熟n|触发率|平均方向收益|平均MFE|平均MAE|', '|---|---|---|---|---|---|---|---|']
+    for (kind,key),group in sorted(reductions.items()):
+        known=[out for out in group if isinstance(out.get('triggered'),bool) and out['status']=='settled']
+        triggered=[out for out in known if out['triggered'] and out.get('direction_adjusted_return') is not None]
+        mean=lambda field:f'{statistics.mean(out[field] for out in triggered):.2%}' if triggered else '不可计算'
+        rate=f'{len(triggered)/len(known):.1%}' if known else '不可计算'
+        lines.append('|'+ '|'.join(map(str,[kind,key,len(known),len(triggered),rate,mean('direction_adjusted_return'),mean('mfe_pct'),mean('mae_pct')]))+'|')
+        if len(triggered)<30:lines.append(f'{kind} {key}：样本不足，仅供参考。')
+    if waiting:
+        lines += ['', '### 等待条件分别检验', '', '|标的|类型|回踩价|回踩到达|突破价|收盘站上|', '|---|---|---|---|---|---|']
+        for symbol,kind,out in waiting:
+            fmt=lambda value:'不可得' if value is None else str(value)
+            lines.append('|'+ '|'.join(map(str,[symbol,kind,fmt(out.get('wait_price')),fmt(out.get('wait_reached')),fmt(out.get('breakout_price')),fmt(out.get('breakout_confirmed'))]))+'|')
     reasons=Counter(out.get('reason') for row in rows for plan in row.get('point_plans',{}).values() if (out:=plan.get('outcome',{})).get('reason'))
     lines += ['',* [f'- {reason}：n={n}' for reason,n in reasons.items()]]
     return '\n'.join(lines)

@@ -789,8 +789,17 @@ def _record_attempt(
     current_dir.mkdir(parents=True, exist_ok=True)
     previous = current.get(slug)
     if outcome.succeeded or not _is_success(previous):
-        current[slug] = result
         atomic_write_json(current_dir / f"{slug}.json", result)
+        current[slug] = result
+        # 报告、查询快照及批次结果已成功，且current已原子落盘，才提交成功live决策记忆。
+        if (outcome.succeeded and result.get("mode") == "live" and _is_success(result)
+                and result.get("final_rating") in {"Buy", "Overweight", "Hold", "Underweight", "Sell"}
+                and str(result.get("final_trade_decision") or "").strip()):
+            from tradingagents.memory.log import TradingMemoryLog
+            TradingMemoryLog({"memory_log_path": str(root / "data/tradingagents/memory/trading_memory.md")}).store_decision(
+                ticker=outcome.item.symbol, trade_date=trade_day.isoformat(),
+                final_trade_decision=result["final_trade_decision"], rating=result["final_rating"], replace_pending=True,
+            )
     batch["items"].setdefault(slug, {}).update(
         {
             "symbol": outcome.item.symbol,

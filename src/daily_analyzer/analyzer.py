@@ -245,19 +245,7 @@ class AnalyzerGraph(TradingAgentsGraph):
 
     def record_decision(self, company_name: str, trade_date: str, final_state: dict) -> None:
         self._log_state(trade_date, final_state)
-        if self.mode == "backfill":
-            return
-        decision = final_state.get("final_trade_decision")
-        if not decision:
-            return
-        from tradingagents.agents.rating import run_rating
-
-        self.memory_log.store_decision(
-            ticker=str(self.item.symbol),
-            trade_date=trade_date,
-            final_trade_decision=decision,
-            rating=run_rating(final_state),
-        )
+        # 主项目决策记忆由单写者在成功current原子落盘后提交，不能在图完成时提前覆盖。
 
     def _log_state(self, trade_date: str, final_state: dict) -> None:
         from tradingagents.agents.rating import run_rating

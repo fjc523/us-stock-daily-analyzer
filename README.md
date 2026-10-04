@@ -54,9 +54,9 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 配置可选 `evaluation.broad_market_etfs`（默认 SPY、QQQ、IWM、DIA、VOO、IVV、VTI）及 `evaluation.settlement_windows`（默认 `[5,10,20]`，支持其非空子集）。指数（使用代理ETF）和配置宽基主口径为绝对收益；其他ETF及股票为相对SPY超额，股票板块超额辅助报告；SPY价格代理相对自身超额为空。个股映射优先手工指定，再复用已存真实板块映射及发行方/Yahoo来源；缺映射为空，不换成其他板块。
 
-`evaluate` 纯本地生成 `data/evaluation/reports/<美东日期>.md`，默认只评估 current；支持 `--window 5|10|20`、`--layer rm|trader|pm|all`。报告包括每日/每周三层分布和市场环境、10交易日偏空告警、包含Hold的ATR死区三分类命中率、非Hold符号命中率、横截面或池化Rank IC、分档收益和固定种子1000次bootstrap区间、同样本四基线、改评级子样本及入场/资产/板块辅助分组。成熟指标按 `primary_metric` 分组：仅 `excess_vs_spy` 计算同组横截面/池化IC，`raw_return` 绝对口径只报命中率及评级分档收益，未知/缺口径明示且不进入IC；兼容IC字段仅代表超额组。常数评分或常数收益的IC未定义；缺锚点不捏造，基线交集和剔除数列示，n<30标“样本不足，仅供参考”。20日动量仅来自分析截止P的真实历史数据，不能从模型文本恢复。C3先按同日 `analysis_symbol` 去重（旧数据缺该字段回退 `symbol`）：index优先，优先类型内真实带时区完成时间较晚者优先，同刻按 `run_id` 字典序较大者，再按 `symbol` 稳定选择。候选缺时间时整组确定性降级并报告原因；非法非空或无时区时间明确拒绝，不编造时间。报告列原始/保留/重复剔除数，分布、告警、收益、基线和归因共用去重集；不回写历史，C4点位/C5校准保留原始输入。报告末尾列全部口径。
+`evaluate` 纯本地生成 `data/evaluation/reports/<美东日期>.md`，默认只评估 current；支持 `--window 5|10|20`、`--layer rm|trader|pm|all`。报告包括每日/每周三层分布和市场环境、10交易日偏空告警、包含Hold的ATR死区三分类命中率、非Hold符号命中率、横截面或池化Rank IC、分档收益和固定种子1000次bootstrap区间、同样本四基线、改评级子样本及入场/资产/板块辅助分组。成熟指标按 `primary_metric` 分组：仅 `excess_vs_spy` 计算同组横截面/池化IC，`raw_return` 绝对口径只报命中率及评级分档收益，未知/缺口径明示且不进入IC；兼容IC字段仅代表超额组。常数评分或常数收益的IC未定义；缺锚点不捏造，基线交集和剔除数列示，n<30标“样本不足，仅供参考”。20日动量仅来自分析截止P的真实历史数据，不能从模型文本恢复。C3先按同日 `analysis_symbol` 去重（旧数据缺该字段回退 `symbol`）：index优先，优先类型内真实带时区完成时间较晚者优先，同刻按 `run_id` 字典序较大者，再按 `symbol` 稳定选择。候选缺时间时整组确定性降级并报告原因；非法非空或无时区时间明确拒绝，不编造时间。报告列原始/保留/重复剔除数，分布、告警、收益、基线和归因共用去重集；不回写历史，C4点位/D2校准同样共用去重保留集。报告末尾列全部口径。
 
-新评估独立于 `data/tradingagents/memory/trading_memory.md` 的旧五日经验/反思。新反思按资产主口径生成：宽基/指数使用自身绝对收益，其余使用对SPY超额；旧memory标签、格式、路径保持兼容，已存历史正文不改写。2026-10-03真实5/10/20窗口尚未成熟：允许真实回填pending，未来约10-09/10-30成熟收益验收为 **NOT_TESTED**；合成单测验证代码不证明预测有效性。网页独立评估页及组合模拟不属于该基础交付；点位检验与概率校准见以下本批增量。
+新评估独立于 `data/tradingagents/memory/trading_memory.md` 的旧五日经验/反思。新反思按资产主口径生成：宽基/指数使用自身绝对收益，其余使用对SPY超额；旧memory标签、格式、路径保持兼容，已settled历史正文不改写。2026-10-03真实5/10/20窗口尚未成熟：允许真实回填pending，未来约10-09/10-30成熟收益验收为 **NOT_TESTED**；合成单测验证代码不证明预测有效性。网页独立评估页及组合模拟不属于该基础交付；点位检验与概率校准见以下本批增量。
 
 
 ## 当前预期、持仓结构与社交不足（T9/T10/T11）
@@ -74,7 +74,7 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 `tradingagents.lesson_min_settled_same_ticker: 10` 默认要求10条全量可见结算事实后才注入同标反思；不足只事实表，达标加方向命中率和最近3反思。优先C2真实5/10/20日主收益，旧memory5日tag收益可能为raw或excess，明确标为口径未核验的旧来源；C2 current与memory正文精确指纹一致才继承反思，同日重跑不误挂旧教训。`cross_ticker_lessons` 支持off/stats/text，默认stats按评级及资产主口径分组均值/n；text使用真实旧memory跨标记录。N=0且text恢复旧注入与经理提示逐字，不删除或改写反思。
 
-`tradingagents.rating_probability_fields: true` 默认在RM/PM输出可选5/20日跑赢概率及20日收益区间，概率以资产主口径为准。20日P切档：Buy≥0.65、Overweight[0.55,0.65)、Hold[0.45,0.55)、Underweight[0.35,0.45)、Sell<0.35。概率错档只记录各层 `decision_flags.*.rating_prob_mismatch` 并首页提示，不自动改评级。关闭恢复旧字段/提示；缺值不补0.5。“校准”章只用对应窗口成熟且概率可用样本，报告Brier、五等宽箱ECE和同样本经验基准率（样本内描述，不是OOS）；n<30注明不足，无成熟样本不报确定结论。
+`tradingagents.rating_probability_fields: true` 默认在RM/PM输出可选5/20日跑赢概率及20日收益区间，概率以资产主口径为准。20日P切档：Buy≥0.65、Overweight[0.55,0.65)、Hold[0.45,0.55)、Underweight[0.35,0.45)、Sell<0.35。概率错档只记录各层 `decision_flags.*.rating_prob_mismatch` 并首页提示，不自动改评级。关闭恢复旧字段/提示；缺值不补0.5。“校准”章只用对应窗口成熟且概率可用样本，报告Brier、评级档边界[0,.35)、[.35,.45)、[.45,.55)、[.55,.65)、[.65,1]箱ECE和同样本经验基准率（样本内描述，不是OOS）；n<30注明不足，无成熟样本不报确定结论。
 
 `tradingagents.allocation_bands` 默认Sell[0,20)、Underweight[20,80)、Hold[80,120]、Overweight(120,135]、Buy(135,150]；单位仍是单标的标准计划量%，不改真实账户业务口径。用户可配置lower/upper/lower_inclusive/upper_inclusive，区间不得重叠；显式null恢复原配置提示并关闭D3校验，其他开关不随之关闭。三层越界只记 `decision_flags.*.allocation_flag`，首页显示“配置与评级不一致”，不修正评级/值、不设schema上限、不计算实际买卖量。旧结果缺flags可只读解析显式评级/配置作提示。真实模型新概率/配置输出均 **NOT_TESTED**，固定历史模型桩不升级为真实业务效果。
 
@@ -86,6 +86,14 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 D1开启时评级统一用C1主口径，框架按标的type及可配置`evaluation.broad_market_etfs`说明宽基/指数绝对收益或股票/行业ETF对SPY超额。PM方向锚定及强制声明只受B3控制，时机解耦/5–20日周期只受D1控制；Trader方向锚定仍为两开关OR。三层`direction_change_mismatch`只标记已明确评级不一致且未给“是+证据”，不改评级/配置；成熟分层归因单列标记一致、不一致和缺失。
 
-旧memory结算对明确宽基/指数使用自身raw和“绝对收益”反思提示，不要求SPY收益；旧tag格式和决策正文不改。C5保留旧tag来源统计并明确收益口径未核验，不将其当作C2超额。行业查找记`sector_lookup: mapped/none/failed`，仅failed且未有任一窗口settled时重试；成功映射及确认无映射冻结。实际三标映射及授权首次metadata补全证据保留ignored；身份、评级、主口径及78个旧窗口不变，78窗仍pending，不产生未来收益。
+旧memory结算对明确宽基/指数使用自身raw和“绝对收益”反思提示，不要求SPY收益；旧tag格式和已settled决策正文不改。C5保留旧tag来源统计并明确收益口径未核验，不将其当作C2超额。行业查找记`sector_lookup: mapped/none/failed`，仅failed且未有任一窗口settled时重试；成功映射及确认无映射冻结。实际三标映射及授权首次metadata补全证据保留ignored；身份、评级、主口径及78个旧窗口不变，78窗仍pending，不产生未来收益。
 
 T29九项已完成独立功能审核（R1–R3闭合）。主仓/TradingAgents首次全量各执行一次，原始失败节点逐项修复测试契约及离线隔离后全部复验通过；保留首次失败日志，Windows平台旧新失败单列，未执行真实模型integration。C3代理保留规则待用户确认，当前仅`Refs T29`部分交付，不关闭T29。
+
+### T31 第二轮更正
+
+概率开启时RM所有路径先生成现有分歧/引用核对，再生成5/20日概率及收益区间，再生成评级；PM概率三字段在评级前，关闭开关保持同其他配置的旧schema JSON逐字兼容。有评级必须给0–1数值，证据薄弱向0.5收缩；仅关键输入缺失且评级无法给出可写不可得及原因。旧未知不补值，校准分层分窗口列成熟缺概率、成熟缺主收益和全保留记录概率缺失率。
+
+减仓不借多头止损/目标，按触发后至有效期末的 `(成交价−期末收盘价)/成交价` 检验方向收益，MFE/MAE以百分比表达；独立汇总不进入平均R，本批不新增专门回补止损字段。等待回踩X或突破Y分别检验X是否到达、Y是否收盘严格站上，日线路径及未成熟限制保持。
+
+同日同标成功live重跑仅原子更新旧memory的pending正文和评级，不增加条数；失败/不可用/REVIEW及backfill不覆盖，已settled原文保持。来源默认不明的底层调用不覆盖pending；实际历史修正须有current来源记录，不能盲修生产。真实memory副本回放只证明决策身份路径，真实模型遵守、token节省、未来收益及投资有效性仍NOT_TESTED或未成熟。

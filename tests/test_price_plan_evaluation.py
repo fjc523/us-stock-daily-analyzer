@@ -39,7 +39,8 @@ def test_untriggered_pending_close_and_short():
     assert check(bars,mature=False)['status']=='pending'
     assert evaluate_plan(plan(),bars,start='2026-10-01',end='2026-10-01',basis='same_day_close')['status']=='indeterminate'
     short=check({'2026-10-01':{'open':100,'low':89,'high':102,'close':90}},plan=plan(True))
-    assert short['exit_reason']=='第一目标' and short['realized_r']==pytest.approx(2)
+    assert short['exit_reason']=='减仓有效期末' and short['realized_r'] is None
+    assert short['direction_adjusted_return']==pytest.approx(.1)
 
 
 def test_gap_after_entry_and_unit_guard():

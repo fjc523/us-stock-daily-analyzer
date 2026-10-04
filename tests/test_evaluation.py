@@ -366,7 +366,7 @@ def test_c3_nonempty_invalid_completion_rejected(finished):
         analyze([c3_record('BAD', finished_at=finished)])
 
 
-def test_c3_evaluate_readonly_and_c4_c5_original_inputs(tmp_path, monkeypatch):
+def test_c3_evaluate_readonly_and_c4_d2_shared_deduplicated_inputs(tmp_path, monkeypatch):
     from daily_analyzer.evaluation import price_plans, calibration
     index = c3_record('^GSPC', type='index', analysis_symbol='SPY', metric='raw_return')
     etf = c3_record('SPY', type='etf', metric='raw_return')
@@ -378,13 +378,13 @@ def test_c3_evaluate_readonly_and_c4_c5_original_inputs(tmp_path, monkeypatch):
             return name
         return report
     monkeypatch.setattr(price_plans, 'point_report', capture('C4'))
-    monkeypatch.setattr(calibration, 'calibration_report', capture('C5'))
+    monkeypatch.setattr(calibration, 'calibration_report', capture('D2'))
     path = tmp_path/'data/evaluation/outcomes.jsonl';path.parent.mkdir(parents=True)
     path.write_text('\n'.join(json.dumps(row) for row in original)+'\n')
     before = path.read_bytes()
     result = evaluate(tmp_path, now=stamp('2026-10-03T10:00:00-04:00'))
     assert path.read_bytes() == before and result['records'] == 2
-    assert seen == [('C4', original), ('C5', original)]
+    assert seen == [('C4', [index]), ('D2', [index])]
     text = Path(result['path']).read_text()
     assert '原始 2，保留 1，重复剔除 1' in text
-    assert 'C4点位/C5校准继续使用原始 2 条记录' in text
+    assert 'C4点位/D2校准同样共用保留 1 条记录' in text

@@ -270,7 +270,7 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     dedup = result["deduplication"]
     lines = [f"# 评级评估报告 · {now.date().isoformat()}", "", f"生成时刻：{now.isoformat(timespec='seconds')}；窗口：{window}交易日；默认current筛选；{_sample_note(len(rows))}。", "",
              "本报告仅描述已观察样本，不证明策略有效性。真实未来窗口尚未成熟的记录保持 pending；未来运行验收为 NOT_TESTED。"]
-    lines += ["", f"C3代理去重：原始 {dedup['original']}，保留 {dedup['retained']}，重复剔除 {dedup['removed']}；C3分布、命中、收益、基线和归因共用保留集。C4点位/C5校准继续使用原始 {len(raw_rows)} 条记录。"]
+    lines += ["", f"C3代理去重：原始 {dedup['original']}，保留 {dedup['retained']}，重复剔除 {dedup['removed']}；C3分布、命中、收益、基线和归因共用保留集。C4点位/D2校准同样共用保留 {len(rows)} 条记录。"]
     for fallback in dedup["fallbacks"]:
         lines.append(f"- 时间缺失降级：{fallback['trade_date']} / {fallback['analysis_symbol']}：{fallback['reason']}；保留 {fallback['selected_run_id']}/{fallback['selected_symbol']}。")
     if result["warning"]:
@@ -309,7 +309,7 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     ]
     from .price_plans import point_report
     from .calibration import calibration_report
-    lines += ["", point_report(raw_rows), "", calibration_report(raw_rows)]
+    lines += ["", point_report(rows), "", calibration_report(rows)]
     return "\n".join(lines) + "\n"
 
 
