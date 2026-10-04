@@ -333,9 +333,9 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         line for line in live_memory.decode("utf-8").splitlines()
         if line.startswith(f"[{LIVE_DATE} | ")
     ]
-    assert len(live_entries) == 2
-    assert {line.split("|")[1].strip() for line in live_entries} == {"NVDA", "AAPL"}
-    assert live_memory.startswith(seed)
+    # 图完成只记录状态，记忆由成功 current 落盘后的 runner 写入。
+    assert len(live_entries) == 0
+    assert live_memory == seed
 
     for ticker, graph in graphs.items():
         state, rating = results[ticker]
@@ -472,6 +472,23 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
     directory = root / 'data/runs/2026-10-02'
     assert read_json(directory / 'current/AAPL.json')['appended'] is True
     assert read_json(directory / 'current/NVDA.json')['status'] == 'success'
+    # runner 单点写入的 pending 记忆必须与成功 current 的评级及正文指纹一致。
+    import hashlib
+    from tradingagents.memory.log import TradingMemoryLog
+    entries = TradingMemoryLog({
+        "memory_log_path": str(root / "data/tradingagents/memory/trading_memory.md")
+    }).load_entries()
+    assert len(entries) == 2
+    by_identity = {(entry["date"], entry["ticker"]): entry for entry in entries}
+    assert set(by_identity) == {(LIVE_DATE, "NVDA"), (LIVE_DATE, "AAPL")}
+    for ticker in ("NVDA", "AAPL"):
+        current = read_json(directory / f"current/{ticker}.json")
+        entry = by_identity[(LIVE_DATE, ticker)]
+        assert entry["pending"] is True
+        assert entry["rating"] == current["final_rating"]
+        assert hashlib.sha256(entry["decision"].encode("utf-8")).hexdigest() == hashlib.sha256(
+            current["final_trade_decision"].encode("utf-8")
+        ).hexdigest()
     assert writes == [main_thread, main_thread]
     assert site_threads and set(site_threads) == {main_thread}
     assert 'AAPL' in (root / 'site/index.html').read_text()
