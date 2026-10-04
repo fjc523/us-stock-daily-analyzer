@@ -90,7 +90,7 @@ def test_analyzer_defers_memory_until_runner_current_persisted(tmp_path,mode,sta
     assert len(graph.memory_log.load_entries())==1
 
 
-@pytest.mark.parametrize('failure',[None,'save_reports','snapshot','batch_result','current_result'])
+@pytest.mark.parametrize('failure',[None,'save_reports','snapshot','consistency_input','batch_result','current_result'])
 def test_actual_runner_late_failure_keeps_previous_memory_current(tmp_path,monkeypatch,failure):
     import daily_analyzer.runner as runner
     from test_runner import _project,_run,_FakeGraph
@@ -112,6 +112,9 @@ def test_actual_runner_late_failure_keeps_previous_memory_current(tmp_path,monke
             graph.record_decision(self.item.symbol,'2026-10-02',state)
             if failure=='snapshot':self.tool_trace.snapshot=lambda:(_ for _ in ()).throw(OSError('晚期快照失败'))
             return state,'Sell'
+        def consistency_snapshot(self,state):
+            if failure=='consistency_input':raise OSError('一致性输入快照失败')
+            return {'原始输入':'离线fixture'}
         def save_reports(self,*args,**kwargs):
             if failure=='save_reports':raise OSError('晚期报告保存失败')
             return super().save_reports(*args,**kwargs)
@@ -125,6 +128,10 @@ def test_actual_runner_late_failure_keeps_previous_memory_current(tmp_path,monke
     _run(root,clock=lambda:datetime.fromisoformat('2026-10-02T10:15:00-04:00'),force=True,analyzer_factory=Graph)
     if failure:
         assert path.read_bytes()==old_memory and current.read_bytes()==old_current
+        import json
+        assert 'consistency_input' not in json.loads(current.read_text())
+        for result_path in (root/'data/runs/2026-10-02/batches').glob('*/results/NVDA.json'):
+            assert 'consistency_input' not in json.loads(result_path.read_text())
     else:
         import json,hashlib
         result=json.loads(current.read_text());entry=log.load_entries()[0]

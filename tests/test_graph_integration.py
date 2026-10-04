@@ -510,6 +510,18 @@ def test_real_analyzer_graph_runs_offline_in_parallel_and_backfill_preserves_mem
         assert any(f'{ticker}宏观指标2：实际 12K' in text and '上游未评估的经济数据' in text for text in prompts)
 
 
+    # 新成功结果保存原初始历史；同一真实图节点从辩论入口离线重跑，不能再取数/写记忆。
+    from daily_analyzer.evaluation.consistency import run_consistency, build_debate_state
+    saved = read_json(directory / 'current/NVDA.json')['consistency_input']
+    assert saved['state']['past_context'] == build_debate_state(saved)['past_context']
+    assert all(key in saved['reports'] for key in ('market_report', 'sentiment_report', 'news_report', 'fundamentals_report'))
+    original_news_counts, original_macro_counts = dict(news_counts), dict(macro_counts)
+    consistency = run_consistency(root, outcome.run_id, test_mode=True, symbols=['NVDA'])
+    assert consistency['test_only'] and len(consistency['comparisons']) == 1
+    assert news_counts == original_news_counts and macro_counts == original_macro_counts
+    assert len(TradingMemoryLog({'memory_log_path': str(root / 'data/tradingagents/memory/trading_memory.md')}).load_entries()) == 2
+
+
 
 def test_upstream_config_carries_custom_decision_and_price_rules(tmp_path):
     settings = parse_settings({"decision": {"horizon_trading_days": [7, 15], "plan_validity_trading_days": 3},

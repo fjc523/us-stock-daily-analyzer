@@ -1132,3 +1132,27 @@ def test_backfill_run_never_calls_independent_settlement(tmp_path, monkeypatch):
         context_manager_factory=lambda *args: _ContextManager(), analyzer_factory=_FakeGraph,
         site_builder=lambda *args, **kwargs: {"ok": True}, settler=lambda *args: pytest.fail("回放不结算"))
     assert outcome.exit_code == 0
+
+
+def test_snapshot_persists_only_success_and_never_runs_a_repeat(tmp_path, monkeypatch):
+    monkeypatch.setenv('APCA_API_KEY_ID', 'fixture-key')
+    monkeypatch.setenv('APCA_API_SECRET_KEY', 'fixture-secret')
+    snapshots = []
+    class SnapshotGraph(_FakeGraph):
+        def consistency_snapshot(self, state):
+            snapshots.append(self.item.symbol)
+            return {'original_past': '原值', 'test_fixture_only': True}
+    root = _project(tmp_path, ('NVDA',))
+    now = datetime(2026, 10, 2, 10, tzinfo=NEW_YORK)
+    outcome = _run(root, clock=lambda: now, analyzer_factory=SnapshotGraph)
+    current = root/'data/runs/2026-10-02/current/NVDA.json'
+    assert json.loads(current.read_text())['consistency_input']['original_past'] == '原值'
+    assert snapshots == ['NVDA'] and SnapshotGraph.analyzed == ['NVDA']
+    class FailedSnapshotGraph(SnapshotGraph):
+        def propagate(self, *a, **kw):
+            raise RuntimeError('固定失败')
+    failed = _run(root, clock=lambda: now.replace(second=1), force=True, analyzer_factory=FailedSnapshotGraph)
+    result = root/'data/runs/2026-10-02/batches'/failed.run_id/'results/NVDA.json'
+    assert 'consistency_input' not in json.loads(result.read_text())
+    assert snapshots == ['NVDA']
+    assert json.loads(current.read_text())['status'] == 'success'

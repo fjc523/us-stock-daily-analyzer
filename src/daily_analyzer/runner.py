@@ -613,6 +613,9 @@ def _analyze_item(
             },
             "llm_usage": calls,
         }
+        snapshot = getattr(graph, 'consistency_snapshot', None)
+        if callable(snapshot):
+            result['consistency_input'] = snapshot(final_state)
         result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
         if appended:
             result["appended"] = True

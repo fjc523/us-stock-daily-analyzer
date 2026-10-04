@@ -236,7 +236,19 @@ class AnalyzerGraph(TradingAgentsGraph):
         brief = full.removesuffix(self.injected_context) + self.brief_injected_context
         initial.update(company_name=getattr(self, "_company_name", None) or "", instrument_context_full=full, instrument_context_brief=brief,
                        context_compaction=self.context_compaction, context_profiles=self.context_profiles)
+        from copy import deepcopy
+        # 初始历史只获取一次，保存原值供成功结果冻结测试，失败结果不持久化快照。
+        self._consistency_initial_state = deepcopy(initial)
         return initial
+
+    def consistency_snapshot(self, final_state):
+        from daily_analyzer.evaluation.consistency import snapshot_input
+        block = self.context_blocks.get('price_anchors')
+        data = getattr(block, 'data', {}) if block is not None else {}
+        reference = ((data.get('anchors') or {}).get('P_Close') or {}).get('value')
+        return snapshot_input(self._consistency_initial_state, final_state, config=self.config,
+            injected_context=self.injected_context, selected_analysts=self.selected_analysts,
+            reference_price=reference)
 
     def settle_pending(self, company_name: str, asset_type: str | None = None) -> None:
         if self.mode == "backfill":
@@ -279,6 +291,25 @@ class AnalyzerGraph(TradingAgentsGraph):
         atomic_write_json(path, entry)
 
 
+def bind_project_sources(host: str, port: int):
+    """复用项目来源绑定；调用者提供原保存连接参数，不读取当前业务配置。"""
+    from daily_analyzer.data_sources.futu import get_shared_data_source
+    from tradingagents.dataflows.ohlcv_sources import register_ohlcv_source
+    source = get_shared_data_source()
+    source.host, source.port = host, port
+    register_ohlcv_source("futu", source.daily_bars)
+    from tradingagents.dataflows.router import register_vendor_method
+    from functools import partial
+    for method, impl in {"get_fundamentals": source.fundamentals, "get_insider_transactions": source.insiders,
+                         "get_news": source.news, "get_macro_indicators": source.macro,
+                         "get_balance_sheet": partial(source.statements, 2),
+                         "get_income_statement": partial(source.statements, 1),
+                         "get_cashflow": partial(source.statements, 3)}.items():
+        register_vendor_method(method, "futu", impl)
+    from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
+    register_vendor_method('get_macro_indicators', 'fred_public', TREASURY_SOURCE.macro)
+
+
 def build_upstream_config(
     settings: Any,
     *,
@@ -313,6 +344,7 @@ def build_upstream_config(
             "codex_prompt_log_dir": str(batch / "prompts") if settings.llm.log_prompts else None,
             "market_timezone": "America/New_York",
             "futu_enabled": settings.futu.enabled,
+            "futu_host": settings.futu.host, "futu_port": settings.futu.port,
             "trade_date": trade_date,
             "price_data_end_date": price_data_end_date,
             "news_cutoff_utc": news_cutoff_utc.isoformat() if news_cutoff_utc else None,
@@ -350,21 +382,7 @@ def build_upstream_config(
     config["tool_vendors"]["get_earnings_expectations"] = "yfinance"
     for key, value in settings.price_plan.model_dump().items():
         config[f"price_plan_{key}"] = value
-    from daily_analyzer.data_sources.futu import get_shared_data_source
-    from tradingagents.dataflows.ohlcv_sources import register_ohlcv_source
-    source = get_shared_data_source()
-    source.host, source.port = settings.futu.host, settings.futu.port
-    register_ohlcv_source("futu", source.daily_bars)
-    from tradingagents.dataflows.router import register_vendor_method
-    from functools import partial
-    for method, impl in {"get_fundamentals": source.fundamentals, "get_insider_transactions": source.insiders,
-                         "get_news": source.news, "get_macro_indicators": source.macro,
-                         "get_balance_sheet": partial(source.statements, 2),
-                         "get_income_statement": partial(source.statements, 1),
-                         "get_cashflow": partial(source.statements, 3)}.items():
-        register_vendor_method(method, "futu", impl)
-    from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
-    register_vendor_method('get_macro_indicators', 'fred_public', TREASURY_SOURCE.macro)
+    bind_project_sources(settings.futu.host, settings.futu.port)
     config["tool_vendors"].update({"get_fundamentals":"futu,yfinance", "get_insider_transactions":"futu,yfinance",
          "get_news":"alpaca,futu,yfinance", "get_macro_indicators":"fred_public,futu,fred",
          **{key:"sec_edgar,futu,yfinance" for key in ("get_balance_sheet", "get_income_statement", "get_cashflow")}})

@@ -30,6 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="临时覆盖 deep 与 quick 推理强度",
     )
 
+    consistency_parser = commands.add_parser('consistency', help='仅显式测试：重跑保存输入的一致性')
+    consistency_parser.add_argument('--run-id', required=True)
+    consistency_parser.add_argument('--repeats', type=int, default=2)
+    consistency_parser.add_argument('--from', dest='from_stage', choices=('debate', 'analysts'), default='debate')
+    consistency_parser.add_argument('--tickers', help='仅测试指定保存标的，逗号分隔')
+    consistency_parser.add_argument('--test-mode', action='store_true', help='显式允许重复测试；生产默认关闭')
+
     commands.add_parser("settle", help="回填并结算独立评估窗口")
     evaluate_parser = commands.add_parser("evaluate", help="生成三层评级客观评估报告")
     evaluate_parser.add_argument("--since", metavar="YYYY-MM-DD")
@@ -110,6 +117,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         stream = sys.stdout if outcome.exit_code == 0 else sys.stderr
         print(outcome.message, file=stream)
         return outcome.exit_code
+
+    if args.command == 'consistency':
+        from daily_analyzer.evaluation.consistency import run_consistency
+        try:
+            result = run_consistency(root, args.run_id, repeats=args.repeats, from_stage=args.from_stage,
+                test_mode=args.test_mode, symbols=args.tickers.split(',') if args.tickers else None)
+            _print_mapping('一致性测试 ', result)
+            return 0
+        except (ValueError, OSError) as exc:
+            print(f'一致性测试失败：{exc}', file=sys.stderr)
+            return 2
 
     if args.command in {"settle", "evaluate"}:
         try:

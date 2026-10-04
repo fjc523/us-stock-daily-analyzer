@@ -78,6 +78,14 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 `tradingagents.allocation_bands` 默认Sell[0,20)、Underweight[20,80)、Hold[80,120]、Overweight(120,135]、Buy(135,150]；单位仍是单标的标准计划量%，不改真实账户业务口径。用户可配置lower/upper/lower_inclusive/upper_inclusive，区间不得重叠；显式null恢复原配置提示并关闭D3校验，其他开关不随之关闭。三层越界只记 `decision_flags.*.allocation_flag`，首页显示“配置与评级不一致”，不修正评级/值、不设schema上限、不计算实际买卖量。旧结果缺flags可只读解析显式评级/配置作提示。真实模型新概率/配置输出均 **NOT_TESTED**，固定历史模型桩不升级为真实业务效果。
 
+## 显式一致性测试（T23）
+
+`python -m daily_analyzer consistency --run-id <原批次ID> --test-mode` 默认从 `debate` 开始，同一保存输入重复2次。普通live/manual/schedule不自动重复，也无生产双跑开关。新成功运行在结果 `consistency_input` 保存原分析师四报告槽、injected/past、身份/组合上下文与非凭据模型配置；原未选分析师空槽保留。晚期保存失败不产生成功快照或提前提交记忆。旧记录缺原历史快照会先拒绝，禁止读当前记忆、重新获取报告或把空历史冒充原输入。
+
+测试复用真实决策图节点，跳过四分析师并关闭late新闻/宏观刷新、结算、报告与记忆写入生命周期，输出仅在 `data/evaluation/consistency/`。保留输入hash并核对正式runs/reports/memory/current/cache/status前后字节及清单。三层评级档差、配置百分点、入场方案类型与同一原P_Close下的区间差分别报告；缺值保留不可计算。`--from analysts` 会重新获取数据，明确为非完全冻结，额外消耗模型与数据请求；采用独立子进程和测试缓存目录，不共享生产来源实例或写入器；复用项目Futu/公开利率绑定，只读取原快照非敏感Futu host/port，缺失拒绝，不读取今天业务/模型配置替代。子进程内单独加载项目凭据且不落盘，首次Yahoo使用前将时区/cookie/ISIN缓存全部重定向私有测试目录，父进程配置不变。实际耗时/用量按重复保存，没有调用日志不能称零成本。
+
+本批只执行冻结fixture与真实图的离线桩测试，真实模型调用为0。旧SMTC/QQQ记录缺原past，按严格边界拒绝；要求的各2次真实测试、真实成本/一致率均 **NOT_TESTED**。未启用定时抽检，未修改生产双跑或provider A/B配置。
+
 ## 第一轮投研返工（T29）
 
 本轮按十个问题分别闭环：方向声明宽松归一与实际schema生成顺序、长度条数软校验、评级主口径对齐、契约/全量测试、旧反思及行业映射、独立开关、确定性方向标记与同代理IC。不会重写历史评级、反思tag或已settled收益；真实模型遵守及未成熟收益仍NOT_TESTED。C3代理保留规则已由用户确认并实现。
