@@ -1156,3 +1156,100 @@ def test_snapshot_persists_only_success_and_never_runs_a_repeat(tmp_path, monkey
     assert 'consistency_input' not in json.loads(result.read_text())
     assert snapshots == ['NVDA']
     assert json.loads(current.read_text())['status'] == 'success'
+
+
+def test_mixed_model_usage_preserves_cache_units_and_unknown_cost(tmp_path):
+    import json
+    from daily_analyzer.runner import _usage_for_ticker
+    from daily_analyzer.model_usage import call_evidence
+    rows=[{'ticker':'SMTC','role':'bull','model':'gpt-6.1-sol','tokens':{'input_tokens':100,'cached_input_tokens':80}},
+          {'ticker':'SMTC','role':'research_manager','provider':'claude_exec','model':'claude-opus-5-5','configured_effort':'high',
+           'tokens':{'input_tokens':2,'cache_creation_input_tokens':100,'cache_read_input_tokens':30,'output_tokens':4},'estimated_cost_usd':.01},
+          {'ticker':'SMTC','role':'trader','provider':'claude_exec','tokens':None}]
+    path=tmp_path/'calls.jsonl';path.write_text('\n'.join(json.dumps(row) for row in rows))
+    usage=_usage_for_ticker(path,'SMTC')
+    assert usage['calls']==3 and usage['cached_input_tokens'] is None and usage['cache_creation_input_tokens'] is None
+    assert [row['total_prompt_tokens'] for row in usage['model_calls']]==[100,132,None]
+    assert usage['model_calls'][0]['estimated_cost_usd'] is None
+    assert call_evidence(rows)[1]['effective_effort']=='NOT_REPORTED'
+
+
+@pytest.mark.parametrize('tokens,expected',[({},(None,None,None,None,None)),
+    ({'input_tokens':2,'output_tokens':4},(2,None,4,None,None)),
+    ({'input_tokens':2,'cache_creation_input_tokens':100,'cache_read_input_tokens':30,'output_tokens':4},(2,30,4,None,132)),
+    ({'input_tokens':2,'cache_creation_input_tokens':100,'cache_read_input_tokens':30,'output_tokens':4,'output_tokens_details':{'thinking_tokens':3}},(2,30,4,3,132))])
+def test_mixed_usage_requires_each_metric_reported(tokens,expected,tmp_path):
+    from daily_analyzer.runner import _usage_for_ticker
+    path=tmp_path/'calls.jsonl'
+    path.write_text(json.dumps({'provider':'claude_exec','tokens':tokens}))
+    value=_usage_for_ticker(path)
+    assert tuple(value[key] for key in ('input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens','total_prompt_tokens'))==expected
+    assert value['metric_status']['reasoning_output_tokens']==('REPORTED' if expected[3] is not None else 'NOT_REPORTED')
+
+
+def test_manifest_mixed_usage_includes_sol_only_batch_prompt_without_cached_duplication(tmp_path):
+    from daily_analyzer.model_usage import mixed_usage
+    rows=[{'tokens':{'input_tokens':100,'cached_input_tokens':80,'output_tokens':10,'reasoning_output_tokens':2}},
+          {'provider':'claude_exec','tokens':{'input_tokens':2,'cache_creation_input_tokens':100,'cache_read_input_tokens':30,'output_tokens':4}}]
+    value=mixed_usage(rows)
+    trade_day=date(2026,10,2)
+    for index,row in enumerate(rows):
+        directory=tmp_path/'data/runs'/trade_day.isoformat()/'batches'/str(index)
+        directory.mkdir(parents=True)
+        (directory/'batch.json').write_text(json.dumps({'run_id':str(index),'status':'completed','items':{}}))
+        (directory/'llm_calls.jsonl').write_text(json.dumps(row))
+    assert _manifest_usage(tmp_path,trade_day)==value
+    assert value['input_tokens']==102 and value['total_prompt_tokens']==232 and value['cached_input_tokens']==110
+    assert value['cache_creation_input_tokens']==100 and value['reasoning_output_tokens'] is None
+
+
+@pytest.mark.parametrize('failure',[False,True])
+def test_success_failure_role_result_separates_configured_from_observed(tmp_path,monkeypatch,failure):
+    monkeypatch.setenv('APCA_API_KEY_ID','fixture-key');monkeypatch.setenv('APCA_API_SECRET_KEY','fixture-secret')
+    class RoleGraph(_FakeGraph):
+        role_llm_metadata={'research_manager':{'provider':'claude_exec','model':'claude-opus-5-5','effort':'high'},
+                           'bull':{'provider':'codex_exec','model':'gpt-6.1-sol','effort':'medium'},
+                           'trader':{'provider':'claude_exec','model':'claude-opus-5-5','effort':'high'}}
+        def propagate(self,*args,**kwargs):
+            rows=[{'ticker':self.item.symbol,'role':'research_manager','provider':'claude_exec','model':'claude-opus-5-5',
+                   'actual_api_providers':['firstParty'],'result':'quota' if failure else 'success','tokens':{'input_tokens':2}},
+                  {'ticker':'OTHER','role':'trader','provider':'claude_exec','model':'claude-opus-5-5','result':'success'},
+                  {'ticker':self.item.symbol,'role':'bull','model':'gpt-6.1-sol','result':'success'}]
+            Path(self.config['codex_usage_log_path']).write_text('\n'.join(json.dumps(row) for row in rows))
+            if failure:raise RuntimeError('离线失败但已返回用量')
+            return super().propagate(*args,**kwargs)
+    root=_project(tmp_path,('NVDA',))
+    outcome=_run(root,clock=lambda:datetime(2026,10,2,10,tzinfo=NEW_YORK),analyzer_factory=RoleGraph)
+    result=json.loads((root/'data/runs/2026-10-02/batches'/outcome.run_id/'results/NVDA.json').read_text())
+    roles=result['llm']['roles']
+    assert roles['research_manager']['configured']['model']=='claude-opus-5-5'
+    assert roles['research_manager']['observed']['models']==['claude-opus-5-5'] and roles['research_manager']['call_count']==1
+    assert roles['research_manager']['status']==('FAILED' if failure else 'SUCCESS')
+    assert roles['research_manager']['auth_preflight_rejected'] is False
+    assert roles['bull']['observed']['models'] is None and roles['bull']['configured']['model']=='gpt-6.1-sol'
+    assert roles['trader']['observed']['models'] is None and roles['trader']['call_count']==0
+    assert roles['trader']['status']=='NOT_EXECUTED_OR_NOT_RECORDED'
+
+
+
+def test_role_phases_node_aliases_and_auth_rejection_never_invent_actual():
+    from daily_analyzer.model_usage import role_execution_evidence
+    configured={'bull':{'model':'gpt-6.1-sol'},'research_manager':{'model':'claude-opus-5-5'}}
+    rows=[{'ticker':'SMTC','role':'Bull Opening','model':'gpt-6.1-sol','result':'success'},
+          {'ticker':'SMTC','agent_name':'Bull Rebuttal','model':'gpt-6.1-sol','result':'success'}]
+    evidence=role_execution_evidence(configured,rows,'SMTC',auth_failed_role='research_manager')
+    assert evidence['bull']['call_count']==2 and evidence['bull']['observed']['models'] is None
+    assert evidence['research_manager']['call_count']==0 and evidence['research_manager']['auth_preflight_rejected']
+    assert evidence['research_manager']['status']=='AUTH_REJECTED_ZERO_MODEL_REQUESTS'
+    assert evidence['research_manager']['observed']['models'] is None
+
+
+
+def test_failed_actual_billing_provider_not_rewritten_as_subscription():
+    from daily_analyzer.model_usage import role_execution_evidence
+    row={'ticker':'SMTC','role':'research_manager','provider':'claude_exec','model':'claude-opus-5-5',
+         'actual_api_providers':['bedrock'],'result':'output_validation'}
+    value=role_execution_evidence({'research_manager':{'provider':'claude_exec','model':'claude-opus-5-5'}},[row],'SMTC')['research_manager']
+    assert value['observed']['providers']==['bedrock'] and value['status']=='FAILED'
+    row['actual_api_providers']=None
+    assert role_execution_evidence({'research_manager':{}},[row],'SMTC')['research_manager']['observed']['providers'] is None

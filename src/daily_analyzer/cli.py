@@ -35,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     consistency_parser.add_argument('--repeats', type=int, default=2)
     consistency_parser.add_argument('--from', dest='from_stage', choices=('debate', 'analysts'), default='debate')
     consistency_parser.add_argument('--tickers', help='仅测试指定保存标的，逗号分隔')
+    consistency_parser.add_argument('--snapshot', action='append', dest='snapshot_paths', help='独立evaluation重建输入，可重复指定')
+    consistency_parser.add_argument('--reconstructed', action='store_true', help='显式授权历史重建；原严格入口不变')
+    consistency_parser.add_argument('--role-scheme',choices=['A','B'],help='显式测试角色方案，默认关闭')
+    consistency_parser.add_argument('--legacy-speaker-rotation',action='store_true',help='显式测试legacy按日期轮换先发')
+    consistency_parser.add_argument('--group', help='独立测试组名，防baseline/A/B报告覆盖')
     consistency_parser.add_argument('--test-mode', action='store_true', help='显式允许重复测试；生产默认关闭')
 
     commands.add_parser("settle", help="回填并结算独立评估窗口")
@@ -122,7 +127,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         from daily_analyzer.evaluation.consistency import run_consistency
         try:
             result = run_consistency(root, args.run_id, repeats=args.repeats, from_stage=args.from_stage,
-                test_mode=args.test_mode, symbols=args.tickers.split(',') if args.tickers else None)
+                overrides={**({'role_llm_scheme':args.role_scheme} if args.role_scheme else {}), **({'legacy_speaker_rotation':True} if args.legacy_speaker_rotation else {})},
+                test_mode=args.test_mode, snapshot_paths=args.snapshot_paths, reconstructed=args.reconstructed, group=args.group, symbols=args.tickers.split(',') if args.tickers else None)
             _print_mapping('一致性测试 ', result)
             return 0
         except (ValueError, OSError) as exc:

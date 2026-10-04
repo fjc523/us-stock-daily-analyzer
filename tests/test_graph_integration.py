@@ -544,3 +544,14 @@ def test_upstream_config_carries_stocktwits_toggle_and_macro_chain(tmp_path):
     assert config["stocktwits_enabled"] is False
     assert config["tool_vendors"]["get_macro_indicators"] == "fred_public,futu,fred"
     assert build(parse_settings({"tradingagents": {"stocktwits_enabled": True}}))["stocktwits_enabled"] is True
+
+
+
+def test_upstream_role_config_default_closed_and_explicit_scheme(tmp_path):
+    def build(values):
+        return build_upstream_config(parse_settings(values),trade_date='2026-10-01',price_data_end_date='2026-10-01',
+            mode='backfill',news_cutoff_utc=None,batch_dir=tmp_path/'batch',project_root=tmp_path,has_alpha_vantage=False)
+    default=build({})
+    assert default['role_llm_overrides']=={} and default['role_llm_scheme'] is None and not default['legacy_speaker_rotation']
+    trial=build({'tradingagents':{'role_llm_scheme':'A','legacy_speaker_rotation':True}})
+    assert trial['role_llm_scheme']=='A' and trial['legacy_speaker_rotation'] and trial['trade_date']=='2026-10-01'

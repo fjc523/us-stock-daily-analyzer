@@ -312,7 +312,7 @@ def _target_session(mode: str, started_at: datetime, trade_day: date) -> str:
     return "盘后"
 
 
-def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, int]:
+def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, Any]:
     totals = {
         "calls": 0,
         "input_tokens": 0,
@@ -328,6 +328,7 @@ def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, int]:
         "output_tokens": ("output_tokens", "completion_tokens"),
         "reasoning_output_tokens": ("reasoning_output_tokens", "reasoning_tokens"),
     }
+    selected_rows = []
     with path.open("r", encoding="utf-8") as stream:
         for line in stream:
             try:
@@ -336,6 +337,7 @@ def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, int]:
                 continue
             if ticker is not None and row.get("ticker") != ticker:
                 continue
+            selected_rows.append(row)
             totals["calls"] += 1
             usage = row.get("tokens") if isinstance(row.get("tokens"), Mapping) else {}
             for target, names in keys.items():
@@ -344,6 +346,9 @@ def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, int]:
                     if isinstance(value, (int, float)):
                         totals[target] += int(value)
                         break
+    if any(row.get('provider')=='claude_exec' for row in selected_rows):
+        from daily_analyzer.model_usage import mixed_usage
+        return mixed_usage(selected_rows)
     return totals
 
 
@@ -613,6 +618,9 @@ def _analyze_item(
             },
             "llm_usage": calls,
         }
+        if getattr(graph, 'role_llm_metadata', None):
+            from daily_analyzer.model_usage import role_execution_evidence
+            result['llm']['roles'] = role_execution_evidence(graph.role_llm_metadata, _read_usage_rows(batch_dir/'llm_calls.jsonl'), item.symbol)
         snapshot = getattr(graph, 'consistency_snapshot', None)
         if callable(snapshot):
             result['consistency_input'] = snapshot(final_state)
@@ -648,6 +656,9 @@ def _analyze_item(
             "deep": {"model": shared_config.get("deep_think_llm"), "reasoning_effort": shared_config.get("codex_deep_reasoning_effort")},
             "quick": {"model": shared_config.get("quick_think_llm"), "reasoning_effort": shared_config.get("codex_quick_reasoning_effort")},
         }
+        if graph is not None and getattr(graph, 'role_llm_metadata', None):
+            from daily_analyzer.model_usage import role_execution_evidence
+            result['llm']['roles'] = role_execution_evidence(graph.role_llm_metadata, _read_usage_rows(batch_dir/'llm_calls.jsonl'), item.symbol, auth_failed_role=getattr(exc,'role',None) if getattr(exc,'stage',None)=='auth_preflight' and getattr(exc,'model_requests',None)==0 else None)
         result["llm_usage"] = _usage_for_ticker(
             batch_dir / "llm_calls.jsonl", item.symbol
         )
@@ -699,7 +710,7 @@ def _write_skipped_result(
     return result
 
 
-def _manifest_usage(root: Path, trade_day: date) -> dict[str, int]:
+def _manifest_usage(root: Path, trade_day: date) -> dict[str, Any]:
     totals = {
         "calls": 0,
         "input_tokens": 0,
@@ -707,29 +718,16 @@ def _manifest_usage(root: Path, trade_day: date) -> dict[str, int]:
         "output_tokens": 0,
         "reasoning_output_tokens": 0,
     }
+    rows=[]
     for batch in _batch_records(root, trade_day):
-        path = (
-            root
-            / "data"
-            / "runs"
-            / trade_day.isoformat()
-            / "batches"
-            / str(batch.get("run_id"))
-            / "llm_calls.jsonl"
-        )
-        if not path.is_file():
-            continue
-        with path.open("r", encoding="utf-8") as stream:
-            for line in stream:
-                try:
-                    row = json.loads(line)
-                except ValueError:
-                    continue
-                totals["calls"] += 1
-                usage = row.get("tokens") if isinstance(row.get("tokens"), Mapping) else {}
-                for key in ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens"):
-                    if isinstance(usage.get(key), (int, float)):
-                        totals[key] += int(usage[key])
+        path=root/'data/runs'/trade_day.isoformat()/'batches'/str(batch.get('run_id'))/'llm_calls.jsonl'
+        usage=_usage_for_ticker(path)
+        rows.extend(_read_usage_rows(path))
+        for key in ('calls','input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens'):
+            totals[key]=None if totals[key] is None or usage[key] is None else totals[key]+usage[key]
+    if any(row.get('provider')=='claude_exec' for row in rows):
+        from daily_analyzer.model_usage import mixed_usage
+        return mixed_usage(rows)
     return totals
 
 

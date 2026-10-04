@@ -459,3 +459,18 @@ def test_late_news_refresh_default_and_toggle():
     assert parse_settings({}).tradingagents.late_news_refresh is True
     assert parse_settings({'tradingagents':{'late_news_refresh':False}}).tradingagents.late_news_refresh is False
     with pytest.raises(ConfigurationError): parse_settings({'tradingagents':{'late_news_refresh':'非法布尔值'}})
+
+
+@pytest.mark.parametrize('values',[{'role_llm_overrides':{'market':{'provider':'claude_exec','model':'claude-opus-5-5','effort':'high'}}},
+    {'role_llm_overrides':{'bull':{'provider':'claude_exec','model':'claude-sonnet','effort':'high'}}},
+    {'role_llm_scheme':'B','role_llm_overrides':{'bull':{'provider':'claude_exec','model':'claude-opus-5-5','effort':'high'}}}])
+def test_role_settings_reject_analysts_wrong_model_and_mixed_scheme(values):
+    from daily_analyzer.config import TradingAgentsSettings
+    with pytest.raises(ValueError):TradingAgentsSettings(**values)
+
+
+def test_role_settings_default_closed_and_valid_second_model():
+    from daily_analyzer.config import TradingAgentsSettings
+    settings=TradingAgentsSettings()
+    assert settings.role_llm_overrides=={} and settings.role_llm_scheme is None and not settings.legacy_speaker_rotation
+    assert TradingAgentsSettings(role_llm_scheme='A').role_llm_scheme=='A'

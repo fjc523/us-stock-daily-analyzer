@@ -219,6 +219,17 @@ class TradingAgentsSettings(ConfigModel):
     rating_timing_decoupled: bool = True
     price_plan_alt_target: bool = True
     debate_mode: Literal['structured', 'legacy'] = 'structured'
+    role_llm_overrides: dict[str, dict[str, str]] = Field(default_factory=dict)
+    role_llm_scheme: Literal['A', 'B'] | None = None
+    legacy_speaker_rotation: bool = False
+
+    @model_validator(mode='after')
+    def validate_role_models(self):
+        from tradingagents.graph.role_llms import resolve_overrides
+        resolve_overrides({'role_llm_overrides': self.role_llm_overrides,
+                          'role_llm_scheme': 'B' if self.role_llm_scheme else None})
+        return self
+
     research_manager_reads_reports: bool = True
     context_compaction: bool = True
     context_profiles: dict[str, Literal['full', 'brief']] = Field(default_factory=lambda: {

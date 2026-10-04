@@ -267,3 +267,199 @@ print('离线来源绑定、原连接参数、凭据内存加载与三类缓存�
     assert '隔离通过' in result.stdout
     assert parent_locations == [cls._cache_dir for cls in (cache._TzDBManager, cache._CookieDBManager, cache._ISINDBManager)]
     assert 'fixture-only' not in json.dumps(snapshot) and snapshot['config']['futu_port'] == 22222
+
+
+def create_reconstructed_run(root):
+    """构造旧原件和独立授权重建，不给正式结果添加成功snapshot。"""
+    import hashlib
+    snapshot = fixture_snapshot(); snapshot['state']['past_context'] = ''
+    snapshot['config']['debate_mode'] = 'legacy'
+    snapshot['config']['max_debate_rounds'] = snapshot['config']['max_risk_discuss_rounds'] = 1
+    result = root/'data/runs/2026-10-02/batches/saved-run/results/SMTC.json'
+    result.parent.mkdir(parents=True)
+    original = {'status': 'success', 'symbol': 'SMTC', 'analyzed_symbol': 'SMTC', 'upstream_trade_date': '2026-10-02',
+        'type': 'stock', 'name': snapshot['state']['company_name'], 'portfolio_context': None,
+        'price_data_end_date': '2026-10-02', 'news_cutoff_utc': '2026-10-02T12:00:00+00:00',
+        'reports': snapshot['reports'], 'injected_context': snapshot['injected_context'],
+        'context_blocks': {'price_anchors': {'data': {'anchors': {'P_Close': {'value': 100}}}}},
+        'llm': {'provider': 'codex_exec', 'quick': {'model': 'gpt-6.1-sol', 'reasoning_effort': 'medium'},
+                'deep': {'model': 'gpt-6.1-sol', 'reasoning_effort': 'xhigh'}}}
+    snapshot['config'].update(codex_quick_reasoning_effort='medium', codex_deep_reasoning_effort='xhigh',
+                             trade_date='2026-10-02', price_data_end_date='2026-10-02', news_cutoff_utc='2026-10-02T12:00:00+00:00')
+    result.write_text(json.dumps(original))
+    settings = {key: snapshot['config'][key] for key in ('max_debate_rounds', 'max_risk_discuss_rounds')}
+    settings['analysts'] = snapshot['selected_analysts']
+    state = result.parent/'SMTC/state/full_states_log_2026-10-02.json';state.parent.mkdir(parents=True)
+    state.write_text(json.dumps({'run_settings': settings}))
+    sha = lambda text: hashlib.sha256(text.encode()).hexdigest()
+    snapshot['reconstruction'] = {'reconstructed': True, 'explicitly_authorized': True, 'symbol': 'SMTC',
+        'original_run_id': 'saved-run', 'original_missing': ['past_context'],
+        'record_sha256': hashlib.sha256(result.read_bytes()).hexdigest(),
+        'report_hashes': {k: sha(v) for k,v in snapshot['reports'].items()},
+        'injected_hash': sha(snapshot['injected_context']), 'debate_mode_provenance': {'status': 'inferred'}}
+    path = root/'data/evaluation/reconstructed/SMTC.json';path.parent.mkdir(parents=True);path.write_text(json.dumps(snapshot))
+    return path, result, snapshot
+
+
+def test_reconstructed_groups_preserve_strict_guard_datahash_and_original(tmp_path):
+    path, original, snapshot = create_reconstructed_run(tmp_path)
+    before = original.read_bytes()
+    calls = []
+    def executor(value, output, **kwargs):
+        calls.append(value)
+        assert value['state']['past_context'] == ''
+        return final_state()
+    with pytest.raises(ValueError, match='旧运行'):
+        run_consistency(tmp_path, 'saved-run', test_mode=True, executor=executor)
+    for group, repeats in [('baseline',2), ('A',1), ('B',1)]:
+        result = run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path],group=group,repeats=repeats,executor=executor)
+        assert '历史重建/缩样' in Path(result['report']).read_text()
+        assert f'-{group}.md' in result['report']
+    assert len(calls) == 4 and original.read_bytes() == before
+    products = list((tmp_path/'data/evaluation/consistency').rglob('result.json'))
+    hashes = {json.loads(p.read_text())['original_data_hash'] for p in products}
+    assert len(products) == 4 and len(hashes) == 1
+    assert all(json.loads(p.read_text())['reconstructed'] and not json.loads(p.read_text())['fully_frozen'] for p in products)
+    assert all(json.loads(p.read_text())['input'] == snapshot for p in products)
+
+
+@pytest.mark.parametrize('failure', ['test_mode','marker','group','path','authorization','record_hash','report','injected','price','model','rounds','credentials'])
+def test_reconstructed_preflight_failure_has_zero_calls(tmp_path, failure):
+    path, original, snapshot = create_reconstructed_run(tmp_path)
+    kwargs = dict(test_mode=True,reconstructed=True,snapshot_paths=[path],group='baseline')
+    if failure=='test_mode':kwargs['test_mode']=False
+    elif failure=='marker':kwargs['reconstructed']=False
+    elif failure=='group':kwargs['group']='../unsafe'
+    elif failure=='path':
+        other=tmp_path/'outside.json';other.write_text(path.read_text());kwargs['snapshot_paths']=[other]
+    elif failure=='authorization':snapshot['reconstruction']['explicitly_authorized']=False
+    elif failure=='record_hash':snapshot['reconstruction']['record_sha256']='wrong'
+    elif failure=='report':snapshot['reports']['market_report']='改变原报告'
+    elif failure=='injected':snapshot['injected_context']='改变原注入'
+    elif failure=='price':snapshot['reference_price']=999
+    elif failure=='model':snapshot['config']['deep_think_llm']='改变原模型'
+    elif failure=='rounds':snapshot['config']['max_debate_rounds']=2
+    elif failure=='credentials':snapshot['reconstruction']['api_key']='禁止落盘fixture'
+    path.write_text(json.dumps(snapshot))
+    with pytest.raises(ValueError):
+        run_consistency(tmp_path,'saved-run',executor=lambda *a,**kw:pytest.fail('预检失败不得调用'),**kwargs)
+    assert not (tmp_path/'data/evaluation/consistency').exists()
+
+
+@pytest.mark.parametrize('overrides', [{'max_debate_rounds':99}, {'debate_mode':'structured'},
+    {'deep_think_llm':'fake'}, {'role_llm_overrides':{'rm':{'provider':'claude_exec'}}},
+    {'news_cutoff_utc':'2030-01-01T00:00:00+00:00'}])
+def test_reconstructed_effective_overrides_cannot_bypass_frozen_config(tmp_path, overrides):
+    path, _, _ = create_reconstructed_run(tmp_path)
+    with pytest.raises(ValueError, match='禁止改变冻结配置'):
+        run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path],group='baseline',
+                        overrides=overrides,executor=lambda *a,**kw:pytest.fail('任何覆盖漂移必须0调用'))
+    assert not (tmp_path/'data/evaluation/consistency').exists()
+
+
+@pytest.mark.parametrize('field', ['asset_type','company_name','company_of_interest','portfolio_context',
+    'trade_date','price_data_end_date','news_cutoff_utc'])
+def test_reconstructed_original_identity_portfolio_dates_cannot_drift(tmp_path, field):
+    path, _, snapshot = create_reconstructed_run(tmp_path)
+    if field in ('asset_type','company_name','company_of_interest','portfolio_context'):
+        snapshot['state'][field]='改变原输入'
+    else:
+        snapshot['config'][field]='2030-01-01'
+    path.write_text(json.dumps(snapshot))
+    with pytest.raises(ValueError):
+        run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path],group='baseline',
+                        executor=lambda *a,**kw:pytest.fail('身份/日期漂移必须0调用'))
+    assert not (tmp_path/'data/evaluation/consistency').exists()
+
+
+def test_reconstructed_later_snapshot_failure_preflights_whole_batch(tmp_path):
+    import hashlib
+    path, original, snapshot = create_reconstructed_run(tmp_path)
+    second = deepcopy(snapshot);second['state'].update(company_of_interest='QQQ',asset_type='etf',company_name='原QQQ')
+    second['reconstruction']['symbol']='QQQ'
+    record=json.loads(original.read_text());record.update(symbol='QQQ',analyzed_symbol='QQQ',type='etf',name='原QQQ')
+    source=original.with_name('QQQ.json');source.write_text(json.dumps(record))
+    state=source.parent/'QQQ/state/full_states_log_2026-10-02.json';state.parent.mkdir(parents=True)
+    state.write_bytes((source.parent/'SMTC/state/full_states_log_2026-10-02.json').read_bytes())
+    second['reconstruction']['record_sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
+    second['config']['price_data_end_date']='2030-01-01'
+    other=path.with_name('QQQ.json');other.write_text(json.dumps(second))
+    with pytest.raises(ValueError,match='配置日期'):
+        run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path,other],group='baseline',
+                        executor=lambda *a,**kw:pytest.fail('后项失配不能先调用首项'))
+    assert not (tmp_path/'data/evaluation/consistency').exists()
+
+
+@pytest.mark.parametrize('key',['target_allocation','target_allocation_pct'])
+def test_comparison_allocation_legacy_schema_and_unavailable_reason(key):
+    left=final_state();right=final_state()
+    for state,amount in ((left,100),(right,122)):
+        for field in ('structured_research_plan','structured_trader_proposal','structured_pm_decision'):
+            state[field].pop('target_allocation',None);state[field][key]=amount
+        state['structured_pm_decision']['entry_plan']='不适用：等待回落190–195美元候选区间'
+    result=compare_states(left,right,194.88)
+    assert all(row['allocation_difference_pp']==22 for row in result['layers'].values())
+    assert result['entry_bounds_difference_pct'] is None and result['entry_plan_types']==['not_applicable']*2
+    assert all('候选' in reason for reason in result['entry_availability_reasons'])
+
+
+def test_comparison_allocation_conflicting_keys_explicitly_unavailable():
+    left=final_state();right=final_state()
+    left['structured_pm_decision'].update(target_allocation=100,target_allocation_pct=122)
+    row=compare_states(left,right,100)['layers']['pm']
+    assert row['allocation_difference_pp'] is None and row['allocation_availability'][0]=='conflict'
+    left['structured_pm_decision']['target_allocation_pct']=100
+    assert compare_states(left,right,100)['layers']['pm']['allocation_availability'][0]=='available'
+    assert compare_states({}, {})['layers']['pm']['allocation_availability']==['missing','missing']
+
+
+@pytest.mark.parametrize('scheme',['A','B'])
+def test_authorized_role_groups_keep_base_input_and_separate_effective_hash(tmp_path,scheme):
+    path,original,snapshot=create_reconstructed_run(tmp_path)
+    calls=[]
+    result=run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path],group=scheme,repeats=1,
+        overrides={'role_llm_scheme':scheme,'legacy_speaker_rotation':True},
+        executor=lambda value,output,**kwargs:calls.append((value,kwargs)) or final_state())
+    assert calls[0][0]==snapshot and calls[0][1]['overrides']['role_llm_scheme']==scheme
+    execution=result['executions'][0]
+    assert execution['input_hash']==input_hash(snapshot)
+    assert execution['effective_config_hash']!=input_hash(snapshot['config'])
+    assert json.loads(path.read_text())==snapshot
+
+
+def test_later_snapshot_override_preflight_rejects_whole_batch_before_calls(tmp_path):
+    from daily_analyzer.evaluation.consistency import validate_test_overrides
+    _,_,snapshot=create_reconstructed_run(tmp_path)
+    validate_test_overrides(snapshot,{'role_llm_scheme':'B'})
+    with pytest.raises(ValueError):validate_test_overrides(snapshot,{'legacy_speaker_rotation':'true'})
+    with pytest.raises(ValueError):validate_test_overrides(snapshot,{'role_llm_overrides':{'bull':{'provider':'codex_exec','model':'fake','effort':'medium'}}})
+
+
+@pytest.mark.parametrize('day,first',[('2026-10-01','Bear Researcher'),('2026-10-02','Bull Researcher')])
+def test_test_decision_entry_uses_explicit_legacy_rotation(day,first):
+    from langgraph.graph import StateGraph,START,END
+    from tradingagents.agents.state import AgentState
+    workflow=StateGraph(AgentState)
+    for name in ('Bull Researcher','Bear Researcher'):
+        workflow.add_node(name,lambda state:{})
+        workflow.add_edge(name,END)
+    graph=decision_workflow(workflow,{'trade_date':day,'debate_mode':'legacy','legacy_speaker_rotation':True})
+    assert (START,first) in graph.edges
+
+
+
+def test_claude_test_budget_fixed_without_mutating_snapshot(tmp_path):
+    snapshot=fixture_snapshot();snapshot['config']['claude_max_concurrency']=99
+    digest=input_hash(snapshot)
+    config=isolated_config(snapshot,tmp_path)
+    assert (config['claude_retries'],config['claude_timeout'],config['claude_max_concurrency'])==(0,600,1)
+    assert input_hash(snapshot)==digest and snapshot['config']['claude_max_concurrency']==99
+
+
+def test_role_scheme_flags_only_explicit_consistency_parser():
+    from daily_analyzer.cli import build_parser
+    parser=build_parser()
+    args=parser.parse_args(['consistency','--run-id','saved','--test-mode','--role-scheme','A','--legacy-speaker-rotation'])
+    assert args.role_scheme=='A' and args.legacy_speaker_rotation
+    default=parser.parse_args(['consistency','--run-id','saved'])
+    assert default.role_scheme is None and not default.legacy_speaker_rotation and not default.test_mode

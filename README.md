@@ -86,6 +86,8 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 本批只执行冻结fixture与真实图的离线桩测试，真实模型调用为0。旧SMTC/QQQ记录缺原past，按严格边界拒绝；要求的各2次真实测试、真实成本/一致率均 **NOT_TESTED**。未启用定时抽检，未修改生产双跑或provider A/B配置。
 
+受用户后续明确授权，可在独立 `data/evaluation/` snapshot 上进行受限历史重建：`python -m daily_analyzer consistency --run-id <原批次ID> --test-mode --reconstructed --snapshot <SMTC独立文件> --snapshot <QQQ独立文件> --group baseline`。三个显式条件缺一即拒绝，受限起点只允许debate；snapshot须含授权/重建/原缺失标记，预检原成功结果SHA、四报告/injected逐字哈希、原P_Close/日期/模型参数及原保存轮数/语言/来源链/分析师。凭据/私有闭包字段拒绝落盘。原可得资产类型、标的/名称、组合上下文（原null→空字符串）以及config中的交易日/日线截止/新闻截止均核对；全部snapshot预检完成后才调用，后项失配整批0调用。门禁已按原七点独立更正为PASS；测试overrides只允许role_llm_overrides/role_llm_scheme/legacy_speaker_rotation，角色白名单与Opus high校验，Sol角色仍须原模型/档位；轮数、全局模型、模式、日期、来源链及原状态始终冻结。默认严格入口继续拒旧缺历史，受限输入不回写正式结果。报告明确“历史重建/缩样”，原past显式空，缺身份/brief/完整config逐字段声明；不能称原历史完全冻结。`--group A/B` 输出各自目录及报告，可显式 `--repeats 1`，baseline仍默认2，所有组记录同一原数据hash与完整输入hash以便对齐；方案不会被生产自动启用。此次只用 `restricted/v2/` legacy一轮输入，v1 structured准备工件已废弃并保留，预算8图约64角色调用加唯一门禁，以实际日志计数；受限baseline4图已经完成，32成功角色调用、0重试；原结果不改，配置差比较静态重算另存。唯一重建SMTC RM CLI门禁已实际调用并按原七点验收PASS：实际Opus/schema/订阅路径可核，configured high生效参数、effective NOT_REPORTED；builtin插件名不代表用户规则污染，managed未知限制明示。T17产品实现及功能审测已通过，受限A/B四图已完成32成功角色调用、0重试；原5标×2日未测，最终统计与投研结论分列。
+
 ## 第一轮投研返工（T29）
 
 本轮按十个问题分别闭环：方向声明宽松归一与实际schema生成顺序、长度条数软校验、评级主口径对齐、契约/全量测试、旧反思及行业映射、独立开关、确定性方向标记与同代理IC。不会重写历史评级、反思tag或已settled收益；真实模型遵守及未成熟收益仍NOT_TESTED。C3代理保留规则已由用户确认并实现。
@@ -111,3 +113,33 @@ T29九项已完成独立功能审核（R1–R3闭合）。主仓/TradingAgents�
 默认 `etf_structure` 为 ETF/指数代理提供发行方持仓集中度、权重前50成分的 MA50/MA200 广度及有效数量/权重覆盖，股票不生成该块。当前接入 QQQ、SPY、DIA；复杂杠杆/反向产品及未接来源明确不可得。持仓原响应在 `data/cache/etf_holdings/` 缓存一天，QQQ公开端点为monthly，持仓日期、获取时间和未提供的发布日期分开显示；股票权重不归一到100%，现金/负现金/空权重另列限制。日线复用现有复权来源和缓存；份额历史不足时近5/20日变化不可得，不能以成分股数量替代基金份额。历史回放不请求当前持仓。该块纳入完整及精简上下文和“ETF 结构”来源状态，真实模型引用验收仍 **NOT_TESTED**。
 
 价位锚点增加 `252d_High/Low` 及发生日期、实际有效日数、距P收盘的带符号百分比和ATR14倍数。不足252日注明已有日数，不推断上市日；复用500自然日日线窗口，缺分母不外推。日历仅对截至上下文时刻已发布的HIGH/MEDIUM事件计算同单位“实际−预期”，百分比用百分点，并描述高于/低于预期或持平；未发布和无预期明示，未知裸数单位不比较；BLS具体失业率/工资增长事件与标题明示单位仅用于渲染，不改原数据、不判断资产利多利空。固定历史计算只证明保存输入的计算路径，不等于重新核验市场数据，详见[来源限制](doc/data-sources.md#etf结构与一年极值t12t13)。
+
+
+角色模型配置位于`tradingagents.role_llm_overrides`（默认空）、`role_llm_scheme`（默认空）、`legacy_speaker_rotation`（默认false）。四分析师不接受override；八个决策角色可显式选择既定`claude_exec/claude-opus-5-5/high`，默认quick/deep保持原路径。CLI runner请求前在同空目录/清理凭据环境只读认证，非订阅状态0模型请求；实际model与订阅provider再验证、结构化本地校验，明确用户/项目插件来源拒绝，无API或模型fallback。失败返回用量也记录，未报告用量为null。
+
+受限A/B必须显式附加`--role-scheme A`或`B`及`--legacy-speaker-rotation`，组名仅隔离工件，不自动选方案。A奇偶日互换多空/激进保守角色，B研究经理/交易员/组合经理；legacy显式先发轮换，structured仍并行。每图记录不变base input_hash/original_data_hash及独立effective_config_hash和源码指纹，复用原baseline，不为换代码版本重复模型。仓位比较兼容target_allocation与target_allocation_pct，两键冲突标不可比；不适用计划不把候选点位当执行区间。Sol input包含cached子集，Claude总prompt=input+cache_creation+cache_read（缺项未知），原字段/目录价与订阅实付分列，未有费率不造美元。生产配置未启用测试方案或自动双跑。
+
+C6测试资源固定Claude retries=0、timeout=600秒、concurrency=1，来源在每图test_resource_provenance声明；该限制只进入effective配置hash，不改变v2输入hash与生产默认。混合调用任一用量未报告，聚合相应token为null，逐调用原始字段仍保留。
+
+
+混合用量逐指标校验完整性：空tokens或缺缓存创建/读取不累计为0，推理token只采用明确字段（含CLI thinking明细），未报告为null及metric_status；raw input合计与total_prompt_tokens分列。成功/失败的llm.roles分别保存configured、observed模型/计费provider、call_count与状态；Sol无运行时模型回显则observed未知，auth前拒绝记录安全尝试角色但model请求0，尚未执行不冒称实际Opus。adapter provider=claude_exec与返回actual_api_providers分开，失败bedrock路由如实保留而不会改写订阅firstParty。默认无override不新增roles字段。
+
+最终离线当前代码主619PASS、TA1346PASS及92subtests（1skip/3deselect单列），受限baseline与A/B共8图64成功角色请求加唯一gate1。双跑仅显式测试，生产覆盖仍空；effective effort未知、原全矩阵和金融收益有效性未测，不根据小样本默认启用方案。
+
+
+## 受限真实实验最终观察
+
+同一SMTC/QQQ×2026-10-02、每组与保存baseline1比较：A评级一致3/6，B6/6（RM/Trader/PM共6层），不是A/B内部双次稳定性。SMTC A三层各+22百分点、B各−10百分点，QQQ两组各0；A两标建仓类型仍不适用，B两标改为parsed。baseline无可执行区间，区间差为unknown/null，不能当0。未依据此极小样本启用任何方案。
+
+|组|组wall秒|Sol input（其中cached子集）|Claude input/creation/read|统一prompt|output（含reasoning/thinking子集）|已知Claude目录价美元|
+|---|---:|---:|---|---:|---:|---:|
+|A|2314.344|548068（97408）|8/225983/4794|778853|58260|2.0777348|
+|B|625.110|434190（0）|12/361163/8909|804274|30362|3.3695738|
+
+A/B32success由10次实际Opus5.5/firstParty与22次Sol配置模型组成；A/B统一prompt合计1583127、output88622；Sol cached为input子集、thinking/reasoning为output子集，不重复加。原baseline4图32success另列：图wall合计4318.496秒、input1421072（cached66048子集）、output95387（reasoning73151子集）；唯一gate27.680948秒及input2/creation51276/read0/output2208另列，不能冒同prompt复用。
+
+A/B已知Claude10次目录价5.4473086美元，唯一gate目录价0.454376美元，两者合计5.9016846仅Claude11次已知目录部分。Sol没有费率/目录价，完整美元成本UNKNOWN；订阅实付UNKNOWN，目录价不当账单。原全部65模型请求=64decision+gate1，无额外重试或动作。
+
+RM分歧条数全部UNKNOWN：实际structured_research_plan只有evidence_check、prob_outperform_5d、prob_outperform_20d、expected_return_20d_range、recommendation、rationale、strategic_actions、target_allocation_pct，无独立分歧数量/列表，风险编号/一般词不作统计。四份字段清单与rationale SHA保存在独立testing/ab/summary.json，未增加模型提取。
+
+原5标×2日、未来收益/金融有效性NOT_TESTED；已授权past空值/legacy配置及prompt重建来源照实说明。gate/baseline/A-B执行代码阶段不同，baseline原件未存implementation_version，不追补同码宣称；A/B四图实际8源码指纹一致，HEAD不代表dirty源码。默认路径兼容离线与静态RC6-3重比较分列，不重复baseline或gate。effective effort无回显/managed未知仍保留；生产覆盖空、无schedule双跑、不默认A或B。
