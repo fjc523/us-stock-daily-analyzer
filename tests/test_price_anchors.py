@@ -48,3 +48,32 @@ def test_empty_or_missing_p_row_is_unavailable():
         instance,calls=provider(data,'不可用')
         block=instance.build(WatchlistItem(symbol='TSLA',type='stock'),'2026-10-02')
         assert '锚点不可用' in block.markdown and block.data['anchors']=={}
+
+
+def test_one_year_extremes_distances_and_short_actual_count():
+    for count in (180, 280):
+        data = bars(count)
+        instance, _ = provider(data)
+        block = instance.build({'symbol': 'SMTC', 'type': 'stock'}, '2026-10-02')
+        anchors = block.data['anchors']
+        window = min(252, count)
+        assert anchors['252d_High']['sample_days'] == window
+        assert anchors['252d_Low']['value'] == data.Low.iloc[-window]
+        assert anchors['252d_Low']['date'] == data.Date.iloc[-window].date().isoformat()
+        assert anchors['252d_High']['distance_pct'] == pytest.approx(1 / data.Close.iloc[-1] * 100)
+        assert anchors['252d_High']['distance_atr'] == pytest.approx(1 / anchors['atr']['value'])
+        assert anchors['252d_Low']['distance_pct'] < 0
+        assert '252d_High' in block.markdown and 'ATR14' in block.markdown
+        if count < 252:
+            assert '180交易日' in block.markdown and '上市以来' not in block.markdown
+
+
+def test_one_year_short_atr_and_invalid_values_not_extrapolated():
+    data = bars(10)
+    data['High'] = data.High.astype(float)
+    data.loc[data.index[0], 'High'] = float('inf')
+    instance, _ = provider(data)
+    block = instance.build({'symbol': 'SMTC'}, '2026-10-02')
+    assert block.data['window_252d_count'] == 9
+    assert block.data['anchors']['252d_High']['distance_atr'] is None
+    assert '覆盖不足' in ' '.join(block.data['warnings'])

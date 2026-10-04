@@ -95,6 +95,7 @@ class ProviderServices:
     yahoo: Any = None
     prices: Any = None
     index_metadata: Any = None
+    etf_holdings: Any = None
     futu_data: Any = None
     project_root: str = "."
     clock: Callable[[], datetime] = datetime.now

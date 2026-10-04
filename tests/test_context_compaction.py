@@ -199,3 +199,49 @@ def test_complete_window_weekend_and_us_holiday_boundaries():
     weekend_end = datetime(2026, 10, 3).date()
     rows.append({'观测日': '2026-10-02', '数值': 4})
     assert '90日区间' in summarize_yields(rows, 'DGS10', weekend_end, complete=True)
+
+
+@pytest.mark.parametrize('actual,estimate,unit,expected', [
+    ('4.2%', '4.1%', None, '+0.1百分点（高于预期）'),
+    ('0.1%', '0.3%', None, '-0.2百分点（低于预期）'),
+    ('4.2', '4.1', '%', '+0.1百分点（高于预期）'),
+    ('125千人', '110千人', None, '+15千人（高于预期）'),
+    ('12万人', '110千人', None, '+1万人（高于预期）'),
+    ('1,000', '1000', 'number', '+0（持平）'),
+    ('4.2%', '4.1', None, '不可比较'),
+    ('2', None, None, '无预期'),
+    ('尚未发布', '1', None, '不可比较'),
+    ('2', '1', '未知单位', '不可比较'),
+    ('2', '1', None, '不可比较'),
+])
+def test_calendar_surprise_units_and_direction(actual, estimate, unit, expected):
+    from daily_analyzer.context.compaction import _difference
+    assert expected in _difference(actual, estimate, unit)
+
+
+def test_calendar_surprise_does_not_use_unreleased_actual_or_invent_expectation():
+    rows = [dict(title=title, star=level, 发布时间ET=stamp, actual=actual, consensus=consensus)
+            for title, level, stamp, actual, consensus in [
+                ('已发布就业', 'HIGH', '2026-10-02T08:30:00-04:00', '120千人', '100千人'),
+                ('已发布无预期', 'MEDIUM', '2026-10-02T08:30:00-04:00', '2', None),
+                ('未来公布', 'HIGH', '2026-10-02T10:00:00-04:00', '9', '1'),
+                ('时间未知', 'HIGH', None, '9', '1')]]
+    text = calendar_markdown({'economics': rows}, AS_OF)
+    assert '+20千人（高于预期）' in text and '无预期' in text
+    assert '|9|' not in text and '+8' not in text
+
+
+def test_saved_employment_event_units_render_without_changing_raw():
+    rows = [{'title': title, 'star': 'HIGH', 'actual': actual, 'consensus': estimate,
+             '发布时间ET': '2026-10-02T08:30:00-04:00'}
+            for title, actual, estimate in [('美国9月失业率', '4.2', '4.1'),
+                ('美国9月平均每小时工资月率', '0.1', '0.30'),
+                ('美国9月季调后非农就业人口(万人)', '2.9', '9'),
+                ('美国未知事件', '3', '2')]]
+    original = deepcopy(rows)
+    rendered = calendar_markdown({'economics': rows}, AS_OF)
+    assert '+0.1百分点（高于预期）' in rendered
+    assert '-0.20百分点（低于预期）' in rendered
+    assert '-6.1万人（低于预期）' in rendered
+    assert '不可比较（单位或数值未核验）' in rendered
+    assert rows == original

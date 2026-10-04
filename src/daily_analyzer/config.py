@@ -40,7 +40,7 @@ DEFAULT_INDEX_PROXIES = {
     "^SOX": "SOXX",
 }
 BUILTIN_CONTEXT_PROVIDERS = frozenset(
-    {"market_regime", "sector_strength", "extended_hours", "macro_releases", "price_anchors", "position_structure"}
+    {"market_regime", "sector_strength", "extended_hours", "macro_releases", "price_anchors", "position_structure", "etf_structure"}
 )
 SUPPORTED_REASONING_EFFORTS = frozenset(
     {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
@@ -416,6 +416,7 @@ class Settings(ConfigModel):
             "extended_hours",
             "macro_releases",
             "price_anchors",
+            "etf_structure",
         ]
     )
     run: RunSettings = Field(default_factory=RunSettings)

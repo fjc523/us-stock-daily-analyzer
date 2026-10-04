@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import re
@@ -13,7 +13,7 @@ from daily_analyzer.context.base import ContextBlock, render_context
 from daily_analyzer.data_sources.treasury import TREASURY_SOURCE
 
 EASTERN = ZoneInfo('America/New_York')
-CORE_BLOCKS = {'market_regime', 'sector_strength', 'extended_hours', 'price_anchors', 'position_structure'}
+CORE_BLOCKS = {'market_regime', 'sector_strength', 'extended_hours', 'price_anchors', 'position_structure', 'etf_structure'}
 
 
 def _time(row):
@@ -36,20 +36,52 @@ def _cell(value):
     return text
 
 
-def _difference(actual, estimate):
-    """原字段同单位时才计算差；不推断经济意义或换算未知单位。"""
-    try:
-        a, e = str(actual).strip(), str(estimate).strip()
-        suffix_a = '%' if a.endswith('%') else ''
-        suffix_e = '%' if e.endswith('%') else ''
-        if suffix_a != suffix_e:
-            return '—'
-        diff = Decimal(a.rstrip('%')) - Decimal(e.rstrip('%'))
-        if not diff.is_finite():
-            return '—'
-        return f'{diff:+g}' + ('百分点' if suffix_a else '')
-    except InvalidOperation:
-        return '—'
+def _calendar_number(value, unit=None):
+    """仅识别明确数值和单位，不从事件标题推测尺度。"""
+    text = str(value).strip().replace('％', '%').replace(',', '')
+    match = re.fullmatch(r'([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(%|千人|万人|人|千|万|K|M)?', text, re.I)
+    if not match:
+        return None
+    suffix = match.group(2) or str(unit or '').strip()
+    if not suffix:
+        return None
+    units = {'number': ('number', Decimal(1), ''), '%': ('percent', Decimal(1), '百分点'),
+             '人': ('people', Decimal(1), '人'), '千人': ('people', Decimal(1000), '千人'),
+             '万人': ('people', Decimal(10000), '万人'), '千': ('number', Decimal(1000), '千'),
+             '万': ('number', Decimal(10000), '万'), 'K': ('number', Decimal(1000), 'K'),
+             'M': ('number', Decimal(1000000), 'M')}
+    spec = units.get(suffix.upper() if suffix.upper() in ('K', 'M') else suffix)
+    if spec is None:
+        return None
+    number = Decimal(match.group(1))
+    return number, spec
+
+
+def _difference(actual, estimate, unit=None):
+    """可比较实际减预期，显式尺度换算，方向只描述数值不判断利多利空。"""
+    if estimate in (None, ''):
+        return '无预期'
+    a, e = _calendar_number(actual, unit), _calendar_number(estimate, unit)
+    if a is None or e is None or a[1][0] != e[1][0]:
+        return '不可比较（单位或数值未核验）'
+    diff = (a[0] * a[1][1] - e[0] * e[1][1]) / a[1][1]
+    direction = '高于预期' if diff > 0 else '低于预期' if diff < 0 else '持平'
+    return f'{diff:+g}{a[1][2]}（{direction}）'
+
+
+def _calendar_unit(row):
+    """渲染单位优先原字段，其次标题明示单位，再用BLS具体事件单位。"""
+    if row.get('unit'):
+        return row['unit']
+    title = str(row.get('title') or row.get('event') or '')
+    explicit = re.search(r'[（(](%|千人|万人|人|千|万|K|M)[）)]', title, re.I)
+    if explicit:
+        return explicit.group(1)
+    # BLS失业率表以percent计；平均每小时工资月/年率为percent change。
+    # https://www.bls.gov/eag/eag.us.htm 与 https://www.bls.gov/news.release/empsit.htm
+    if re.fullmatch(r'美国(?:\d+年)?\d+月(?:(?:U6)?失业率|平均每小时工资[月年]率)', title):
+        return '%'
+    return None
 
 
 def calendar_markdown(calendars, as_of, *, short=False, validity=5):
@@ -80,7 +112,8 @@ def calendar_markdown(calendars, as_of, *, short=False, validity=5):
         estimate = row.get('consensus')
         if estimate in (None, ''):
             estimate = row.get('estimate')
-        if stamp is None or stamp > as_of or actual in (None, '', '尚未发布', '未发布'):
+        published = stamp is not None and stamp <= as_of and actual not in (None, '', '尚未发布', '未发布')
+        if not published:
             actual = '未发布'
         if stamp and stamp == previous_stamp:
             time_text = '↳'
@@ -92,7 +125,7 @@ def calendar_markdown(calendars, as_of, *, short=False, validity=5):
         lines.append('|' + '|'.join(map(_cell, [
             time_text, title,
             '高' if level == 'HIGH' else '中', row.get('previous'), estimate, actual,
-            _difference(actual, estimate),
+            _difference(actual, estimate, _calendar_unit(row)) if published else ('未发布；无预期' if estimate in (None, '') else '未发布'),
         ])) + '|')
         previous_stamp = stamp
     if not rows:

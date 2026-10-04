@@ -59,7 +59,37 @@ class PriceAnchorsProvider:
                 else:
                     index = getattr(selected[field],operation)()
                     put(f'{window}d_{field}',selected.loc[index,field],f'{window}日极值',selected.loc[index,'Date'])
+        # 一年窗口使用同源有效OHLC；样本不足不推断上市日期。
+        selected = frame.tail(252).copy()
+        for field in ('High', 'Low'):
+            if field in selected:
+                selected[field] = pd.to_numeric(selected[field], errors='coerce')
+        valid = selected.dropna(subset=['High', 'Low']) if {'High', 'Low'} <= set(selected) else selected.iloc[:0]
+        if not valid.empty:
+            valid = valid[valid.High.map(math.isfinite) & valid.Low.map(math.isfinite)]
+        data['window_252d_count'] = len(valid)
+        for field, operation in [('High', 'idxmax'), ('Low', 'idxmin')]:
+            name = '252d_' + field
+            if valid.empty:
+                put(name, None, '252日极值（有效日线不足）')
+            else:
+                index = getattr(valid[field], operation)()
+                label = '252交易日极值' if len(valid) == 252 else f'已有{len(valid)}交易日极值（不足252日）'
+                put(name, valid.loc[index, field], label, valid.loc[index, 'Date'])
+            row = anchors[name]
+            close, atr = anchors['P_Close']['value'], anchors['atr']['value']
+            row['sample_days'] = len(valid)
+            row['distance_pct'] = (row['value'] - close) / close * 100 if row['value'] is not None and close else None
+            row['distance_atr'] = (row['value'] - close) / atr if row['value'] is not None and close is not None and atr and atr > 0 else None
+        if len(valid) < len(selected):
+            data['warnings'].append('一年窗口存在无效OHLC；已注明有效交易日数，极值覆盖不足')
         lines = [f'标的{symbol}；完整日线截至P={self.end}；实际来源{source}。',
                  '| 锚点 | 美元 | 类型 | 来源日期 |', '|---|---:|---|---|']
         lines.extend(f"| {name} | {row['value']:.4f} | {row['type']} | {row['date']} |" if row['value'] is not None else f"| {name} | 数据不足 | {row['type']} | {row['date']} |" for name,row in anchors.items())
+        lines.extend(['|一年锚点|距P_Close（%）|距P_Close（ATR14）|', '|---|---:|---:|'])
+        for name in ('252d_High', '252d_Low'):
+            row = anchors[name]
+            pct = f"{row['distance_pct']:+.2f}%" if row['distance_pct'] is not None else '不可计算'
+            atr = f"{row['distance_atr']:+.2f}" if row['distance_atr'] is not None else '不可计算'
+            lines.append(f'|{name}|{pct}|{atr}|')
         return ContextBlock(self.name,'\n'.join(lines),data,cutoff,[source])

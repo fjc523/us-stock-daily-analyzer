@@ -15,6 +15,15 @@ from daily_analyzer.data_sources.yfinance import YahooDataSource
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def isolate_simulated_yahoo_breaker():
+    """模拟429只影响本测试，不能污染之后的宏观日历测试。"""
+    from tradingagents.dataflows.yahoo_breaker import reset_yahoo_breaker
+    reset_yahoo_breaker()
+    yield
+    reset_yahoo_breaker()
+
+
 class FakeAlpacaClient:
     def __init__(self) -> None:
         self.calls = []
@@ -79,12 +88,20 @@ def test_main_project_has_no_direct_alpaca_http_client() -> None:
                 names = {node.module or ""}
             else:
                 continue
-            if path.name in {"index_metadata.py", "vix.py"}:
+            if path.name in {"index_metadata.py", "etf_holdings.py", "vix.py"}:
                 # 发行方持仓允许独立HTTP读取，不允许把Alpaca入口混入此例外。
                 assert not names.intersection(forbidden_imports - {"requests"}), path
                 from urllib.parse import urlsplit
                 from daily_analyzer.data_sources.index_metadata import HOLDINGS_URLS
                 assert {urlsplit(url).hostname for url in HOLDINGS_URLS.values()} == {"dng-api.invesco.com", "www.ssga.com", "www.ishares.com"}
+                if path.name == "etf_holdings.py":
+                    requests_calls = [call for call in ast.walk(tree) if isinstance(call, ast.Call)
+                                      and isinstance(call.func, ast.Attribute) and call.func.attr == 'get'
+                                      and isinstance(call.func.value, ast.Name) and call.func.value.id == 'self']
+                    assert len(requests_calls) == 1
+                    assert isinstance(requests_calls[0].args[0], ast.Subscript)
+                    assert isinstance(requests_calls[0].args[0].value, ast.Name)
+                    assert requests_calls[0].args[0].value.id == 'HOLDINGS_URLS'
                 continue
             assert not names.intersection(forbidden_imports), path
         content = path.read_text(encoding="utf-8")

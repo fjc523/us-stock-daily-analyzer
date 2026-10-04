@@ -1165,7 +1165,11 @@ from .price_anchors import PriceAnchorsProvider
 
 from .position_structure import PositionStructureProvider
 
+from .etf_structure import ETFStructureProvider
+
+
 PROVIDER_CLASSES = {
+    "etf_structure": ETFStructureProvider,
     "position_structure": PositionStructureProvider,
     "price_anchors": PriceAnchorsProvider,
     "market_regime": MarketRegimeProvider,
