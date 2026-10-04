@@ -6,6 +6,17 @@ from stockstats import wrap
 from .base import ContextBlock
 
 
+def _abnormal_bars(frame):
+    """仅识别相对同日开收盘明显错位的高低价，不按跨日涨跌过滤。"""
+    fields = ['Open', 'High', 'Low', 'Close']
+    if not set(fields) <= set(frame):
+        return pd.Series(False, index=frame.index)
+    prices = frame[fields].apply(pd.to_numeric, errors='coerce')
+    finite = prices.apply(lambda column: column.map(math.isfinite)).all(axis=1)
+    return finite & ((prices.Low < 0.5 * prices[['Open', 'Close']].min(axis=1)) |
+                     (prices.High > 2 * prices[['Open', 'Close']].max(axis=1)))
+
+
 class PriceAnchorsProvider:
     name = 'price_anchors'
     scope = 'ticker'
@@ -35,6 +46,13 @@ class PriceAnchorsProvider:
         if frame.empty or frame.Date.iloc[-1] != self.end:
             data['warnings'] = ['锚点不可用：没有P日完整日线']
             return ContextBlock(self.name, data['warnings'][0], data, cutoff, [source] if source != '不可用' else [])
+        abnormal = _abnormal_bars(frame)
+        if abnormal.any():
+            days = '、'.join(frame.loc[abnormal, 'Date'].astype(str))
+            data['warnings'].append(f'剔除异常日线{int(abnormal.sum())}条（{days}）')
+        if abnormal.iloc[-1]:
+            data['warnings'].append('锚点不可用：P日OHLC异常')
+            return ContextBlock(self.name, '\n'.join(data['warnings']), data, cutoff, [source])
         anchors = data['anchors']
         def put(name, value, kind, day=None):
             try:
@@ -47,20 +65,26 @@ class PriceAnchorsProvider:
         for field in ('Open','High','Low','Close'):
             put('P_'+field, frame.iloc[-1].get(field), 'P日'+{'Open':'开盘','High':'高点','Low':'低点','Close':'收盘'}[field])
         stock = wrap(frame.copy())
+        atr_frame = frame.loc[~abnormal].copy()
+        atr_stock = wrap(atr_frame)
         for name, minimum in [('close_10_ema',10),('close_20_sma',20),('close_50_sma',50),('close_200_sma',200),('atr',15)]:
-            try: value = stock[name].iloc[-1] if len(frame) >= minimum else None
+            calculation, sample = (atr_stock, atr_frame) if name == 'atr' else (stock, frame)
+            try: value = calculation[name].iloc[-1] if len(sample) >= minimum else None
             except (KeyError,ValueError): value = None
             put(name,value,'ATR14' if name=='atr' else '均线')
         for window in (20,60):
             for field,operation in [('High','idxmax'),('Low','idxmin')]:
                 selected = frame.tail(window)
-                if len(selected) < window or field not in selected or selected[field].isna().any():
+                enough = len(selected) == window
+                selected = selected.loc[~abnormal.loc[selected.index]]
+                if not enough or selected.empty or field not in selected or selected[field].isna().any():
                     put(f'{window}d_{field}',None,f'{window}日极值')
                 else:
                     index = getattr(selected[field],operation)()
                     put(f'{window}d_{field}',selected.loc[index,field],f'{window}日极值',selected.loc[index,'Date'])
         # 一年窗口使用同源有效OHLC；样本不足不推断上市日期。
         selected = frame.tail(252).copy()
+        selected = selected.loc[~abnormal.loc[selected.index]]
         for field in ('High', 'Low'):
             if field in selected:
                 selected[field] = pd.to_numeric(selected[field], errors='coerce')
@@ -92,4 +116,5 @@ class PriceAnchorsProvider:
             pct = f"{row['distance_pct']:+.2f}%" if row['distance_pct'] is not None else '不可计算'
             atr = f"{row['distance_atr']:+.2f}" if row['distance_atr'] is not None else '不可计算'
             lines.append(f'|{name}|{pct}|{atr}|')
+        lines.extend(data['warnings'])
         return ContextBlock(self.name,'\n'.join(lines),data,cutoff,[source])

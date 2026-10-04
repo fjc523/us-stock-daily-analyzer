@@ -77,3 +77,72 @@ def test_one_year_short_atr_and_invalid_values_not_extrapolated():
     assert block.data['window_252d_count'] == 9
     assert block.data['anchors']['252d_High']['distance_atr'] is None
     assert '覆盖不足' in ' '.join(block.data['warnings'])
+
+
+@pytest.fixture
+def misplaced_decimal_bars():
+    """日线夹具包含同日低价小数点错位，其他OHLC正常。"""
+    data = bars(280).astype({'Open': float, 'High': float, 'Low': float, 'Close': float})
+    data.loc[data.index[-10], 'Low'] = data.Low.iloc[-10] / 10
+    return data
+
+
+@pytest.mark.parametrize('field', ['Low', 'High'])
+def test_abnormal_bar_excluded_from_extremes_and_atr(misplaced_decimal_bars, field):
+    data = misplaced_decimal_bars
+    bad_index = data.index[-10]
+    if field == 'High':
+        data.loc[bad_index, 'Low'] = data.Open.iloc[-10] - 1
+        data.loc[bad_index, 'High'] = data.Close.iloc[-10] * 10
+    original = data.copy(deep=True)
+    instance, _ = provider(data)
+    block = instance.build({'symbol': 'TEST'}, '2026-10-02')
+    for window in (20, 60, 252):
+        selected = data.tail(window).drop(index=bad_index)
+        for name, operation in [('High', 'idxmax'), ('Low', 'idxmin')]:
+            index = getattr(selected[name], operation)()
+            anchor = block.data['anchors'][f'{window}d_{name}']
+            assert anchor['value'] == selected.loc[index, name]
+            assert anchor['date'] == selected.loc[index, 'Date'].date().isoformat()
+    assert block.data['window_252d_count'] == 251
+    assert block.data['anchors']['atr']['value'] == pytest.approx(wrap(data.drop(index=bad_index).copy())['atr'].iloc[-1])
+    assert block.data['anchors']['close_200_sma']['value'] == pytest.approx(wrap(data.copy())['close_200_sma'].iloc[-1])
+    warning = f"剔除异常日线1条（{data.loc[bad_index, 'Date'].date().isoformat()}）"
+    assert warning in block.data['warnings'] and warning in block.markdown
+    pd.testing.assert_frame_equal(data, original)
+
+
+def test_threshold_boundaries_and_reasonable_large_moves_remain():
+    data = bars(280).astype({'Open': float, 'High': float, 'Low': float, 'Close': float})
+    data.loc[data.index[-5], 'Low'] = 0.5 * data.Open.iloc[-5]
+    data.loc[data.index[-4], 'High'] = 2 * data.Close.iloc[-4]
+    # 大幅跨日跳空但同日OHLC合理，不以涨跌幅删行情。
+    for field in ('Open', 'High', 'Low', 'Close'):
+        data.loc[data.index[-3], field] *= 3
+    instance, _ = provider(data)
+    block = instance.build({'symbol': 'TEST'}, '2026-10-02')
+    assert block.data['window_252d_count'] == 252
+    assert block.data['warnings'] == []
+    assert block.data['anchors']['20d_Low']['value'] == data.Low.iloc[-5]
+    assert block.data['anchors']['252d_High']['value'] == data.High.iloc[-3]
+
+
+def test_abnormal_p_day_is_unavailable():
+    data = bars(280).astype({'Open': float, 'High': float, 'Low': float, 'Close': float})
+    data.loc[data.index[-1], 'Low'] = data.Low.iloc[-1] / 10
+    instance, _ = provider(data)
+    block = instance.build({'symbol': 'TEST'}, '2026-10-02')
+    assert block.data['anchors'] == {}
+    assert '锚点不可用：P日OHLC异常' in block.markdown
+    assert '剔除异常日线1条（2026-10-01）' in block.data['warnings']
+
+
+def test_original_window_does_not_backfill_older_bars():
+    data = bars(280).astype({'Low': float})
+    data.loc[data.index[-253], 'Low'] = 0.5 * data.Open.iloc[-253]
+    data.loc[data.index[-252], 'Low'] = data.Low.iloc[-252] / 10
+    instance, _ = provider(data)
+    block = instance.build({'symbol': 'TEST'}, '2026-10-02')
+    assert block.data['window_252d_count'] == 251
+    assert block.data['anchors']['252d_Low']['value'] == data.Low.iloc[-251]
+    assert block.data['anchors']['252d_Low']['date'] == data.Date.iloc[-251].date().isoformat()
