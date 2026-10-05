@@ -21,6 +21,24 @@ def explicit_number(text, label):
 def parse_plan(text):
     """区间或首句不适用之外均记解析失败。"""
     text=str(text or '').strip()
+    for prefix in ('待触发：', '同建仓：', '同建仓', '超配回落：', '风险减配：'):
+        if text.startswith(prefix):
+            body = text[len(prefix):].strip()
+            if prefix == '风险减配：':
+                match = re.match(r'收盘跌破\s*([0-9]+(?:\.[0-9]+)?)\s*降至\s*([0-9]+(?:\.[0-9]+)?)%', body)
+                if match and float(match[1]) > 0:
+                    return {'parse_status': 'parsed', 'text': text, 'prefix': prefix,
+                            'trigger_rule': '收盘跌破', 'trigger_price': float(match[1]),
+                            'post_allocation_pct': float(match[2])}
+                return {'parse_status': 'unparsed', 'text': text, 'reason': '风险减配缺明确触发价或减后配置'}
+            zone = re.search(r'区间\s*([0-9]+(?:\.[0-9]+)?)\s*[–—~-]\s*([0-9]+(?:\.[0-9]+)?)\s*美元', body)
+            trigger = re.match(r'收盘站上\s*([0-9]+(?:\.[0-9]+)?)\s*后', body) if prefix == '待触发：' else None
+            if zone and 0 < float(zone[1]) <= float(zone[2]) and (prefix != '待触发：' or trigger):
+                plan = {'parse_status': 'parsed', 'text': text, 'prefix': prefix, 'low': float(zone[1]), 'high': float(zone[2])}
+                if trigger:
+                    plan.update(status='待触发', trigger_rule='收盘站上', trigger_price=float(trigger[1]), confirm_days=1)
+                return plan
+            return {'parse_status': 'unparsed', 'text': text, 'reason': '新前缀无明确区间/确认价；不猜测'}
     if text.startswith('不适用'):
         # 固定双阈值模板分别保留回踩与突破，其他歧义仍不猜测。
         dual = re.search(r'等待回踩至\s*\$?([0-9]+(?:\.[0-9]+)?)\s*(?:美元)?\s*或突破\s*\$?([0-9]+(?:\.[0-9]+)?)\s*(?:美元)?\s*确认', text)

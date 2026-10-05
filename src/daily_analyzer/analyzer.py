@@ -361,6 +361,8 @@ def build_upstream_config(
             "lesson_min_settled_same_ticker": settings.tradingagents.lesson_min_settled_same_ticker,
             "cross_ticker_lessons": settings.tradingagents.cross_ticker_lessons,
             "price_plan_evaluation_enabled": settings.tradingagents.price_plan_evaluation_enabled,
+            "price_plan_legs": settings.tradingagents.price_plan_legs,
+            "allocation_tolerance_pct": settings.tradingagents.allocation_tolerance_pct,
             "rating_probability_fields": settings.tradingagents.rating_probability_fields,
             "allocation_bands": {name: band.model_dump() for name,band in settings.tradingagents.allocation_bands.items()} if settings.tradingagents.allocation_bands is not None else None,
             "broad_market_etfs": list(settings.evaluation.broad_market_etfs),

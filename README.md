@@ -72,9 +72,15 @@ python -m daily_analyzer evaluate --since 2026-10-01 --window 5 --layer all
 
 三层模型成功结构化返回会以 `structured.{research_plan,trader_proposal,pm_decision}` 原样保存实际 `model_dump()`；自由文本回退诚实留空。交易员新增可选 `first_target`，PM新增可选 `stop_loss/first_target`，旧记录正常渲染。`tradingagents.price_plan_evaluation_enabled: false` 恢复原点位字段和提示。`settle` 增量读取旧结果的显式区间/止损/不适用首句，按分析时结果显式字段或旧注入文本冻结有效期（默认入场起点含当天5交易日）；旧记录无法核验时单列默认5来源，后续配置不改既有窗口，用同来源同复权完整OHLC检验并写入独立outcomes，`evaluate` 增加“点位方案”。未成熟保留pending；收盘近似入场当日日线路径、缺方向正确止损/目标、拆股单位无法核验均标不可判；触发率仅纳入成熟且触发布尔可判的样本，止损/目标/R仅纳入退出路径可判样本，避免缺止损的已触发样本被当作未触发。同日双触保守止损；跳空止损按开盘，未退出按期末收盘；日线MFE/MAE只是区间近似，不宣称精确盘中路径。真实未来成熟收益为 **NOT_TESTED**。
 
+T37 的 `tradingagents.price_plan_legs` 默认开启：交易员/PM 可选 `buy_legs`、`reduce_legs` 分别表示可执行、待触发、仅观察和超配回落、风险减配，腿均有独立触发、止损、具名锚点与目标。非法类型/枚举/数值置空并软标记，倒置区间和超过两腿保留并标记，不使整段结构化返回失败。新首页按无仓、低于目标、高于目标、风险四行展示；加仓只补至目标，超配只减超额，系统不推断账户。矩阵条件可借交易员腿，但执行权限和有效目标优先最终PM结构或显式正文；PM缺目标保留未知，不借上游目标。`allocation_tolerance_pct` 默认10个百分点、0关闭，严格小于容差才视为达标；新旧记录全文均可点击展开，手机可查看。仅观察不交易，Underweight/Sell不新建或加仓；冲突与规则检查只提示，不修正模型值。
+
+`price_plan.target_rule` 默认 `r36`：候选必须高于区间上沿U+0.05ATR，1ATR内水平高点阻挡入场；目标取最近距U至少1ATR的具名阻力，只有完全无上方候选才U+3ATR，有近均线且无合格目标仅观察。止损必须来自具名支撑并可加0–0.5ATR缓冲，距离仍1–2.5ATR、推荐1.5–2ATR、盈亏比至少1.5，全部从U量，禁止倒推止损/目标。原目标不一致与按R36期望目标重算的资格分别记录，>3ATR只是分档提示；缺ATR或锚点不能冒称检查通过。`price_plan_legs: false` 配合 `price_plan.target_rule: d1` 恢复旧生成提示/schema逐字；单独关闭只恢复对应内容。历史结果和已结算记录不回写。本包仅接入腿与核验，逐腿v2结算在后续W3交付，真实模型填写率、自然运行效果 **NOT_TESTED**。
+
+新分支RM只给研究方向、目标配置、观察与复评条件，不写entry_plan模板；实际生成顺序为分歧/引用核对→概率→评级，PM概率在评级前。给评级必须给概率；"62%"可规范为0.62，旧记录不补概率。W8关联的宽松direction_change接受“是”加标点/空白及具体证据，异常原文保留并软标记，旧关闭分支严格校验不变。
+
 `tradingagents.lesson_min_settled_same_ticker: 10` 默认要求10条全量可见结算事实后才注入同标反思；不足只事实表，达标加方向命中率和最近3反思。优先C2真实5/10/20日主收益，旧memory5日tag收益可能为raw或excess，明确标为口径未核验的旧来源；C2 current与memory正文精确指纹一致才继承反思，同日重跑不误挂旧教训。`cross_ticker_lessons` 支持off/stats/text，默认stats按评级及资产主口径分组均值/n；text使用真实旧memory跨标记录。N=0且text恢复旧注入与经理提示逐字，不删除或改写反思。
 
-`tradingagents.rating_probability_fields: true` 默认在RM/PM输出可选5/20日跑赢概率及20日收益区间，概率以资产主口径为准。20日P切档：Buy≥0.65、Overweight[0.55,0.65)、Hold[0.45,0.55)、Underweight[0.35,0.45)、Sell<0.35。概率错档只记录各层 `decision_flags.*.rating_prob_mismatch` 并首页提示，不自动改评级。关闭恢复旧字段/提示；缺值不补0.5。“校准”章只用对应窗口成熟且概率可用样本，报告Brier、评级档边界[0,.35)、[.35,.45)、[.45,.55)、[.55,.65)、[.65,1]箱ECE和同样本经验基准率（样本内描述，不是OOS）；n<30注明不足，无成熟样本不报确定结论。
+`tradingagents.rating_probability_fields: true` 默认在RM/PM输出5/20日跑赢概率及20日收益区间，概率以资产主口径为准。20日P切档：Buy≥0.65、Overweight[0.55,0.65)、Hold[0.45,0.55)、Underweight[0.35,0.45)、Sell<0.35。概率错档只记录各层 `decision_flags.*.rating_prob_mismatch` 并首页提示，不自动改评级。关闭恢复旧字段/提示；缺值不补0.5。“校准”章只用对应窗口成熟且概率可用样本，报告Brier、评级档边界[0,.35)、[.35,.45)、[.45,.55)、[.55,.65)、[.65,1]箱ECE和同样本经验基准率（样本内描述，不是OOS）；n<30注明不足，无成熟样本不报确定结论。
 
 `tradingagents.allocation_bands` 默认Sell[0,20)、Underweight[20,80)、Hold[80,120]、Overweight(120,135]、Buy(135,150]；单位仍是单标的标准计划量%，不改真实账户业务口径。用户可配置lower/upper/lower_inclusive/upper_inclusive，区间不得重叠；显式null恢复原配置提示并关闭D3校验，其他开关不随之关闭。三层越界只记 `decision_flags.*.allocation_flag`，首页显示“配置与评级不一致”，不修正评级/值、不设schema上限、不计算实际买卖量。旧结果缺flags可只读解析显式评级/配置作提示。真实模型新概率/配置输出均 **NOT_TESTED**，固定历史模型桩不升级为真实业务效果。
 

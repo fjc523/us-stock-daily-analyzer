@@ -7,7 +7,7 @@ from tradingagents.agents.rating import PROBABILITY_BANDS, probability_rating
 
 def probability(value):
     try:
-        value=float(value)
+        value=float(value.strip()[:-1])/100 if isinstance(value,str) and value.strip().endswith('%') else float(value)
     except (ValueError,TypeError):
         return None
     return value if math.isfinite(value) and 0<=value<=1 else None
@@ -24,7 +24,7 @@ def extract_probabilities(result):
             if isinstance(structured,dict):
                 value=structured.get(field)
             else:
-                match=re.search(r'(?mi)^\s*\*\*Prob Outperform '+str(window)+r'd\*\*\s*[:：]\s*([01](?:\.\d+)?)\s*$',str(result.get(text_key) or ''))
+                match=re.search(r'(?mi)^\s*\*\*Prob Outperform '+str(window)+r'd\*\*\s*[:：]\s*([0-9]+(?:\.\d+)?%?)\s*$',str(result.get(text_key) or ''))
                 value=match[1] if match else None
             values[str(window)]=probability(value)
         output[layer]=values

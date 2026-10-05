@@ -306,6 +306,11 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_conf
         marks.append('配置与评级不一致')
     if any(row.get('rating_prob_mismatch') for row in flags.values() if isinstance(row,Mapping)):
         marks.append('评级与概率不一致')
+    if any(any(row.get(key) for key in ('buy_leg_conflicts_rating', 'risk_trigger_above_buy_zone', 'risk_reduce_missing_post_allocation', 'legs_missing')) for row in flags.values() if isinstance(row, Mapping)):
+        marks.append('点位条件需核对')
+    checks = flags.get('plan_checks') or {}
+    if any(any(value for key, value in (leg.get('checks') or {}).items() if key != 'target_far') for legs in checks.values() if isinstance(legs, list) for leg in legs if isinstance(leg, Mapping)):
+        marks.append('点位规则未通过')
     return marks
 
 
@@ -610,6 +615,35 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         summary = _advice_summary(first.group(0), len(first.group(0)) + 1) if first else _advice_summary(full_text, 200 if full_text.startswith("不适用：") else 100)
         plans.append({"label": label, "text": summary if full_text else "本报告未提供",
                       "full_text": full_text})
+    structured = result.get('structured') or {}
+    legs = next((structured.get(key) for key in ('pm_decision', 'trader_proposal')
+                 if isinstance(structured.get(key), Mapping) and
+                 (structured[key].get('buy_legs') or structured[key].get('reduce_legs'))), None)
+    tolerance = result.get('allocation_tolerance_pct', 10)
+    allocation = _allocation_summary(result)
+    if legs:
+        from daily_analyzer.evaluation.plan_checks import execution_matrix, finite
+        # 条件可借交易员腿；执行权限和配置始终服从最终PM结论。
+        pm = structured.get('pm_decision')
+        pm = pm if isinstance(pm, Mapping) else {}
+        final_rating = result.get('final_rating') or pm.get('rating')
+        matrix_rating = final_rating or legs.get('rating') or legs.get('action')
+        final_exists = bool(pm or result.get('final_trade_decision') or final_rating)
+        target = finite(pm.get('target_allocation_pct'))
+        if target is None or target < 0:
+            final_allocation = _allocation_summary({'final_trade_decision': result.get('final_trade_decision')})
+            match = re.match(r'目标配置 ([0-9]+(?:\.[0-9]+)?)%', final_allocation)
+            target = float(match[1]) if match else None
+        if target is None and not final_exists:
+            target = finite(legs.get('target_allocation_pct'))
+            if target is not None and target < 0:
+                target = None
+        allocation = f'目标配置 {target:g}% · 标准仓位=100%' if target is not None else '目标配置未提供 · 标准仓位=100%'
+        full_plans = '\n\n'.join(plan['label'] + '：' + plan['full_text'] for plan in plans)
+        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance)
+        for plan in plans:
+            plan['full_text'] += '\n\n' + full_plans
+    matrix_note = plans[0].get('tolerance_note', '') if legs else ''
     error = result.get("error") or _safe_retry_error(retry)
     premarket = _summary_premarket(result)
     duration = result.get("duration_seconds")
@@ -624,7 +658,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "proxy": result.get("analyzed_symbol") if symbol_type == "index" else None,
         "rating": rating, "rating_class": rating_class,
         "advice": _advice_summary(advice),
-        "plans": plans, "allocation": _allocation_summary(result),
+        "plans": plans, "matrix_note": matrix_note, "allocation": allocation,
         "premarket": premarket["change"], "premarket_price": premarket["price"],
         "premarket_title": premarket["title"], "quote_time": premarket["time"], "quote_reason": premarket["reason"],
         "sector_rank": _display(sector.get("sector_rank") if sector.get("sector_rank") is not None

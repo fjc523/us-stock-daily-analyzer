@@ -618,6 +618,9 @@ def _analyze_item(
             },
             "llm_usage": calls,
         }
+        from daily_analyzer.evaluation.plan_checks import decision_plan_checks
+        result['decision_flags'] = decision_plan_checks(result, shared_config)
+        result['allocation_tolerance_pct'] = shared_config.get('allocation_tolerance_pct', 10)
         if getattr(graph, 'role_llm_metadata', None):
             from daily_analyzer.model_usage import role_execution_evidence
             result['llm']['roles'] = role_execution_evidence(graph.role_llm_metadata, _read_usage_rows(batch_dir/'llm_calls.jsonl'), item.symbol)

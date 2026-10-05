@@ -213,6 +213,8 @@ class TradingAgentsSettings(ConfigModel):
     lesson_min_settled_same_ticker: int = Field(default=10, ge=0)
     cross_ticker_lessons: Literal["off", "stats", "text"] = "stats"
     price_plan_evaluation_enabled: bool = True
+    price_plan_legs: bool = True
+    allocation_tolerance_pct: float = Field(default=10, ge=0)
     rating_probability_fields: bool = True
     allocation_bands: dict[str, AllocationBand] | None = Field(default_factory=default_allocation_bands)
     risk_layer_direction_lock: bool = True
@@ -378,6 +380,10 @@ class DecisionSettings(ConfigModel):
 
 class PricePlanSettings(ConfigModel):
     """价格方案的ATR止损与最低盈亏比规则。"""
+    target_rule: Literal["r36", "d1"] = "r36"
+    alt_target_atr: FiniteFloat = Field(default=3.0, gt=0)
+    stop_buffer_atr_max: FiniteFloat = Field(default=0.5, ge=0)
+    min_target_atr: FiniteFloat = Field(default=1.0, gt=0)
 
     stop_atr_min: FiniteFloat = Field(default=1.0, gt=0)
     stop_atr_normal: tuple[FiniteFloat, FiniteFloat] = (1.5, 2.0)

@@ -12,7 +12,7 @@ from tradingagents.graph.propagation import Propagator
 def test_pm_switches_independent(b3,d1):
     llm=Mock();llm.with_structured_output.side_effect=NotImplementedError;llm.invoke.return_value=SimpleNamespace(content='**Rating**: Hold')
     state=Propagator().create_initial_state('COHR','2026-10-02');state.update(investment_plan='研究',trader_investment_plan='交易')
-    create_portfolio_manager(llm,dict(risk_layer_direction_lock=b3,rating_timing_decoupled=d1))(state)
+    create_portfolio_manager(llm,dict(price_plan_legs=False,price_plan_target_rule='d1',risk_layer_direction_lock=b3,rating_timing_decoupled=d1))(state)
     prompt=llm.invoke.call_args[0][0]
     assert ('默认沿用研究经理recommendation' in prompt)==b3
     assert ('direction_change必填' in prompt)==b3
