@@ -126,7 +126,7 @@ def test_actual_runner_late_failure_keeps_previous_memory_current(tmp_path,monke
         return real_write(target,payload)
     monkeypatch.setattr(runner,'atomic_write_json',write)
     _run(root,clock=lambda:datetime.fromisoformat('2026-10-02T10:15:00-04:00'),force=True,analyzer_factory=Graph)
-    if failure:
+    if failure and failure!='consistency_input':
         assert path.read_bytes()==old_memory and current.read_bytes()==old_current
         import json
         assert 'consistency_input' not in json.loads(current.read_text())
@@ -136,5 +136,12 @@ def test_actual_runner_late_failure_keeps_previous_memory_current(tmp_path,monke
         import json,hashlib
         result=json.loads(current.read_text());entry=log.load_entries()[0]
         assert result['status']=='success' and entry['rating']==result['final_rating']=='Sell'
+        if failure=='consistency_input':
+            assert result['consistency_input_status']=='unavailable: OSError'
+            assert 'consistency_input' not in result
+            for result_path in (root/'data/runs/2026-10-02/batches').glob('*/results/NVDA.json'):
+                saved=json.loads(result_path.read_text())
+                assert saved['status']=='success' and saved['consistency_input_status']=='unavailable: OSError'
+                assert 'consistency_input' not in saved
         assert hashlib.sha256(entry['decision'].encode()).hexdigest()==hashlib.sha256(result['final_trade_decision'].encode()).hexdigest()
     assert len(log.load_entries())==1

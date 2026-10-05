@@ -373,7 +373,7 @@ class SectorStrengthProvider:
             sector_rank = next((row["rank"] for row in self.ranking if row["symbol"] == sector_etf), None) if sector_etf else None
             lines.extend([
                 "", f"{symbol} 比较基准：{benchmark_symbol}（{metadata['benchmark_reason']}）。",
-                "相对基准：" + "；".join(f"{days}日 {_format_pct(relative[f'benchmark_excess_{days}d'])}" for days in (5, 20, 60)),
+                f"{symbol} 相对 {BENCHMARK_NAMES.get(benchmark_symbol, benchmark_symbol)}（{benchmark_symbol}）：" + "；".join(f"{days}日 {_format_pct(relative[f'benchmark_excess_{days}d'])}" for days in (5, 20, 60)),
                 "相对 SPY：" + "；".join(f"{days}日 {_format_pct(relative[f'spy_excess_{days}d'])}" for days in (5, 20, 60)),
             ])
             if not sector_etf:
@@ -397,7 +397,7 @@ class SectorStrengthProvider:
             comparisons.append(self._comparison(symbol, index_symbol, index_kind, index_reason))
             data["comparisons"] = comparisons
             for comparison in comparisons:
-                lines.append(f"{comparison['name']}（{comparison['symbol']}）：" + "；".join(
+                lines.append(f"{symbol} 相对 {comparison['name']}（{comparison['symbol']}）：" + "；".join(
                     f"{days}日 {_format_pct(comparison[f'excess_{days}d'])}" for days in (5, 20, 60)))
         return ContextBlock(self.name, "\n".join(lines), data, self.end, self.sources)
 
@@ -783,11 +783,12 @@ class MacroReleasesProvider:
         self.batch = batch
         source = self.services.futu_data
         if source is not None:
-            start = _trade_date(batch)
+            trade_day = _trade_date(batch)
+            start = min(_price_end(batch), trade_day)
             horizon = _value(batch, "decision_horizon_trading_days", (5, 20))
             import exchange_calendars as xcals
             calendar = xcals.get_calendar("XNYS")
-            first = calendar.date_to_session(start.isoformat(), direction="next")
+            first = calendar.date_to_session(trade_day.isoformat(), direction="next")
             end = calendar.session_offset(first, int(horizon[1])).date()
             self.calendars = source.calendars(start, end, [_symbol(item) if _item_type(item) != "index" else _value(item, "proxy", _symbol(item)) for item in _items(batch)], _cutoff_datetime(_value(batch, "context_as_of")))
             from tradingagents.dataflows.vendor_observer import observed_call

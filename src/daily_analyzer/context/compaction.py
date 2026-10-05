@@ -37,15 +37,15 @@ def _cell(value):
 
 
 def _calendar_number(value, unit=None):
-    """仅识别明确数值和单位，不从事件标题推测尺度。"""
+    """识别明确数值/单位，无后缀同字段以原单位比较。"""
     text = str(value).strip().replace('％', '%').replace(',', '')
     match = re.fullmatch(r'([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(%|千人|万人|人|千|万|K|M)?', text, re.I)
     if not match:
         return None
     suffix = match.group(2) or str(unit or '').strip()
     if not suffix:
-        return None
-    units = {'number': ('number', Decimal(1), ''), '%': ('percent', Decimal(1), '百分点'),
+        suffix = 'original'
+    units = {'number': ('number', Decimal(1), ''), 'original': ('number', Decimal(1), '（原单位）'), '%': ('percent', Decimal(1), '百分点'),
              '人': ('people', Decimal(1), '人'), '千人': ('people', Decimal(1000), '千人'),
              '万人': ('people', Decimal(10000), '万人'), '千': ('number', Decimal(1000), '千'),
              '万': ('number', Decimal(10000), '万'), 'K': ('number', Decimal(1000), 'K'),
@@ -62,7 +62,7 @@ def _difference(actual, estimate, unit=None):
     if estimate in (None, ''):
         return '无预期'
     a, e = _calendar_number(actual, unit), _calendar_number(estimate, unit)
-    if a is None or e is None or a[1][0] != e[1][0]:
+    if a is None or e is None or a[1][0] != e[1][0] or (not unit and (a[1][2]=='（原单位）') != (e[1][2]=='（原单位）')):
         return '不可比较（单位或数值未核验）'
     diff = (a[0] * a[1][1] - e[0] * e[1][1]) / a[1][1]
     direction = '高于预期' if diff > 0 else '低于预期' if diff < 0 else '持平'
@@ -79,7 +79,7 @@ def _calendar_unit(row):
         return explicit.group(1)
     # BLS失业率表以percent计；平均每小时工资月/年率为percent change。
     # https://www.bls.gov/eag/eag.us.htm 与 https://www.bls.gov/news.release/empsit.htm
-    if re.fullmatch(r'美国(?:\d+年)?\d+月(?:(?:U6)?失业率|平均每小时工资[月年]率)', title):
+    if re.fullmatch(r'美国(?:\d+年)?\d+月(?:(?:U6)?失业率|平均每小时工资[月年]率)', title) or re.search(r'(月率|年率|季率|参与率|利用率)$',title):
         return '%'
     return None
 
@@ -91,18 +91,30 @@ def calendar_markdown(calendars, as_of, *, short=False, validity=5):
     first = calendar.date_to_session(as_of.date().isoformat(), direction='next')
     last = calendar.session_offset(first, validity - 1).date()
     start = first.date()
+    lookback = calendar.previous_session(first).date()
     rows, omitted = [], 0
     for index, row in enumerate(calendars.get('economics', [])):
         level = str(row.get('star') or row.get('importance') or '').upper()
         stamp = _time(row)
         in_window = stamp is not None and start <= stamp.date() <= last
+        actual=row.get('actual')
+        estimate=row.get('consensus') if row.get('consensus') not in (None,'') else row.get('estimate')
+        published=stamp is not None and lookback <= stamp.date() and stamp <= as_of and actual not in (None,'','尚未发布','未发布')
+        comparable=published and not _difference(actual,estimate,_calendar_unit(row)).startswith(('无预期','不可比较'))
         keep = level == 'HIGH' and (not short or (in_window and stamp >= as_of))
+        keep = keep or (level in ('HIGH','MEDIUM') and comparable)
         keep = keep or (not short and level == 'MEDIUM' and in_window)
         if keep:
             rows.append((stamp, index, row, level))
         else:
             omitted += 1
-    rows.sort(key=lambda entry: (entry[0] or datetime.max.replace(tzinfo=EASTERN), entry[1]))
+    def priority(entry):
+        stamp,_,row,_=entry
+        estimate=row.get('consensus') if row.get('consensus') not in (None,'') else row.get('estimate')
+        published=stamp is not None and stamp<=as_of and row.get('actual') not in (None,'','尚未发布','未发布')
+        comparable=published and not _difference(row.get('actual'),estimate,_calendar_unit(row)).startswith(('无预期','不可比较'))
+        return (0 if short and comparable else 1,stamp or datetime.max.replace(tzinfo=EASTERN),entry[1])
+    rows.sort(key=priority)
     lines = ['重要度：高=HIGH、中=MEDIUM；时间为ET，未列月日沿用本组首行，↳同上。事件均为美国；年份同上下文。',
              '|发布时间ET|事件|重要度|前值|预期|实际|意外差|',
              '|---|---|---|---|---|---|---|']
@@ -125,7 +137,7 @@ def calendar_markdown(calendars, as_of, *, short=False, validity=5):
         lines.append('|' + '|'.join(map(_cell, [
             time_text, title,
             '高' if level == 'HIGH' else '中', row.get('previous'), estimate, actual,
-            _difference(actual, estimate, _calendar_unit(row)) if published else ('未发布；无预期' if estimate in (None, '') else '未发布'),
+            '已发布；'+_difference(actual, estimate, _calendar_unit(row)) if published else ('未发布；无预期' if estimate in (None, '') else '未发布'),
         ])) + '|')
         previous_stamp = stamp
     if not rows:
@@ -153,7 +165,7 @@ def compact_macro(payload, as_of, *, short=False, validity=5):
     calendars = data.get('calendars', {})
     if short:
         return ('#### 本标的财报日\n' + earnings_markdown(calendars) +
-                '\n\n#### 未来有效期HIGH经济事件\n' + calendar_markdown(calendars, as_of, short=True, validity=validity))
+                '\n\n#### 已发布意外差与未来有效期HIGH经济事件\n' + calendar_markdown(calendars, as_of, short=True, validity=validity))
     text = str(payload.get('markdown') or '')
     # 定位旧版固定日历段，只替换prompt文本；其他新闻/经济发布正文不改。
     text = text.split('\n#### 决策周期日历（富途）', 1)[0].rstrip()

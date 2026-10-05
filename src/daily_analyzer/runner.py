@@ -628,7 +628,10 @@ def _analyze_item(
         apply_execution_labels(result, shared_config)
         snapshot = getattr(graph, 'consistency_snapshot', None)
         if callable(snapshot):
-            result['consistency_input'] = snapshot(final_state)
+            try:
+                result['consistency_input'] = snapshot(final_state)
+            except Exception as exc:
+                result['consistency_input_status'] = 'unavailable: '+type(exc).__name__
         result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
         if appended:
             result["appended"] = True
@@ -804,10 +807,16 @@ def _record_attempt(
                 and result.get("final_rating") in {"Buy", "Overweight", "Hold", "Underweight", "Sell"}
                 and str(result.get("final_trade_decision") or "").strip()):
             from tradingagents.memory.log import TradingMemoryLog
-            TradingMemoryLog({"memory_log_path": str(root / "data/tradingagents/memory/trading_memory.md")}).store_decision(
-                ticker=outcome.item.symbol, trade_date=trade_day.isoformat(),
-                final_trade_decision=result["final_trade_decision"], rating=result["final_rating"], replace_pending=True,
-            )
+            try:
+                TradingMemoryLog({"memory_log_path": str(root / "data/tradingagents/memory/trading_memory.md")}).store_decision(
+                    ticker=outcome.item.symbol, trade_date=trade_day.isoformat(),
+                    final_trade_decision=result["final_trade_decision"], rating=result["final_rating"], replace_pending=True,
+                )
+            except Exception as exc:
+                result.setdefault('data_limitations',[]).append('决策记忆更新失败')
+                atomic_write_json(current_dir / f"{slug}.json", result)
+                atomic_write_json(batch_dir / 'results' / f"{slug}.json", result)
+                append_log(root, trade_day, now, f"批次 {batch.get('run_id')} {outcome.item.symbol} 决策记忆更新失败：{type(exc).__name__}")
     batch["items"].setdefault(slug, {}).update(
         {
             "symbol": outcome.item.symbol,

@@ -407,6 +407,8 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
     if not records or (symbols is not None and set(symbols) != {r['symbol'] for r in records}):
         raise ValueError('找不到指定成功标的')
     for record in records:
+        if str(record.get('consistency_input_status') or '').startswith('unavailable:'):
+            raise ValueError('保存一致性快照不可用：'+record['consistency_input_status'])
         build_debate_state(record.get('consistency_input'))
         validate_test_overrides(record['consistency_input'], overrides)
         if not reconstructed and record['consistency_input'].get('reconstruction', {}).get('reconstructed'):
@@ -469,7 +471,7 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
         report.extend([f"\n## {row['symbol']} 第{row['runs'][0]}/{row['runs'][1]}次",
                        '```json', json.dumps(row, ensure_ascii=False, indent=2), '```'])
     destination.mkdir(parents=True, exist_ok=True)
-    path = destination/(run_id+('-'+group if group else '')+'.md')
+    path = destination/(run_id+('-'+group if group else '')+'-'+stamp+'.md')
     path.write_text('\n'.join(report)+'\n')
     summary_dir = destination/run_id/group/stamp if group else destination/run_id/stamp
     atomic_write_json(summary_dir/'summary.json', {'comparisons': comparisons, 'executions': executions,

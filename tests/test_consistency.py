@@ -314,7 +314,7 @@ def test_reconstructed_groups_preserve_strict_guard_datahash_and_original(tmp_pa
     for group, repeats in [('baseline',2), ('A',1), ('B',1)]:
         result = run_consistency(tmp_path,'saved-run',test_mode=True,reconstructed=True,snapshot_paths=[path],group=group,repeats=repeats,executor=executor)
         assert '历史重建/缩样' in Path(result['report']).read_text()
-        assert f'-{group}.md' in result['report']
+        assert f'-{group}-' in Path(result['report']).name and Path(result['report']).suffix=='.md'
     assert len(calls) == 4 and original.read_bytes() == before
     products = list((tmp_path/'data/evaluation/consistency').rglob('result.json'))
     hashes = {json.loads(p.read_text())['original_data_hash'] for p in products}
@@ -463,3 +463,18 @@ def test_role_scheme_flags_only_explicit_consistency_parser():
     assert args.role_scheme=='A' and args.legacy_speaker_rotation
     default=parser.parse_args(['consistency','--run-id','saved'])
     assert default.role_scheme is None and not default.legacy_speaker_rotation and not default.test_mode
+
+
+def test_snapshot_unavailable_rejected_before_executor(tmp_path):
+    formal,_=create_saved_run(tmp_path,snapshot=False)
+    record=json.loads(formal.read_text());record['consistency_input_status']='unavailable: OSError'
+    formal.write_text(json.dumps(record))
+    with pytest.raises(ValueError,match='快照不可用'):
+        run_consistency(tmp_path,'saved-run',test_mode=True,executor=lambda *a,**k:pytest.fail('不可执行'))
+
+
+def test_same_group_reports_keep_two_timestamped_files(tmp_path):
+    create_saved_run(tmp_path)
+    reports=[run_consistency(tmp_path,'saved-run',test_mode=True,group='B',repeats=2,executor=lambda *a,**k:final_state())['report'] for _ in range(2)]
+    assert reports[0]!=reports[1] and all(Path(path).is_file() for path in reports)
+    assert len(list((tmp_path/'data/evaluation/consistency').glob('saved-run-B-*.md')))==2

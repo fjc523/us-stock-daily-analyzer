@@ -1253,3 +1253,31 @@ def test_failed_actual_billing_provider_not_rewritten_as_subscription():
     assert value['observed']['providers']==['bedrock'] and value['status']=='FAILED'
     row['actual_api_providers']=None
     assert role_execution_evidence({'research_manager':{}},[row],'SMTC')['research_manager']['observed']['providers'] is None
+
+
+def test_optional_snapshot_and_memory_failure_do_not_fail_batch(tmp_path,monkeypatch):
+    import daily_analyzer.runner as runner
+    from tradingagents.memory.log import TradingMemoryLog
+    monkeypatch.setattr(runner,'_codex_version',lambda _: '离线')
+    monkeypatch.setattr(runner,'_fork_state',lambda _: {})
+    class Graph(_FakeGraph):
+        def propagate(self,*args,**kwargs):
+            state,_=super().propagate(*args,**kwargs)
+            return state,'Buy'
+        def consistency_snapshot(self,state):raise OSError('注入快照异常')
+    def failed_store(self,**kwargs):raise OSError('注入记忆异常')
+    monkeypatch.setattr(TradingMemoryLog,'store_decision',failed_store)
+    _FakeGraph.fail_symbols=set();_FakeGraph.errors_by_symbol={}
+    root=_project(tmp_path,symbols=('NVDA',),parallelism=1)
+    memory=root/'data/tradingagents/memory/trading_memory.md';memory.parent.mkdir(parents=True)
+    memory.write_text('原正式记忆');before=memory.read_bytes()
+    now=datetime(2026,10,2,10,15,tzinfo=NEW_YORK)
+    outcome=_run(root,clock=lambda:now,analyzer_factory=Graph)
+    assert outcome.exit_code==0 and outcome.status=='completed' and memory.read_bytes()==before
+    batch=root/'data/runs/2026-10-02/batches'/outcome.run_id
+    current=json.loads((root/'data/runs/2026-10-02/current/NVDA.json').read_text())
+    saved=json.loads((batch/'results/NVDA.json').read_text())
+    assert current==saved and current['status']=='success'
+    assert current['data_limitations']==['决策记忆更新失败']
+    assert current['consistency_input_status']=='unavailable: OSError'
+    assert any('决策记忆更新失败' in path.read_text() for path in (root/'logs').glob('*.log'))

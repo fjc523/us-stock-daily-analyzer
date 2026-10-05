@@ -105,6 +105,8 @@ def test_abnormal_bar_excluded_from_extremes_and_atr(misplaced_decimal_bars, fie
             assert anchor['value'] == selected.loc[index, name]
             assert anchor['date'] == selected.loc[index, 'Date'].date().isoformat()
     assert block.data['window_252d_count'] == 251
+    assert '252交易日极值（剔除异常1条）' in block.data['anchors']['252d_High']['type']
+    assert '不足252日' in block.data['anchors']['252d_High']['type']
     assert block.data['anchors']['atr']['value'] == pytest.approx(wrap(data.drop(index=bad_index).copy())['atr'].iloc[-1])
     assert block.data['anchors']['close_200_sma']['value'] == pytest.approx(wrap(data.copy())['close_200_sma'].iloc[-1])
     warning = f"剔除异常日线1条（{data.loc[bad_index, 'Date'].date().isoformat()}）"

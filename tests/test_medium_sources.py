@@ -46,7 +46,7 @@ def test_position_structure_real_date_and_brief(monkeypatch):
     assert block.data['short_date']=='2026-09-15' and '8.53%' in block.markdown
     assert '期权不可用' in render_compacted_context({'position_structure':block},block.as_of,profile='brief')
     collector=SourceStatusCollector(); rows=collector.snapshot({'position_structure':block.to_dict()},{})
-    assert any(row['category']=='期权' and row['status']=='失败' for row in rows)
+    assert any(row['category']=='期权' and row['status']=='未开通/不可行' for row in rows)
     services.analysis_mode='backfill'; services.yahoo._ticker=Mock(side_effect=AssertionError)
     assert '回放不可用' in PositionStructureProvider(services).build({'type':'stock','symbol':'SMTC'},block.as_of).markdown
     services.yahoo._ticker.assert_not_called()

@@ -342,8 +342,13 @@ def test_sector_and_index_comparison_combinations(sector, index, expected):
     provider = SectorStrengthProvider(_services(yahoo=FakeYahoo({"TSLA": sector}),
                                                 index_metadata=FakeIndexMetadata({"TSLA": row})))
     provider.prepare({"trade_date": date(2026, 10, 2), "items": [item]})
-    data = provider.build(item, "2026-10-02T08:31:00-04:00").data
+    block = provider.build(item, "2026-10-02T08:31:00-04:00")
+    data = block.data
     assert [row["symbol"] for row in data["comparisons"]] == expected
+    for comparison in data['comparisons']:
+        label=f"{comparison['name']}（{comparison['symbol']}）："
+        assert f"TSLA 相对 {label}" in block.markdown
+        assert not any(line.startswith(label) for line in block.markdown.splitlines())
     assert data["comparisons"][0]["name"] in {"消费可选", "纳斯达克100", "标普500"}
 
 

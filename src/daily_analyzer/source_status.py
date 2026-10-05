@@ -130,7 +130,7 @@ class SourceStatusCollector:
                        "success" if data.get("status") == "available" else "no_data",
                        data.get("reason") or "；".join(data.get("warnings", [])))
             if name == "position_structure":
-                record("期权", "futu", "failed", data.get("option_reason") or data.get("reason"))
+                record("期权", "futu", "unconfigured", data.get("option_reason") or data.get("reason"))
                 record("空头", "yfinance", "success" if data.get("short_status") == "available" else "no_data", data.get("short_reason") or data.get("reason") or ("数据日期：" + str(data.get("short_date") or "未核验")))
             if name == "extended_hours":
                 for segments in data.values():
@@ -177,7 +177,7 @@ class SourceStatusCollector:
             elif category == "宏观指标" and "futu" in config.get("tool_vendors", {}).get("get_macro_indicators", ""):
                 status = "未使用"
             elif attempts:
-                status = "未配置"
+                status = "未开通/不可行" if category == "期权" else "未配置"
             else:
                 status = "未使用"
             if category == "情绪" and any(event["outcome"] == "skipped" for event in attempts):

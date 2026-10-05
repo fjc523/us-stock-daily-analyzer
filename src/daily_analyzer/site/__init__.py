@@ -265,7 +265,7 @@ def _status(result: Mapping[str, Any]) -> str:
 
 
 def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_config: Mapping[str, Any] | None = None) -> list[str]:
-    marks: list[str] = []
+    marks: list[str] = [str(value) for value in result.get("data_limitations", []) if isinstance(value,str)]
     if result.get("finished_after_open"):
         marks.append("开盘后生成")
     if result.get("started_after_open"):

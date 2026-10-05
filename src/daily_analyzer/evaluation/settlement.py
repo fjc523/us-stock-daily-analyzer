@@ -295,7 +295,7 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
         # 旧null无三态证明，仅在任何窗口尚未settled时迁移为可重试；成功/确认none冻结。
         if row.get('type')=='stock':
             row.setdefault('sector_lookup','mapped' if row.get('sector_benchmark') else 'failed')
-            if key not in created and row['sector_lookup']=='failed' and not any(outcome.get('status')=='settled' for outcome in row.get('windows',{}).values()):
+            if key not in created and row['sector_lookup']=='failed' and any(outcome.get('status')=='pending' for outcome in row.get('windows',{}).values()):
                 lookup=lookup_sector(services,row['symbol'])
                 row['sector_lookup']=lookup['status']
                 row['sector_benchmark']=lookup['benchmark']

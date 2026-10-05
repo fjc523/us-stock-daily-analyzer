@@ -29,8 +29,8 @@ def qqq_raw():
 
 def test_issuer_percent_not_normalized_and_non_equity_rows_preserved():
     data = parse_holdings('QQQ', qqq_raw())
-    assert data['weight_unit'] == '%' and '月度' in data['update_frequency']
-    assert data['holdings_as_of'] == '2026-10-03' and data['effective_business_date'] == '2026-10-02'
+    assert data['weight_unit'] == '%' and '接口参数 monthly，时效以生效日为准' == data['update_frequency']
+    assert data['holdings_as_of'] == '2026-10-02' and data['effective_business_date'] == '2026-10-02'
     assert data['published_at'] is None and not data['shares_history']
     metrics = concentration(data['holdings'])
     assert metrics['total_weight_pct'] == pytest.approx(100)

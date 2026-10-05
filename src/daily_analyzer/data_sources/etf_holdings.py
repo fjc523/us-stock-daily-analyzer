@@ -38,7 +38,8 @@ def parse_holdings(fund, raw):
                 for row in records]
         as_of = date.fromisoformat(str(payload['effectiveDate'])[:10]).isoformat()
         business_date = payload.get('effectiveBusinessDate')
-        frequency = '月度（公开端点interval=monthly）'
+        frequency = '接口参数 monthly，时效以生效日为准'
+        if business_date:as_of = date.fromisoformat(str(business_date)[:10]).isoformat()
     else:
         book = load_workbook(BytesIO(raw), read_only=True, data_only=True)
         try:

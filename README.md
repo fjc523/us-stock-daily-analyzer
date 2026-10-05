@@ -100,7 +100,7 @@ C4 的结构腿结算使用 `rule_version=c4-v2`，独立腿ID、止损和第一
 
 本轮按十个问题分别闭环：方向声明宽松归一与实际schema生成顺序、长度条数软校验、评级主口径对齐、契约/全量测试、旧反思及行业映射、独立开关、确定性方向标记与同代理IC。不会重写历史评级、反思tag或已settled收益；真实模型遵守及未成熟收益仍NOT_TESTED。C3代理保留规则已由用户确认并实现。
 
-方向声明容忍“否。”、“否，沿用…”和“是”加中英冒号/逗号及多行非空证据，归一后保存；裸“是”仍拒绝。研究经理实际schema按开启字段先生成分歧裁决/引用核对再评级，关闭字段不追加、Legacy原schema保持；引用核对超200字或分歧点非3–5条保留内容，仅记`evidence_check_overlength`/`cruxes_count`。
+方向声明容忍“否。”、“否，沿用…”和“是”加中英冒号/逗号及多行非空证据，归一后保存；裸“是”仍拒绝。研究经理实际schema按开启字段先生成分歧裁决/引用核对再评级，关闭字段不追加、Legacy原schema保持；引用核对按中文计字（汉字/标点各1，连续数字含小数及拉丁词元各1，空白不计）超200字或分歧点非3–5条保留内容，仅记`evidence_check_overlength`/`cruxes_count`。
 
 D1开启时评级统一用C1主口径，框架按标的type及可配置`evaluation.broad_market_etfs`说明宽基/指数绝对收益或股票/行业ETF对SPY超额。PM方向锚定及强制声明只受B3控制，时机解耦/5–20日周期只受D1控制；Trader方向锚定仍为两开关OR。三层`direction_change_mismatch`只标记已明确评级不一致且未给“是+证据”，不改评级/配置；成熟分层归因单列标记一致、不一致和缺失。
 
@@ -155,3 +155,7 @@ A/B已知Claude10次目录价5.4473086美元，唯一gate目录价0.454376美元
 RM分歧条数全部UNKNOWN：实际structured_research_plan只有evidence_check、prob_outperform_5d、prob_outperform_20d、expected_return_20d_range、recommendation、rationale、strategic_actions、target_allocation_pct，无独立分歧数量/列表，风险编号/一般词不作统计。四份字段清单与rationale SHA保存在独立testing/ab/summary.json，未增加模型提取。
 
 原5标×2日、未来收益/金融有效性NOT_TESTED；已授权past空值/legacy配置及prompt重建来源照实说明。gate/baseline/A-B执行代码阶段不同，baseline原件未存implementation_version，不追补同码宣称；A/B四图实际8源码指纹一致，HEAD不代表dirty源码。默认路径兼容离线与静态RC6-3重比较分列，不重复baseline或gate。effective effort无回显/managed未知仍保留；生产覆盖空、无schedule双跑、不默认A或B。
+
+T37数据诚实与小项（W7/W8）：Reddit取数失败明确「获取失败、非无讨论」，正常0帖来源记正常（0条），社交不足仍跳过情绪模型。经济日历请求回看min(P,运行日)，原未来决策窗口长度不变，发布时间≤上下文时刻才标已发布与意外差，brief优先保留已发布可比意外差；未来actual不泄漏。双方裸数字同字段差额记原单位，月/年/季率及参与率/利用率标题按百分点；单边未知单位仍不可比。EPS变化/惊喜改除以绝对基数，abs(base)<0.05只报美元差额与「基数过小，百分比不可比」。
+
+记忆写入或一致性快照失败不会使正式成功批次失败；记忆失败写日志及结果数据限制/首页提示，current与批次结果一致，快照失败记`consistency_input_status=unavailable:<异常类型>`且测试入口明确拒绝。待结算窗口存在时继续重试失败板块映射，已有settled窗口不回写。期权未开通记「未开通/不可行」并退出来源失败分母，不开通订阅。比较行标「SMTC 相对 科技（XLK）」；252交易日窗口剔除数写极值标签并保留有效样本不足说明，数值不补造。QQQ发行方持仓优先业务生效日，频率显示「接口参数 monthly，时效以生效日为准」。引用核对保留`evidence_check_raw_length`与中文计字`evidence_check_count`，200门槛保持；一致性md文件名含每轮时间戳，同group不覆盖。旧方向/RM顺序兼容分支沿W1/W2已验收行为；所有真实模型/自然样本效用仍NOT_TESTED。

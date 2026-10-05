@@ -84,6 +84,7 @@ class PriceAnchorsProvider:
                     put(f'{window}d_{field}',selected.loc[index,field],f'{window}日极值',selected.loc[index,'Date'])
         # 一年窗口使用同源有效OHLC；样本不足不推断上市日期。
         selected = frame.tail(252).copy()
+        window_excluded = int(abnormal.loc[selected.index].sum())
         selected = selected.loc[~abnormal.loc[selected.index]]
         for field in ('High', 'Low'):
             if field in selected:
@@ -98,7 +99,11 @@ class PriceAnchorsProvider:
                 put(name, None, '252日极值（有效日线不足）')
             else:
                 index = getattr(valid[field], operation)()
-                label = '252交易日极值' if len(valid) == 252 else f'已有{len(valid)}交易日极值（不足252日）'
+                if window_excluded:
+                    label = f'252交易日极值（剔除异常{window_excluded}条）'
+                    if len(valid)<252:label += f'；已有{len(valid)}有效交易日（不足252日）'
+                else:
+                    label = '252交易日极值' if len(valid)==252 else f'已有{len(valid)}交易日极值（不足252日）'
                 put(name, valid.loc[index, field], label, valid.loc[index, 'Date'])
             row = anchors[name]
             close, atr = anchors['P_Close']['value'], anchors['atr']['value']

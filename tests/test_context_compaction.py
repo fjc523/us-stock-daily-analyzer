@@ -212,7 +212,7 @@ def test_complete_window_weekend_and_us_holiday_boundaries():
     ('2', None, None, '无预期'),
     ('尚未发布', '1', None, '不可比较'),
     ('2', '1', '未知单位', '不可比较'),
-    ('2', '1', None, '不可比较'),
+    ('2', '1', None, '+1（原单位）（高于预期）'),
 ])
 def test_calendar_surprise_units_and_direction(actual, estimate, unit, expected):
     from daily_analyzer.context.compaction import _difference
@@ -243,5 +243,5 @@ def test_saved_employment_event_units_render_without_changing_raw():
     assert '+0.1百分点（高于预期）' in rendered
     assert '-0.20百分点（低于预期）' in rendered
     assert '-6.1万人（低于预期）' in rendered
-    assert '不可比较（单位或数值未核验）' in rendered
+    assert '+1（原单位）（高于预期）' in rendered
     assert rows == original
