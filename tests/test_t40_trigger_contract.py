@@ -16,16 +16,18 @@ def test_matrix_visible_conditions_and_expanded_details():
     flags = ['buy_legs.0.trigger_rule:invalid_value', 'reduce_legs.0.trigger_rule:invalid_value', 'reduce_legs.1.trigger_rule:invalid_value']
     rows = execution_matrix('Overweight', 122, buys, reduces, leg_validation_flags=flags)
     assert '连续2日确认' in rows[0]['text']
-    assert '超配≥10个百分点且201.99–204.90触发规则缺失' in rows[2]['text']
-    assert '触发规则缺失' in rows[3]['text'] and '184.86' in rows[3]['text']
-    assert all('另有条件，见展开原文' in row['text'] for row in rows)
+    assert '超配≥10个百分点且201.99–204.90触发方式未记录' in rows[2]['text']
+    assert '触发方式未记录' in rows[3]['text'] and '184.86' in rows[3]['text']
+    assert '触发规则缺失' in rows[3]['full_text']
+    assert all('另有条件，见展开原文' not in row['text'] for row in rows)
+    assert all('另有条件，见展开原文' in row['full_text'] for row in rows)
     assert '仅在展开显示' not in rows[3]['text'] and '仅在展开显示' in rows[3]['full_text']
-    assert '未设风险减配腿（复评条件见原文）' in execution_matrix('Overweight', 125, buys, [])[3]['text']
+    assert execution_matrix('Overweight', 125, buys, [])[3]['text'] == '未设风险减配腿'
     buys[0]['confirm_days'] = None
     assert '确认天数未提供' in execution_matrix('Overweight', 125, buys, [])[0]['text']
     buys[0]['preconditions'] = '等待事件窗口及成交量确认'
     rows = execution_matrix('Overweight', 125, buys, [], 0)
-    assert '另有条件' in rows[0]['text'] and buys[0]['preconditions'] in rows[0]['full_text']
+    assert '｜前提：' + buys[0]['preconditions'] in rows[0]['text'] and buys[0]['preconditions'] in rows[0]['full_text']
     assert rows[0]['tolerance_note'] == '容差关闭，按目标精确比较'
 
 
