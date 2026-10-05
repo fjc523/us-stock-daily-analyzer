@@ -238,9 +238,9 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *,
     new_risk = []
     for item, original in zip(risk, risk_parts):
         old_rule = item.get('trigger_rule') or '触发规则缺失（见原文）'
-        original = original.replace(old_rule, rule(item), 1)
         if item.get('trigger_rule') == '其他条件' and finite(item.get('trigger_price')) is not None:
-            original = original.replace(' ' + val(item['trigger_price']), '', 1)
+            original = original.replace(old_rule + ' ' + val(item['trigger_price']), old_rule, 1)
+        original = original.replace(old_rule, rule(item), 1)
         new_risk.append(original)
     texts = [conditions(entry, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else entry,
              conditions(add, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else add,

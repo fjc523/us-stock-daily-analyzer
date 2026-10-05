@@ -189,3 +189,9 @@ def test_matrix_spec_briefs_preserve_full_text_and_known_enum():
     assert '｜' not in execution_matrix('Hold', 100, [buy], [])[0]['text']
     excess = {'kind': '超配回落', 'trigger_rule': '进入区间受阻', 'zone_low': 201.99, 'zone_high': 204.9}
     assert execution_matrix('Hold', 122, [], [excess])[2]['text'] == '超配≥10个百分点且201.99–204.90受阻时减至122%'
+
+
+def test_other_condition_preserves_same_price_inside_precondition():
+    rows = execution_matrix('Hold', 100, [], [{'kind': '风险减配', 'trigger_rule': '其他条件',
+        'trigger_price': 184.86, 'post_allocation_pct': 0, 'preconditions': '盘中价格 184.86 以下即退出'}])
+    assert rows[3]['text'] == '其他条件：盘中价格 184.86 以下即退出 → 降至0%并复评'
