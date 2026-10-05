@@ -79,7 +79,7 @@ def _calendar_unit(row):
         return explicit.group(1)
     # BLS失业率表以percent计；平均每小时工资月/年率为percent change。
     # https://www.bls.gov/eag/eag.us.htm 与 https://www.bls.gov/news.release/empsit.htm
-    if re.fullmatch(r'美国(?:\d+年)?\d+月(?:(?:U6)?失业率|平均每小时工资[月年]率)', title) or re.search(r'(月率|年率|季率|参与率|利用率)$',title):
+    if re.fullmatch(r'美国(?:\d+年)?\d+月(?:(?:U6)?失业率|平均每小时工资[月年]率)', title) or re.search(r'(月率|年率|季率|参与率|利用率)(?:终值|初值|修正值)?$',title):
         return '%'
     return None
 

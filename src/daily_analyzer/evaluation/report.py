@@ -310,6 +310,14 @@ def _group_table(groups: dict[str, dict[str, Any]], label: str) -> list[str]:
     return lines
 
 
+def _scheme_label(scheme, group):
+    """两个报告入口共用来源标记，混合组不冒称全部推断。"""
+    from daily_analyzer.model_scheme import record_scheme
+    inferred = sum(record_scheme(row).get('source') == 'inferred_unwritten' for row in group)
+    suffix = '（推断，未写入）' if inferred == len(group) else f'（其中推断未写入 n={inferred}）' if inferred else ''
+    return scheme + suffix
+
+
 def scheme_report(rows):
     """共用去重保留集，方案/指纹只描述分列，不改变合并指标。"""
     from daily_analyzer.model_scheme import record_scheme
@@ -322,7 +330,6 @@ def scheme_report(rows):
         '|方案|模型指纹|记录数|C3 命中率 / 平均主收益|D2 Brier|C4 腿数|',
         '|---|---|---|---|---|---|']
     for (scheme,fingerprint),group in sorted(groups.items()):
-        inferred=all(record_scheme(row).get("source")=="inferred_unwritten" for row in group)
         c3=[];d2=[];legs=Counter()
         for layer,title in LAYERS.items():
             for window in (5,10,20):
@@ -342,7 +349,7 @@ def scheme_report(rows):
         for row in group:
             for leg in (row.get('point_plans') or {}).values():
                 if isinstance(leg,dict):legs[leg.get('rule_version','c4-v1')]+=1
-        label=scheme+'（推断，未写入）' if inferred else scheme
+        label=_scheme_label(scheme, group)
         lines.append(f"|{label}|{fingerprint}|{_sample_note(len(group))}|"+'<br>'.join(c3)+'|'+'<br>'.join(d2)+f"|v1={legs['c4-v1']}；v2={legs['c4-v2']}|")
     return '\n'.join(lines)
 
@@ -368,8 +375,11 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
                      f"保留 {removed['retained']['run_id']}/{removed['retained']['symbol']}。")
     if result["warning"]:
         lines += ["", '<span style="color:red">告警：最近10个实际交易日均有观测，PM 看多占比为0，且多数日市场环境偏强。</span>']
-    from daily_analyzer.model_scheme import scheme_counts
-    lines += ['', '模型方案计数：'+'；'.join(f'{label} n={count}' for label,count in sorted(scheme_counts(rows).items()))+'。']
+    from daily_analyzer.model_scheme import record_scheme
+    scheme_groups = defaultdict(list)
+    for row in rows:
+        scheme_groups[record_scheme(row)['scheme']].append(row)
+    lines += ['', '模型方案计数：'+'；'.join(f'{_scheme_label(label, group)} n={len(group)}' for label,group in sorted(scheme_groups.items()))+'。']
     statuses = Counter(row.get("windows", {}).get(str(window), {}).get("status", "未配置") for row in rows)
     lines += ["", "窗口状态：" + "；".join(f"{key} n={value}" for key, value in sorted(statuses.items())) + "。"]
     for layer, data in result["layers"].items():

@@ -312,7 +312,11 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_conf
         if isinstance(flags.get(layer),Mapping) and flags[layer].get('llm_fallback'):
             marks.append(f'第二模型回退（{title}）')
     checks = flags.get('plan_checks') or {}
-    if any(any(value for key, value in (leg.get('checks') or {}).items() if key != 'target_far') for legs in checks.values() if isinstance(legs, list) for leg in legs if isinstance(leg, Mapping)):
+    # 存量无status的已落盘检查维持旧parsed_zone告警；不重算或回写历史。
+    if any((any(value for key, value in (leg.get('checks') or {}).items() if key != 'target_far')
+            if leg.get('status', 'parsed_zone') in ('可执行', '待触发', 'parsed_zone')
+            else bool((leg.get('checks') or {}).get('rr_reason_text')) if leg.get('status') == '仅观察' else False)
+           for legs in checks.values() if isinstance(legs, list) for leg in legs if isinstance(leg, Mapping)):
         marks.append('点位规则未通过')
     return marks
 

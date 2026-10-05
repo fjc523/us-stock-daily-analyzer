@@ -247,6 +247,8 @@ def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, 
     legacy={**plan,'kind':'建仓' if is_buy else '减仓','low':low,'high':high,'parse_status':'parsed'}
     outcome=evaluate_plan(legacy,bars,start=entry_day,end=end,basis=basis,units_verified=units_verified)
     outcome.update(kind=plan.get('kind'),rule_version='c4-v2',entry_date=entry_day)
+    if outcome.get('exit_reason') == '减仓有效期末':
+        outcome['exit_reason'] = '减仓20日期末'
     if confirmation:
         outcome['confirmation_date']=confirmation
     return outcome
