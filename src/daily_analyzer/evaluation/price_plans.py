@@ -67,6 +67,26 @@ def extract_plans(result, layer='pm'):
     text=result.get('final_trade_decision' if layer=='pm' else 'trader_investment_plan') or ''
     structured=structured if isinstance(structured,dict) else None
     plans={}
+    if structured is not None and (structured.get('buy_legs') or structured.get('reduce_legs')):
+        anchors = ((result.get('context_blocks') or {}).get('price_anchors') or {}).get('data') or {}
+        atr_row = (anchors.get('anchors') or {}).get('atr')
+        atr = number(atr_row.get('value') if isinstance(atr_row,dict) else atr_row, positive=True)
+        for field, prefix in (('buy_legs', 'buy'), ('reduce_legs', 'reduce')):
+            for index, leg in enumerate(structured.get(field) or []):
+                if not isinstance(leg, dict):
+                    continue
+                leg_id = f'{prefix}_{index + 1}'
+                upper = number(leg.get('zone_high'), positive=True)
+                target = number(leg.get('first_target'), positive=True)
+                distance = (target - upper) / atr if target is not None and upper is not None and atr else None
+                far = target - upper > 3 * atr + 0.01 + 1e-9 if distance is not None else None
+                plans[leg_id] = {**leg, 'leg_id': leg_id,
+                    'kind': '买入' if field == 'buy_legs' else leg.get('kind'),
+                    'buy_kind': leg.get('kind') if field == 'buy_legs' else None,
+                    'parse_status': 'parsed', 'provenance': 'structured_legs', 'rule_version': 'c4-v2',
+                    'target_distance_atr': distance,
+                    'target_distance_bucket': ('>3ATR' if far else '≤3ATR') if distance is not None else '不可核验'}
+        return plans
     for field,label in KINDS.items():
         value=structured.get(field) if structured is not None else _decision_section(text,label+'点位')
         plan=parse_plan(value)
@@ -144,7 +164,95 @@ def evaluate_plan(plan, bars, *, start, end, basis, mature=True, units_verified=
             'mfe_pct':max(0,favorable)/entry,'mae_pct':max(0,adverse)/entry,'path_note':path_note}
 
 
-def point_report(rows):
+def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, units_verified=True):
+    """v2先在入场有效期确认成交，再沿同源20日快照检验每腿退出。"""
+    base={'kind':plan.get('kind'),'rule_version':'c4-v2','status':'pending'}
+    if end is None:
+        return {**base,'reason':'缺20日退出日期，不能提前结算'}
+    if not mature:
+        return base
+    if entry_end > end:
+        return {**base,'status':'indeterminate','reason':'入场有效期超过20日退出窗口'}
+    if not units_verified:
+        return {**base,'status':'indeterminate','reason':'分析点位与OHLC复权/拆股单位未核验'}
+    if basis=='same_day_close':
+        return {**base,'status':'indeterminate','reason':'入场日为收盘近似，日线不能核验入场后的触发路径'}
+    calendar=xcals.get_calendar('XNYS')
+    dates=[stamp.date().isoformat() for stamp in calendar.sessions_in_range(start,end)]
+    selected=[(day,bars.get(date.fromisoformat(day),bars.get(day))) for day in dates]
+    if any(not row or any(number(row.get(field),positive=True) is None for field in ('open','high','low','close')) for _,row in selected):
+        return {**base,'status':'unavailable','reason':'同源完整OHLC缺失'}
+    entry_rows=[(day,row) for day,row in selected if day<=entry_end]
+    low=number(plan.get('zone_low'),positive=True)
+    high=number(plan.get('zone_high'),positive=True)
+    trigger_price=number(plan.get('trigger_price'),positive=True)
+    is_buy=plan.get('kind')=='买入'
+    if is_buy and plan.get('status')=='仅观察':
+        touched=(any(row['low']<=high and row['high']>=low for _,row in entry_rows)
+                 if low is not None and high is not None and low<=high else
+                 any(row['low']<=trigger_price<=row['high'] for _,row in entry_rows) if trigger_price else None)
+        return {**base,'status':'observation','level_touched':touched}
+    if plan.get('kind')=='风险减配':
+        if plan.get('trigger_rule')!='收盘跌破' or trigger_price is None:
+            return {**base,'status':'indeterminate','reason':'风险减配无明确收盘跌破价，不猜测其他条件'}
+        trigger=next((index for index,(day,row) in enumerate(selected) if day<=entry_end and row['close']<trigger_price),None)
+        if trigger is None:
+            return {**base,'status':'settled','triggered':False}
+        if trigger+1>=len(selected):
+            return {**base,'status':'indeterminate','reason':'风险触发后无下一开盘'}
+        trigger_day=selected[trigger][0]
+        entry_day,bar=selected[trigger+1]
+        entry=bar['open'];terminal=selected[-1][1]['close']
+        considered=[row for _,row in selected[trigger+1:]]
+        return {**base,'status':'settled','triggered':True,'trigger_date':trigger_day,
+                'entry_date':entry_day,'entry_price':entry,'exit_date':end,'exit_price':terminal,
+                'exit_reason':'风险减配20日期末','direction_adjusted_return':(entry-terminal)/entry,
+                'mfe_pct':max(0.,max(entry-row['low'] for row in considered))/entry,
+                'mae_pct':max(0.,max(row['high']-entry for row in considered))/entry,
+                'path_note':'收盘条件确认后下一开盘减配；方向收益为避免持有至20日期末，日线极值为近似'}
+    if low is None or high is None or low>high:
+        return {**base,'status':'indeterminate','reason':'缺少有效明确区间'}
+    confirmation=None
+    if is_buy and plan.get('status')=='待触发':
+        confirm_days=plan.get('confirm_days')
+        if plan.get('trigger_rule')!='收盘站上' or trigger_price is None or confirm_days not in (1,2):
+            return {**base,'status':'indeterminate','reason':'待触发腿缺明确收盘确认价或1–2日确认'}
+        streak=0
+        for index,(day,bar) in enumerate(entry_rows):
+            streak=streak+1 if bar['close']>trigger_price else 0
+            if streak>=confirm_days:
+                confirmation=day
+                candidates=entry_rows[index+1:]
+                break
+        else:
+            return {**base,'status':'settled','triggered':False,'reason':'有效期内未完成收盘确认'}
+    elif is_buy and plan.get('status')!='可执行':
+        return {**base,'status':'indeterminate','reason':'买入腿状态不可判，不猜测执行权限'}
+    elif not is_buy and plan.get('kind')!='超配回落':
+        return {**base,'status':'indeterminate','reason':'减仓类别不可判'}
+    else:
+        candidates=entry_rows
+    for day,bar in candidates:
+        if confirmation is not None and bar['open']<low:
+            return {**base,'status':'settled','triggered':False,'confirmation_date':confirmation,
+                    'reason':'确认后跌回区间下方，未成交'}
+        if bar['low']<=high and bar['high']>=low:
+            entry_day=day
+            break
+    else:
+        return {**base,'status':'settled','triggered':False,
+                **({'confirmation_date':confirmation} if confirmation else {}),
+                'reason':'有效期内没有确认后的区间成交' if confirmation else '有效期内区间未触及'}
+    # 复用v1的保守日线路径、止损/目标及减仓百分比，入场日此前的K线不传入。
+    legacy={**plan,'kind':'建仓' if is_buy else '减仓','low':low,'high':high,'parse_status':'parsed'}
+    outcome=evaluate_plan(legacy,bars,start=entry_day,end=end,basis=basis,units_verified=units_verified)
+    outcome.update(kind=plan.get('kind'),rule_version='c4-v2',entry_date=entry_day)
+    if confirmation:
+        outcome['confirmation_date']=confirmation
+    return outcome
+
+
+def _point_report_v1(rows):
     """确定统计的分母与不可判/未成熟样本并列。"""
     lines=['## 点位方案','','无资金/仓位/费用/滑点模拟；同日双触保守止损，日线极值近似不能证明盘中路径。']
     groups=defaultdict(list);reductions=defaultdict(list);waiting=[];statuses=Counter()
@@ -185,4 +293,51 @@ def point_report(rows):
             lines.append('|'+ '|'.join(map(str,[symbol,kind,fmt(out.get('wait_price')),fmt(out.get('wait_reached')),fmt(out.get('breakout_price')),fmt(out.get('breakout_confirmed'))]))+'|')
     reasons=Counter(out.get('reason') for row in rows for plan in row.get('point_plans',{}).values() if (out:=plan.get('outcome',{})).get('reason'))
     lines += ['',* [f'- {reason}：n={n}' for reason,n in reasons.items()]]
+    return '\n'.join(lines)
+
+
+def point_report(rows):
+    """v1保持旧汇总，v2按腿语义分表，不混合分母。"""
+    versions={'c4-v1':[],'c4-v2':[]}
+    for row in rows:
+        for version in versions:
+            plans={key:plan for key,plan in row.get('point_plans',{}).items()
+                   if plan.get('rule_version','c4-v1')==version}
+            if plans:
+                versions[version].append({**row,'point_plans':plans})
+    if not versions['c4-v2']:
+        return _point_report_v1(rows)
+    lines=[_point_report_v1(versions['c4-v1']).replace('## 点位方案','## 点位方案（c4-v1）',1),
+           '', '## 点位方案（c4-v2）', '',
+           '逐腿独立止损和目标；入场用冻结有效期，退出到该记录20日exit_date。仅观察不交易；无资金/仓位/费用/滑点模拟。',
+           '', '|类别|状态|目标方法|目标距离|腿数|触发可判n|已触发退出可判n|触发率|止损率|目标率|平均R|平均方向收益|平均MFE|平均MAE|观察触及n|',
+           '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|']
+    groups=defaultdict(list)
+    for row in versions['c4-v2']:
+        for plan in row['point_plans'].values():
+            key=(plan.get('kind') or '未提供',plan.get('status') or '未提供',
+                 plan.get('target_method') or '不适用',plan.get('target_distance_bucket') or '不可核验')
+            groups[key].append(plan.get('outcome') or {'status':'pending'})
+    for key,outcomes in sorted(groups.items()):
+        known=[out for out in outcomes if isinstance(out.get('triggered'),bool) and out.get('status') not in ('pending','unavailable')]
+        triggered=[out for out in known if out['triggered']]
+        exited=[out for out in triggered if out['status']=='settled']
+        rs=[out['realized_r'] for out in exited if out.get('realized_r') is not None]
+        returns=[out['direction_adjusted_return'] for out in exited if out.get('direction_adjusted_return') is not None]
+        rate=f'{len(triggered)/len(known):.1%}' if known else '不可计算'
+        ratio=lambda count:f'{count/len(exited):.1%}' if exited else '不可计算'
+        mean_pct=lambda field:f'{statistics.mean(out[field] for out in exited if out.get(field) is not None):.2%}' if any(out.get(field) is not None for out in exited) else '不可计算'
+        lines.append('|'+ '|'.join(map(str,[*key,len(outcomes),len(known),len(exited),rate,
+            ratio(sum('止损' in str(out.get('exit_reason')) for out in exited)),
+            ratio(sum(out.get('exit_reason')=='第一目标' for out in exited)),
+            f'{statistics.mean(rs):.3f}' if rs else '不可计算',
+            f'{statistics.mean(returns):.2%}' if returns else '不可计算',
+            mean_pct('mfe_pct'),mean_pct('mae_pct'),
+            sum(out.get('level_touched') is True for out in outcomes)]))+'|')
+        if len(exited)<30:
+            lines.append(' / '.join(key)+'：样本不足，仅供参考。')
+    statuses=Counter(out.get('status') for group in groups.values() for out in group)
+    lines+=['', 'v2状态：'+'；'.join(f'{name} n={count}' for name,count in sorted(statuses.items()))]
+    reasons=Counter(out.get('reason') for group in groups.values() for out in group if out.get('reason'))
+    lines+=['', *[f'- {reason}：n={count}' for reason,count in reasons.items()]]
     return '\n'.join(lines)

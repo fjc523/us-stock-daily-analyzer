@@ -111,10 +111,9 @@ def decision_plan_checks(result, config):
         if config.get('price_plan_legs', True):
             flags[layer] = {**(flags.get(layer) or {}), **leg_conflict_flags(data.get('rating') or data.get('action') or result.get('final_rating'), buy, reduce)}
         if config.get('price_plan_target_rule', 'r36') == 'r36':
-            if buy:
+            if buy or reduce:
                 # 原始建/加仓正文仍是检查来源，不因结构腿存在跳过禁止倒推措辞。
-                plans = extract_plans(result, layer=layer)
-                original_text = '\n'.join(str(plans.get(name, {}).get('text') or '') for name in ('entry_plan', 'add_plan'))
+                original_text = '\n'.join(str(data.get(name) or '') for name in ('entry_plan', 'add_plan'))
                 checks[layer] = [check_buy_leg(leg, anchors, config=config, text=original_text) for leg in buy if isinstance(leg, dict)]
             else:
                 plans = extract_plans(result, layer=layer)

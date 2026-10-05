@@ -317,24 +317,37 @@ def _settle(root: Path, settings: EvaluationSettings, manual: dict[str, str], se
             entry["source"] = source
             entry["basis"] = basis if entry["price"] is not None else "unavailable"
         if point_plans_enabled and row.get('point_plans'):
-            from .price_plans import evaluate_plan
+            from .price_plans import evaluate_plan, evaluate_leg
             calendar=xcals.get_calendar('XNYS')
             frozen=row.setdefault('point_validity',point_validity({}))
             plan_validity=frozen['days']
             valid_end=calendar.session_offset(pd.Timestamp(day),plan_validity-1).date()
-            mature=valid_end<=end
-            plan_bars,plan_source,_=prices(row['analysis_symbol'],valid_end) if mature else ({},None,[])
-            unit=row.get('point_price_unit') or {}
-            try:
-                anchor_close=plan_bars.get(date.fromisoformat(unit['date']),{}).get('close')
-            except (KeyError,TypeError,ValueError):
-                anchor_close=None
-            units_verified=bool(unit.get('source')==plan_source and unit.get('close') is not None and anchor_close is not None and math.isclose(unit['close'],anchor_close,rel_tol=1e-7,abs_tol=1e-7))
-            for plan in row['point_plans'].values():
-                if plan.get('outcome',{}).get('status') in ('settled','not_applicable'):
+            # v1仍沿原有效期快照；v2退出严格来自已冻结的20日窗口，不另算日期。
+            exit20=(row.get('windows',{}).get('20') or {}).get('exit_date')
+            for version in ('c4-v1','c4-v2'):
+                plans=[plan for plan in row['point_plans'].values() if plan.get('rule_version','c4-v1')==version]
+                pending=[plan for plan in plans if plan.get('outcome',{}).get('status') not in ('settled','not_applicable','observation')]
+                if not pending:
                     continue
-                plan['outcome']=evaluate_plan(plan,plan_bars,start=day.isoformat(),end=valid_end.isoformat(),basis=basis,mature=mature,units_verified=units_verified)
-                plan['outcome'].update(validity_days=plan_validity,validity_source=frozen['source'],start=day.isoformat(),end=valid_end.isoformat(),price_source=plan_source)
+                try:
+                    plan_end=date.fromisoformat(exit20) if version=='c4-v2' and exit20 else valid_end if version=='c4-v1' else None
+                except (ValueError,TypeError):
+                    plan_end=None
+                mature=plan_end is not None and plan_end<=end
+                plan_bars,plan_source,_=prices(row['analysis_symbol'],plan_end) if mature else ({},None,[])
+                unit=row.get('point_price_unit') or {}
+                try:
+                    anchor_close=plan_bars.get(date.fromisoformat(unit['date']),{}).get('close')
+                except (KeyError,TypeError,ValueError):
+                    anchor_close=None
+                units_verified=bool(unit.get('source')==plan_source and unit.get('close') is not None and anchor_close is not None and math.isclose(unit['close'],anchor_close,rel_tol=1e-7,abs_tol=1e-7))
+                for plan in pending:
+                    if version=='c4-v2':
+                        plan['outcome']=evaluate_leg(plan,plan_bars,start=day.isoformat(),entry_end=valid_end.isoformat(),end=plan_end.isoformat() if plan_end else None,basis=basis,mature=mature,units_verified=units_verified)
+                        plan['outcome']['entry_end']=valid_end.isoformat()
+                    else:
+                        plan['outcome']=evaluate_plan(plan,plan_bars,start=day.isoformat(),end=valid_end.isoformat(),basis=basis,mature=mature,units_verified=units_verified)
+                    plan['outcome'].update(validity_days=plan_validity,validity_source=frozen['source'],start=day.isoformat(),end=plan_end.isoformat() if plan_end else None,price_source=plan_source)
         for outcome in row["windows"].values():
             if outcome["status"] == "settled":
                 continue
