@@ -229,3 +229,76 @@ def test_new_article_delivery_fields_do_not_borrow_comparison_issuer():
         assert classify_article({**article, 'title': title, 'summary': summary}, result)['major']
     assert not classify_article({**article, 'title': 'ABC Delivered More Cars Than Expected, Analyst Still Wary',
                                 'summary': 'ABC beating Q3 delivery estimates, valuation commentary'}, result)['major']
+
+
+def test_macro_nbsp_calendar_merge_three_times_and_counterexamples():
+    result = {'symbol': 'SPY', 'run_id': 'run', 'information_through': '2026-10-05T08:30:00-04:00',
+              'final_trade_decision': 'ISM PMI数据公布后复核', 'context_blocks': {'macro_releases': {'data': {
+                  'as_of': '2026-10-05T08:31:00-04:00', 'calendars': {'economics': [
+                      {'title': '美国9月ISM非制造业PMI', 'star': 'HIGH', '发布时间ET': '2026-10-05T10:00:00-04:00', 'consensus': '55', 'previous': '55.4'},
+                      {'title': '美国9月标普全球服务业PMI终值', 'star': 'HIGH', '发布时间ET': '2026-10-05T09:45:00-04:00', 'previous': '58.7'}]}}}}}
+    articles = [
+        {'title': 'ISM Non-Manufacturing PMI For September\xa054.9 Vs 55.1 Est.', 'published_at': '2026-10-05T10:00:30-04:00'},
+        {'title': 'USA S&P Global Services PMI For September\xa058.8 Vs 58.7 Est.', 'published_at': '2026-10-05T09:45:17-04:00'}]
+    for time in ('09:59', '10:05', '12:00'):
+        watch = {'SPY': {'run_id': 'run', 'information_through': result['information_through'], 'checked_at': '2026-10-05T' + time + ':00-04:00', 'articles': articles}}
+        rows = macro_followups([result], watch, datetime.fromisoformat(watch['SPY']['checked_at']))
+        assert len(rows) == 2
+        ism, services = rows
+        if time == '09:59': assert ism['status'] == '待公布'
+        else:
+            assert (ism['actual'], ism['estimate'], ism['prior'], ism['source']) == ('54.9', '55.1', '55.4', '标题 + 保存日历')
+            assert len(macro_review_marks(result, rows)) == 2
+        assert (services['actual'], services['estimate'], services['prior']) == ('58.8', '58.7', '58.7')
+    assert classify_article(articles[0], result)['macro']
+    for title in ('Japan ISM Non-Manufacturing PMI 54.9 Vs. 55.1 Est.', 'ISM Non-Manufacturing PMI guidance vs $1.2B', 'USA S&P Global Manufacturing PMI 50.1 Vs 50.2 Prior'):
+        watch['SPY']['articles'] = [{'title': title, 'published_at': '2026-10-05T10:00:30-04:00'}]
+        rows = macro_followups([result], watch, datetime.fromisoformat(watch['SPY']['checked_at']))
+        assert rows[0]['actual'] == '未到'
+    assert rows[-1]['actual'] == '50.1' and rows[-1]['prior'] == '50.2'
+
+
+def test_report_brief_saved_major_count_and_details_preserve_content(tmp_path):
+    import json
+    from bs4 import BeautifulSoup
+    from daily_analyzer.site import render_home
+    (tmp_path / 'config').mkdir()
+    (tmp_path / 'data').mkdir()
+    (tmp_path / 'config/watchlist.yaml').write_text('items:\n  - {symbol: ABC, type: stock}\n')
+    result = {'symbol': 'ABC', 'type': 'stock', '_date': '2026-10-05', '_slug': 'ABC', 'run_id': 'run',
+              'status': 'success', 'information_through': '2026-10-05T08:30:00-04:00',
+              'reports': {'news_report': '[2026-10-02] ABC Q3 deliveries 486,532 vehicles beating estimates'},
+              'data_source_status': [{'category': '日线', 'status': '降级'}]}
+    article = {'title': 'ABC Delivered More Cars Than Wall Street Expected', 'summary': 'ABC Q3 delivery follow-up commentary',
+               'published_at': '2026-10-05T08:54:00-04:00', 'major': True}
+    watch = {'run_id': 'run', 'information_through': result['information_through'], 'count': 2, 'major': True,
+             'articles': [article, {**article, 'id': 2}]}
+    (tmp_path / 'data/news_watch.json').write_text(json.dumps({'trade_date': '2026-10-05', 'checked_at': '2026-10-05T10:05:00-04:00', 'items': {'ABC': watch}}))
+    html = render_home(tmp_path, now=datetime.fromisoformat('2026-10-05T10:05:00-04:00'), grouped={'2026-10-05': [result]})
+    soup = BeautifulSoup(html, 'html.parser')
+    details = soup.select_one('[data-report-details]')
+    assert details.select_one('summary').get_text() == '重大消息 2 条·建议复跑 · 数据源 降级1'
+    assert 'source-degraded' in details.select_one('summary')['class']
+    assert details.select_one('[data-time-quality-summary]') and details.select_one('[data-news-watch]')
+    assert '已纳入事件的跟进报道' in details.get_text()
+
+
+def test_shared_macro_marks_skip_already_included_late_macro():
+    result = {'final_trade_decision': 'ISM公布后复核', 'late_macro': [
+        {'title': 'USA ISM Services PMI 54.9 Vs 55.1 Est.', 'created_at': '2026-10-05T10:00:30-04:00'}]}
+    events = [{'title': '美国9月ISM非制造业PMI', 'published_at': '2026-10-05T10:00:00-04:00',
+               'status': '已公布未重跑 · 待复核'}]
+    assert macro_review_marks(result, events) == []
+    result['late_macro'] = []
+    assert macro_review_marks(result, events)[0]['status'] == '已公布，未重跑'
+
+
+def test_unmatched_macro_titles_keep_numeric_units():
+    result = {'symbol': 'SPY', 'run_id': 'run', 'information_through': '2026-10-05T08:30:00-04:00'}
+    titles = [('USA Nonfarm Payrolls For Sept. 29K Vs 89K Est.', '29K', '89K'),
+              ('USA CPI YoY For September 3.0% Vs 2.9% Est.', '3.0%', '2.9%')]
+    watches = {'SPY': {'run_id': 'run', 'information_through': result['information_through'],
+                       'checked_at': '2026-10-05T10:05:00-04:00', 'articles': [
+                           {'title': title, 'published_at': '2026-10-05T10:00:00-04:00'} for title, _, _ in titles]}}
+    rows = macro_followups([result], watches, datetime.fromisoformat('2026-10-05T10:05:00-04:00'))
+    assert [(row['actual'], row['estimate']) for row in rows] == [(actual, estimate) for _, actual, estimate in titles]

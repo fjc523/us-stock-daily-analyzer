@@ -139,7 +139,7 @@ def decision_plan_checks(result, config):
     return flags
 
 
-def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *, leg_validation_flags=None):
+def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *, leg_validation_flags=None, leg_validation_raw=None):
     """用户自行对照持仓，系统不读取账户。"""
     def val(value, *, price=True):
         parsed = finite(value)
@@ -208,4 +208,43 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *,
         items = buy if label in ('无仓', '低于目标') else excess if label == '高于目标' else risk
         text = hint(text, items, 'buy_legs' if label in ('无仓', '低于目标') else 'reduce_legs')
         output.append({'label': label, 'text': text, 'full_text': text + '\n' + '\n'.join(details), 'tolerance_note': tolerance_note})
+    def brief(value):
+        text = str(value)
+        return text[:30] + '…' if len(text) > 30 else text
+    def rule(item):
+        value = item.get('trigger_rule')
+        if not value:
+            index = next(index for index, original in enumerate(reduce_legs or []) if original is item)
+            raw = (leg_validation_raw or {}).get(f'reduce_legs.{index}.trigger_rule')
+            return brief(raw) + '（未规范）' if raw else '触发方式未记录'
+        if value == '其他条件':
+            return '其他条件：' + brief(item['preconditions']) if item.get('preconditions') else '其他条件（未写明）'
+        return rules.get(value, value)
+    def conditions(text, items, name):
+        for index, item in enumerate((buy_legs if name == 'buy_legs' else reduce_legs) or []):
+            if not isinstance(item, dict) or not any(item is used for used in items): continue
+            if item.get('preconditions') and item.get('trigger_rule') != '其他条件':
+                text += '｜前提：' + brief(item['preconditions'])
+            if any(isinstance(flag, str) and (flag.startswith(f'{name}.{index}.') or flag.startswith(f'{name}.{index}:')) and 'trigger_status_mismatch' in flag for flag in leg_validation_flags or []):
+                text += '｜触发与状态不一致'
+        return text
+    high_parts = []
+    for item, original in zip(excess, high.split('；')):
+        old_rule = rules.get(item.get('trigger_rule'), item.get('trigger_rule') or '触发规则缺失（见原文）')
+        replacement = rule(item)
+        if item.get('trigger_rule') == '其他条件':
+            original = original.replace(f'{val(item.get("zone_low"))}–{val(item.get("zone_high"))}', '', 1)
+        high_parts.append(original.replace(old_rule, replacement, 1))
+    new_risk = []
+    for item, original in zip(risk, risk_parts):
+        old_rule = item.get('trigger_rule') or '触发规则缺失（见原文）'
+        original = original.replace(old_rule, rule(item), 1)
+        if item.get('trigger_rule') == '其他条件' and finite(item.get('trigger_price')) is not None:
+            original = original.replace(' ' + val(item['trigger_price']), '', 1)
+        new_risk.append(original)
+    texts = [conditions(entry, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else entry,
+             conditions(add, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else add,
+             conditions('；'.join(high_parts) if excess else high, excess, 'reduce_legs'),
+             conditions('；'.join(new_risk) if risk else '未设风险减配腿', risk, 'reduce_legs')]
+    for item, text in zip(output, texts): item['text'] = text
     return output

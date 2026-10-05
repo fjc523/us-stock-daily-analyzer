@@ -175,13 +175,43 @@ def _article_delivery_facts(title, summary, names):
     return quarter, direction, quantities, bool(clauses) and (title_delivery or _issuer_present(facts, names))
 
 
+def _macro_title(title):
+    """查看器仅归一空白并读取标题已给出的数值。"""
+    text = ' '.join(str(title or '').split())
+    match = re.fullmatch(r'(.+?)\s+(-?[\d.,]+[%KMB]?)\s+Vs\s+(-?[\d.,]+[%KMB]?)\s+(Est\.?|Expected\.?|Prior)(?:;\s*(-?[\d.,]+[%KMB]?)\s+Prior)?', text)
+    if not match:
+        return None
+    name, actual, compared, kind, prior = match.groups()
+    return {'title': text, 'actual': actual, 'estimate': compared if kind != 'Prior' else None,
+            'prior': prior if kind != 'Prior' else compared}
+
+
+def _calendar_match(result, title, published):
+    """只绑定截止后同日、发布时间邻近的已保存HIGH事件。"""
+    cutoff = stamp(result.get('information_through'))
+    if not published or not cutoff or published <= cutoff or not _macro_title(title): return None
+    key = _macro_key(title)
+    if not key: return None
+    for event in ((_data(result, 'macro_releases').get('calendars') or {}).get('economics') or []):
+        when = stamp(event.get('发布时间ET'))
+        if not when and event.get('timestamp'):
+            try: when = datetime.fromtimestamp(float(event['timestamp']), ET)
+            except (TypeError, ValueError): continue
+        if (str(event.get('star')) == 'HIGH' and when and when > cutoff and
+            when.astimezone(ET).date() == published.astimezone(ET).date() and
+            abs((when - published).total_seconds()) <= 900 and _macro_key(event.get('title')) == key):
+            return event
+    return None
+
+
 def classify_article(article, result):
     """证据不足重大新闻保持红色；跟进只能用已保存的具体事件。"""
     title = str(article.get('title') or article.get('headline') or '')
+    macro_title = ' '.join(title.split())
     text = title + ' ' + str(article.get('summary') or '')
     base = {**article, 'classification': '重大消息未纳入/需核查，建议复跑' if article.get('major') else '一般新增消息',
             'evidence': '', 'folded': False}
-    if re.search(r'(?i)^USA\s|美国.*(?:PMI|ISM|非农|失业率|CPI|PCE)', title):
+    if re.search(r'(?i)^USA\s|美国.*(?:PMI|ISM|非农|失业率|CPI|PCE)', macro_title) or _calendar_match(result, macro_title, stamp(article.get('published_at'))):
         return dict(base, classification='宏观数据', macro=True, major=False)
     # 原始输入中具体文章id/URL必须在同一条有限事实中，不能靠笼统run_mentions。
     saved = []
@@ -270,6 +300,17 @@ def macro_followups(results, watches, now):
         block = (result.get('context_blocks') or {}).get('macro_releases') or {}
         checked = stamp(data.get('as_of') or block.get('as_of'))
         calendar = data.get('calendars') or {}
+        watch = watches.get(result.get('symbol')) or {}
+        checktime = stamp(watch.get('checked_at'))
+        valid_watch = (watch.get('run_id') == result.get('run_id') and
+                       watch.get('information_through') == result.get('information_through') and
+                       checktime and checktime <= now)
+        articles = []
+        for article in watch.get('articles') or [] if valid_watch else []:
+            published = stamp(article.get('published_at'))
+            if published and cutoff < published <= now and not _already_late_macro(result, article.get('title'), published) and classify_article(article, result).get('macro'):
+                articles.append(article)
+        merged = set()
         for event in calendar.get('economics') or []:
             published = stamp(event.get('发布时间ET'))
             if not published and event.get('timestamp'):
@@ -278,27 +319,27 @@ def macro_followups(results, watches, now):
             if not published or published.date() != now.astimezone(ET).date() or published <= cutoff or str(event.get('star')) != 'HIGH': continue
             if _already_late_macro(result, event.get('title'), published): continue
             key = (event.get('title'), published.isoformat())
-            if key in seen: continue
-            seen.add(key)
-            actual = event.get('actual')
-            available = bool(actual not in (None, '', '尚未发布', '未发布', '--') and checked and published <= checked <= now)
-            rows.append({'title': event.get('title'), 'published_at': published.isoformat(), 'actual': actual if available else '未到',
-                         'estimate': event.get('consensus') or '未提供', 'prior': event.get('previous') or '未提供',
+            match = next((article for article in articles if _calendar_match(result, article.get('title'), stamp(article.get('published_at'))) == event), None)
+            parsed = _macro_title(match.get('title')) if match else None
+            if match: merged.update(id(article) for article in articles if _calendar_match(result, article.get('title'), stamp(article.get('published_at'))) == event)
+            actual = parsed['actual'] if parsed else event.get('actual')
+            available = bool(parsed or actual not in (None, '', '尚未发布', '未发布', '--') and checked and published <= checked <= now)
+            calendar_row = {'title': event.get('title'), 'published_at': published.isoformat(), 'actual': actual if available else '未到',
+                         'estimate': (parsed.get('estimate') if parsed else None) or event.get('consensus') or '未提供', 'prior': (parsed.get('prior') if parsed else None) or event.get('previous') or '未提供',
                          'status': '已公布未重跑 · 待复核' if available else '待公布' if now < published else '发布时间已过，实际值未到 · 待复核',
-                         'source': '富途保存日历', 'checked_at': checked.isoformat() if checked else '来源时点未提供'})
-        watch = watches.get(result.get('symbol')) or {}
-        if watch.get('run_id') != result.get('run_id') or watch.get('information_through') != result.get('information_through'): continue
-        checktime = stamp(watch.get('checked_at'))
-        if not checktime or checktime > now: continue
-        articles = []
-        for article in watch.get('articles') or []:
-            published = stamp(article.get('published_at'))
-            if not published or not cutoff < published <= now or _already_late_macro(result, article.get('title'), published): continue
-            if classify_article(article, result).get('macro'):
-                articles.append({'headline': article.get('title'), 'created_at': article.get('published_at')})
-        from daily_analyzer.context.providers import _classify_macro_articles
-        releases, _, unparsed, _ = _classify_macro_articles(articles)
-        releases += unparsed
+                         'source': '标题 + 保存日历' if parsed else '富途保存日历', 'checked_at': checktime.isoformat() if parsed else checked.isoformat() if checked else '来源时点未提供'}
+            if key in seen:
+                if parsed:
+                    index = next(i for i, row in enumerate(rows) if (row.get('title'), row.get('published_at')) == key)
+                    rows[index] = calendar_row
+            else:
+                seen.add(key)
+                rows.append(calendar_row)
+        releases = []
+        for article in articles:
+            if id(article) in merged: continue
+            parsed = _macro_title(article.get('title')) or {'title': ' '.join(str(article.get('title') or '').split())}
+            releases.append(dict(parsed, created_at=article.get('published_at')))
         for event in releases:
             key = (event.get('title'), event.get('created_at'))
             if key in seen: continue
@@ -320,6 +361,7 @@ def macro_review_marks(result, events):
     for event in events:
         title = str(event.get('title') or '')
         published = stamp(event.get('published_at'))
+        if _already_late_macro(result, title, published): continue
         tokens = set(re.findall(r'(?i)ISM|PMI|CPI|PCE|GDP|非农|失业率|零售销售', title))
         associated = False
         for sentence in sentences:

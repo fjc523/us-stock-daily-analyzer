@@ -90,7 +90,7 @@ def test_once_health_two_ranges_cache_cutoff_filter_and_cross_check():
     assert first['price'] == 193.36 and first['quote_time'].endswith('08:23:00-04:00')
     assert first['cumulative_volume'] == 6862 and first['high'] == 198 and first['low'] == 193.03
     assert first['cross_check'][0]['price'] == 193.55
-    assert first['adv20_status'] == '20日均量口径未核实'
+    assert first['adv20_status'] == '20日均量不可得'
     older = batch.segment('SMTC', 'pre', start, end, instant('2026-10-05T08:15:00-04:00'))
     assert older['price'] == 193.55 and older['quote_time'].endswith('08:11:00-04:00')
     batch.prepare(['SMTC', 'SPY'], date(2026, 10, 5), date(2026, 10, 2), now)
@@ -121,12 +121,12 @@ def test_failure_vs_no_trade_fallback_and_pagination_cycle():
 def test_thin_config_and_unknown_adjustment():
     batch, _, _, _, now = make_batch()
     start, end = instant('2026-10-05T04:00:00-04:00'), instant('2026-10-05T09:30:00-04:00')
-    unknown = batch.segment('SMTC', 'pre', start, end, now, adv20={'source': 'sip', 'adjustment': 'all', 'count': 20, 'value': 3e6})
+    unknown = batch.segment('SMTC', 'pre', start, end, now, adv20={'source': 'sip', 'adjustment': 'raw', 'count': 20, 'value': 3e6})
     assert unknown['volume_adv20_ratio'] is None
     batch.options = {'thin_enabled': False}
     assert batch.segment('SMTC', 'pre', start, end, now)['liquidity_note'] == '稀薄阈值已关闭'
     batch.options = {'thin_min_traded_minutes': 0, 'thin_adv20_ratio': .0005}
-    good = batch.segment('SMTC', 'pre', start, end, now, adv20={'source': 'sip', 'adjustment': 'raw', 'count': 20, 'value': 2e7})
+    good = batch.segment('SMTC', 'pre', start, end, now, adv20={'source': 'sip', 'adjustment': 'all', 'count': 20, 'value': 2e7})
     assert good['volume_adv20_ratio'] == 6862 / 2e7 and good['liquidity_note'] == '成交稀薄，仅列示'
 
 
@@ -263,3 +263,75 @@ def test_actual_preflight_permission_and_quota_reasons_retained():
     result = batch.segment('SMTC', 'pre', instant('2026-10-05T04:00:00-04:00'), instant('2026-10-05T09:30:00-04:00'), now)
     assert 'quota exhausted for current account' in result['source_failures'][0]['reason']
     assert '额度未知' not in result['source_failures'][0]['reason']
+
+
+@pytest.mark.parametrize('source,rows', [
+    ('sip', [sip_row('2026-10-02T16:00:00-04:00', 194.88, 871342), sip_row('2026-10-02T19:51:00-04:00', 194.9, 11262)]),
+    ('futu', [futu_row('2026-10-02 16:01:00', 194.88, 871342), futu_row('2026-10-02 19:52:00', 194.9, 11262)]),
+])
+def test_close_auction_removed_from_both_sources(source, rows):
+    start, end = instant('2026-10-02T16:00:00-04:00'), instant('2026-10-02T20:00:00-04:00')
+    now = instant('2026-10-05T08:31:41-04:00')
+    result = minute_summary(rows, source, start, end, cutoff=now, now=now, exclude_close_auction=True)
+    assert result['cumulative_volume'] == 11262 and result['traded_minutes'] == 1
+    assert result['price'] == result['high'] == result['low'] == 194.9
+    empty = minute_summary(rows[:1], source, start, end, cutoff=now, now=now, exclude_close_auction=True)
+    assert empty['status'] == '无成交' and empty['price'] is None
+
+
+@pytest.mark.parametrize('day,previous', [('2026-10-04', '2026-10-02'), ('2026-11-26', '2026-11-25')])
+def test_provider_nontrading_day_only_after(day, previous):
+    from types import SimpleNamespace
+    from daily_analyzer.context.providers import ExtendedHoursProvider
+    now = instant(day + 'T15:29:50-05:00')
+    price_end = date.fromisoformat(previous)
+    class AfterAlpaca(FakeAlpaca):
+        def complete_minute_bars(self, symbols, start, end, **kwargs):
+            self.calls.append((symbols, start, end, kwargs))
+            return {symbol: [sip_row(previous + 'T19:51:00-04:00', 194.9, 11262)] for symbol in symbols}
+    alpaca = AfterAlpaca()
+    batch = ExtendedMinuteBatch(alpaca, futu_enabled=False, clock=lambda: now)
+    batch.prepare(['SMTC', 'SPY', 'QQQ', 'IWM', 'DIA'], date.fromisoformat(day), price_end, now)
+    provider = ExtendedHoursProvider(SimpleNamespace(extended_minutes=batch, prices=SimpleNamespace(_cache={}), futu=SimpleNamespace(warning=None)))
+    provider._recent_closes = lambda symbol, end: (194.88, None)
+    provider.batch = {'trade_date': day, 'price_data_end_date': previous, 'mode': 'live'}
+    block = provider.build({'symbol': 'SMTC'}, now)
+    data = block.data['SMTC']
+    assert data['pre']['status'] == data['overnight']['status'] == '非交易日，无此时段'
+    assert data['analysis_quote']['session'] == 'after' and data['analysis_quote']['status'] == '可用'
+    assert all(start.date() == price_end and end.date() == price_end for _, start, end, _ in alpaca.calls)
+    assert '非交易日，无此时段' in block.markdown
+
+
+def test_provider_adv20_all_complete_cache_and_missing_p():
+    from types import SimpleNamespace
+    from daily_analyzer.context.providers import ExtendedHoursProvider
+    from daily_analyzer.context.market_data import _expected_sessions
+    batch, _, _, _, now = make_batch()
+    end = date(2026, 10, 2)
+    rows = [{'t': day.isoformat(), 'v': 3380000} for day in _expected_sessions(end, 20)]
+    prices = SimpleNamespace(_cache={('SMTC', end): (rows, 'Alpaca SIP adjustment=all')})
+    provider = ExtendedHoursProvider(SimpleNamespace(extended_minutes=batch, prices=prices, futu=SimpleNamespace(warning=None)))
+    provider._recent_closes = lambda symbol, end: (194.88, None)
+    provider.batch = {'trade_date': '2026-10-05', 'price_data_end_date': '2026-10-02', 'mode': 'live'}
+    result, _ = provider._complete_minutes(['SMTC'], date(2026, 10, 5), end, now)
+    assert result['SMTC']['pre']['volume_adv20_ratio'] == 6862 / 3380000
+    assert result['SMTC']['pre']['adv20_status'] == 'SIP 日线（拆股调整）'
+    rows.pop()
+    result, _ = provider._complete_minutes(['SMTC'], date(2026, 10, 5), end, now)
+    assert result['SMTC']['pre']['adv20'] is None
+
+
+def test_preflight_reason_sip_delay_and_both_failures():
+    batch, _, _, _, now = make_batch()
+    batch.health['futu'] = {'status': '失败', 'reason': 'ConnectionRefusedError：拒绝连接'}
+    start, end = instant('2026-10-05T04:00:00-04:00'), instant('2026-10-05T09:30:00-04:00')
+    result = batch.segment('SMTC', 'pre', start, end, now)
+    assert result['status'] == '可用（SIP 延迟约 21 分钟）'
+    assert result['source_failures'][0]['reason'] == 'ConnectionRefusedError：拒绝连接'
+    batch.sip_cache.clear()
+    batch.alpaca.complete_minute_bars = Mock(side_effect=RuntimeError('SIP失败'))
+    for _ in range(2):
+        result = batch.segment('SMTC', 'pre', start, end, now)
+        assert result['status'] == '盘前报价不可用：富途 ConnectionRefusedError：拒绝连接；SIP RuntimeError：SIP失败'
+        assert result['quote_time'] is None

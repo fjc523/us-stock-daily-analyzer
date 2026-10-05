@@ -658,7 +658,8 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         full_plans = '\n\n'.join(plan['label'] + '：' + plan['full_text'] for plan in plans)
         layer = 'pm' if legs is structured.get('pm_decision') else 'trader'
         stored_flags = list(legs.get('leg_validation_flags') or []) + list(((result.get('decision_flags') or {}).get(layer) or {}).get('leg_validation_flags') or [])
-        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance, leg_validation_flags=stored_flags)
+        stored_raw = {**(legs.get('leg_validation_raw') or {}), **(((result.get('decision_flags') or {}).get(layer) or {}).get('leg_validation_raw') or {})}
+        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance, leg_validation_flags=stored_flags, leg_validation_raw=stored_raw)
         for plan in plans:
             plan['full_text'] += '\n\n' + full_plans
     matrix_note = plans[0].get('tolerance_note', '') if legs else ''
@@ -989,8 +990,6 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
             row['news_watch'] = {**watch, 'checked_at':_pretty_timestamp(news_watch.get('checked_at')),
                                 'count': len(articles), 'major': any(article.get('major') for article in articles), 'articles': articles}
         row["name"] = item.name or row["name"]
-        followups = macro_followups([result], watches, now)
-        row['macro_review'] = macro_review_marks(result, followups)
         attempt_status = _as_mapping(batch_items.get(symbol_slug(item.symbol))).get("status")
         if attempt_status in {"running", "pending"}:
             row["status"] = "今日分析中" if attempt_status == "running" else "今日排队中"
@@ -998,6 +997,20 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
     if watchlist is None:
         rows = [_summary_row(result, _retry_failure(_manifest(root / "data" / "runs" / latest_day), result),
                              f"days/{latest_day}/{result['_slug']}.html", root) for result in latest_results]
+    followups = macro_followups(latest_results, watches, now)
+    for row in rows:
+        result = latest_by_symbol.get(row['symbol']) or {}
+        row['macro_review'] = macro_review_marks(result, followups)
+        brief = []
+        major_count = sum(bool(article.get('major')) for article in (watches.get(row['symbol']) or {}).get('articles', [])
+                          if stamp(article.get('published_at')) and stamp(result.get('information_through')) < stamp(article['published_at']) <= now)
+        if major_count: brief.append(f'重大消息 {major_count} 条·建议复跑')
+        counts = {label: row['source_status'].get(key, 0) for label, key in (('失败', 'failed'), ('降级', 'degraded'), ('跳过', 'skipped'))}
+        source_parts = [f'{label}{counts[label]}' for label in ('失败', '降级', '跳过') if counts.get(label)]
+        if source_parts: brief.append('数据源 ' + ' '.join(source_parts))
+        if row['macro_review']: brief.append(f"宏观事件 {len(row['macro_review'])} 项待复核")
+        if row.get('error'): brief.append('运行错误')
+        row['report_brief'] = ' · '.join(brief) or '无异常'
     macro_rows, macro_html = _macro_data(latest_results)
     sector_rows, sector_html = _sector_data(latest_context, latest_results)
     regime = latest_context.get("market_regime") or _latest_result_block(latest_results, "market_regime")
@@ -1022,7 +1035,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         market_label=market.get("label") or "暂无数据", vix=vix_text,
         market_cards=_context_cards(latest_context, latest_results),
         macro_rows=macro_rows, macro_html=macro_html, sector_rows=sector_rows, sector_html=sector_html,
-        macro_followups=macro_followups(latest_results, watches, now),
+        macro_followups=followups,
         model_label=("分析师/辩论 quick：" + _role_summary(load_settings(root).llm.quick.model_dump())
                      + "；研究经理/交易员/组合经理 deep：" + _role_summary(load_settings(root).llm.deep.model_dump())),
     ))

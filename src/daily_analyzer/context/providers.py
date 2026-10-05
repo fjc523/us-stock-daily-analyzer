@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 from .analysis_quote import active_window, recent_after_window, observation, raw_futu, raw_alpaca
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
 from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
-from ..time_utils import session_bounds
+from ..time_utils import session_bounds, is_trading_day
 
 EASTERN = ZoneInfo("America/New_York")
 MARKET_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA")
@@ -475,20 +475,22 @@ class ExtendedHoursProvider:
             for session, label in (("after", "最近交易日盘后"), ("overnight", "夜盘"), ("pre", "盘前")):
                 segment = payload.get(symbol, {}).get(session, {})
                 status = segment.get("status") or "数据不可用"
+                if '已剔除' in str(segment.get('volume_scope')):
+                    status += '；已剔除 16:00–16:01 收盘竞价分钟'
                 if segment.get("warning"):
                     status = f"{status}（{segment['warning']}）"
                 status += '；' + '；'.join(filter(None, [segment.get('liquidity_note'), segment.get('adv20_status')])) if segment.get('liquidity_note') or segment.get('adv20_status') else ''
-                if segment.get("age_seconds") is not None:
+                if segment.get("age_seconds") is not None and "feed=sip" not in str(segment.get("source")):
                     status += f"；距获取时点 {segment['age_seconds'] / 3600:.1f} 小时"
                 lines.append(
                     f"| {symbol} | {label} | {_format_number(segment.get('price'))} | "
                     f"{_format_number(segment.get('source_previous_close'))} | "
                     f"{_format_pct(_number(segment.get('change_pct')) / 100 if _number(segment.get('change_pct')) is not None else None)} | "
-                    f"{segment.get('cumulative_volume') if segment.get('cumulative_volume') is not None else '—'} | "
+                    f"{int(segment['cumulative_volume']) if segment.get('cumulative_volume') is not None else '—'} | "
                     f"{segment.get('traded_minutes') if segment.get('traded_minutes') is not None else '—'} | "
                     f"{_format_pct(segment.get('volume_adv20_ratio'))} | "
                     f"{_format_number(segment.get('high'))} | {_format_number(segment.get('low'))} | "
-                    f"{segment.get('quote_time') or '—'} | {segment.get('source') or '—'} | "
+                    f"{datetime.fromisoformat(segment['quote_time']).astimezone(EASTERN).strftime('%Y-%m-%d %H:%M ET') if segment.get('quote_time') else '—'} | {segment.get('source') or '—'} | "
                     f"{status} |"
                 )
         if futu_warning:
@@ -512,7 +514,8 @@ class ExtendedHoursProvider:
         payload, sources = {}, []
         _, closed = session_bounds(price_end)
         overnight_end = datetime.combine(trade_day, time(4), EASTERN)
-        opened, _ = session_bounds(trade_day)
+        trading_day = is_trading_day(trade_day)
+        opened = session_bounds(trade_day)[0] if trading_day else overnight_end
         pre_end = opened
         try: active, _, _ = active_window(cutoff)
         except ValueError: active = None
@@ -523,16 +526,19 @@ class ExtendedHoursProvider:
             close, _ = self._recent_closes(symbol, price_end)
             adv20 = None
             cached = getattr(self.services.prices, '_cache', {}).get((symbol.upper(), price_end))
-            if cached and 'SIP' in str(cached[1]) and 'adjustment=raw' in str(cached[1]):
-                rows = sorted([row for row in cached[0] if str(row.get('t', row.get('date', '')))[:10] <= price_end.isoformat()], key=lambda row: str(row.get('t', row.get('date'))))[-20:]
+            if cached and 'SIP' in str(cached[1]) and 'adjustment=all' in str(cached[1]):
+                expected = _expected_sessions(price_end, 20)
+                daily = {str(row.get('t', row.get('date', '')))[:10]: row for row in cached[0]}
+                rows = [daily[day.isoformat()] for day in expected if day.isoformat() in daily]
                 volumes = [_number(row.get('v', row.get('volume'))) for row in rows]
                 if len(volumes) == 20 and all(value is not None and value >= 0 for value in volumes):
-                    adv20 = {'source': 'sip', 'adjustment': 'raw', 'count': 20, 'value': sum(volumes) / 20}
+                    adv20 = {'source': 'sip', 'adjustment': 'all', 'count': 20, 'value': sum(volumes) / 20}
             windows = {'after': (closed, datetime.combine(price_end, time(20), EASTERN)),
                        'overnight': (overnight_end - timedelta(hours=8), overnight_end),
                        'pre': (overnight_end, pre_end)}
             payload[symbol] = {session: loader.segment(symbol, session, start, end, cutoff, close=close, adv20=adv20,
                                backfill=str(_value(self.batch, 'mode', 'live')) == 'backfill')
+                               if trading_day or session == 'after' else {'status': '非交易日，无此时段', 'price': None, 'quote_time': None}
                                for session, (start, end) in windows.items()}
             candidate = payload[symbol].get('after' if recent_after_window(cutoff) else active)
             if active == 'regular' and recent_after_window(cutoff) is None:

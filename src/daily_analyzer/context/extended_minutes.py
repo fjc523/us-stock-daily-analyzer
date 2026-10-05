@@ -2,12 +2,13 @@
 from collections import deque
 from datetime import datetime, time, timedelta
 import math
+import re
 import threading
 import time as runtime
 from zoneinfo import ZoneInfo
 
 from daily_analyzer.data_sources.futu import _records, futu_code
-from daily_analyzer.time_utils import session_bounds
+from daily_analyzer.time_utils import session_bounds, is_trading_day
 
 ET = ZoneInfo('America/New_York')
 
@@ -40,7 +41,7 @@ def _number(value):
         return None
 
 
-def minute_summary(rows, source, start, end, *, cutoff, now):
+def minute_summary(rows, source, start, end, *, cutoff, now, exclude_close_auction=False):
     """合成fixture和生产raw使用同一终点规则；零量行不能冒充成交。"""
     futu = source == 'futu'
     allowed = min(end, cutoff, now if futu or source == 'boats' else now - timedelta(minutes=15))
@@ -56,6 +57,8 @@ def minute_summary(rows, source, start, end, *, cutoff, now):
             continue
         if stamp.second or stamp.microsecond or not start < stamp <= allowed:
             continue
+        if exclude_close_auction and stamp.astimezone(ET).time() == time(16, 1):
+            continue
         volume = _number(row.get('volume') if futu else row.get('v'))
         price = _number(row.get('close') if futu else row.get('c'))
         high, low = _number(row.get('high') if futu else row.get('h')), _number(row.get('low') if futu else row.get('l'))
@@ -69,6 +72,8 @@ def minute_summary(rows, source, start, end, *, cutoff, now):
               'cumulative_volume': sum(row['volume'] for row in normalized.values()),
               'traded_minutes': len(traded), 'price': None, 'quote_time': None, 'high': None, 'low': None,
               'status': '无成交', 'session_verified': True, 'allowed_endpoint': allowed.isoformat(), 'adjustment': 'raw'}
+    if exclude_close_auction:
+        result['volume_scope'] += '，已剔除 16:00–16:01 收盘竞价分钟'
     if allowed <= start:
         result['status'] = '时段尚未开始'
     if traded:
@@ -186,7 +191,7 @@ class ExtendedMinuteBatch:
             # 第一个合法SIP分钟请求即体检；结果同时进入缓存，不另取snapshot。
             start = datetime.combine(trade_day, time(4), ET)
             end = min(cutoff, self.clock() - timedelta(minutes=15))
-            if end <= start:
+            if not is_trading_day(trade_day) or end <= start:
                 _, start = session_bounds(price_end)
                 end = datetime.combine(price_end, time(20), ET)
                 end = min(end, cutoff, self.clock() - timedelta(minutes=15))
@@ -205,6 +210,8 @@ class ExtendedMinuteBatch:
         if cache_key in self.errors: raise RuntimeError(self.errors[cache_key])
         if not self.futu_enabled: raise RuntimeError('富途未启用')
         code = futu_code(symbol)
+        if self.health.get('futu', {}).get('status') == '失败':
+            raise RuntimeError(self.health['futu']['reason'])
         if self.remaining is None and code not in self.used_codes:
             raise RuntimeError('历史额度查询失败：' + self.quota_error if self.quota_error else '历史额度未知，未用代码不可保证权限')
         if code not in self.used_codes and self.remaining <= 0:
@@ -281,16 +288,25 @@ class ExtendedMinuteBatch:
                         rows = [row for key in keys for row in self._futu(symbol, key)]
                     else:
                         rows = self._sip(source, start, min(end, cutoff)).get(symbol) or []
-                    candidates.append(minute_summary(rows, source, start, end, cutoff=cutoff, now=self.clock()))
+                    candidates.append(minute_summary(rows, source, start, end, cutoff=cutoff, now=self.clock(), exclude_close_auction=session == 'after'))
                 except Exception as exc:
-                    failures.append({'source': source, 'reason': type(exc).__name__ + '：' + str(exc)[:120]})
-            chosen = next((row for row in candidates if row['status'] == '可用'), candidates[0] if candidates else
+                    reason = str(exc)[:120]
+                    if not re.match(r'^[A-Za-z]+(?:Error|Exception)：', reason):
+                        reason = type(exc).__name__ + '：' + reason
+                    failures.append({'source': source, 'reason': reason})
+            chosen = next((row for row in candidates if row['status'].startswith('可用')), candidates[0] if candidates else
                           {'price': None, 'quote_time': None, 'status': '取源失败', 'session_verified': False})
             chosen = dict(chosen, source_failures=failures, official_previous_close=close, benchmark_verified=close is not None)
+            if not candidates:
+                reasons = {failure['source']: failure['reason'] for failure in failures}
+                label = {'pre': '盘前', 'after': '盘后', 'overnight': '夜盘'}[session]
+                chosen['status'] = f"{label}报价不可用：富途 {reasons.get('futu', '')}；SIP {reasons.get(feed, '')}"
+            if session == 'after' and chosen['status'] == '无成交':
+                chosen['status'] = '盘后无成交'
             chosen['primary_source'] = priority[0]
             chosen['fallback_used'] = bool(chosen.get('source') and ((priority[0] == 'futu') != chosen['source'].startswith('富途')))
             chosen['change_pct'] = (chosen['price'] / close - 1) * 100 if chosen.get('price') and close else None
-            others = [row for row in candidates if row is not next((row for row in candidates if row['status'] == '可用'), candidates[0] if candidates else None) and row.get('price')]
+            others = [row for row in candidates if row is not next((row for row in candidates if row['status'].startswith('可用')), candidates[0] if candidates else None) and row.get('price')]
             chosen['cross_check'] = [{key: row.get(key) for key in ('source', 'price', 'quote_time', 'cumulative_volume')} for row in others]
             if chosen.get('price') and any(abs(row['price'] / chosen['price'] - 1) > .005 for row in others):
                 chosen['warning'] = '来源价差超过0.5%'
@@ -301,11 +317,13 @@ class ExtendedMinuteBatch:
                 ended = cutoff >= end
                 limit = 45 * 60 if 'feed=sip' in chosen.get('source', '') else 30 * 60
                 if not ended and age > limit: chosen['status'] = '过期'
+                if chosen['status'] == '可用' and 'feed=sip' in chosen.get('source', ''):
+                    chosen['status'] = f'可用（SIP 延迟约 {round(max(0, age) / 60)} 分钟）'
                 if ended: chosen['warning'] = '；'.join(filter(None, [chosen.get('warning'), '已结束时段，仅参考']))
-            # raw分钟与复权日线量不能直接作比，缺少单位/adjustment证据明确未知。
-            compatible = adv20 and adv20.get('adjustment') == 'raw' and adv20.get('source') == 'sip' and adv20.get('count') == 20
+            # SIP拆股调整日线成交量与当前原始分钟量使用当前股数单位。
+            compatible = adv20 and adv20.get('adjustment') == 'all' and adv20.get('source') == 'sip' and adv20.get('count') == 20
             chosen['adv20'] = adv20.get('value') if compatible else None
-            chosen['adv20_status'] = '已核实同口径' if compatible else '20日均量口径未核实'
+            chosen['adv20_status'] = 'SIP 日线（拆股调整）' if compatible else '20日均量不可得'
             ratio = chosen.get('cumulative_volume', 0) / chosen['adv20'] if chosen.get('adv20') else None
             chosen['volume_adv20_ratio'] = ratio
             enabled = self.options.get('thin_enabled', True)

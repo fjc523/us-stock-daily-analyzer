@@ -77,7 +77,8 @@ def test_matrix_full_conditions_and_tolerance_zero():
           'post_allocation_pct':60,'reason':'支撑反抽失败'}],0)
     assert rows[0]['tolerance_note']=='容差关闭，按目标精确比较'
     assert '连续确认2日' in rows[0]['full_text'] and '仅收盘确认后执行' in rows[0]['full_text']
-    assert '97' in rows[3]['text'] and '60%' in rows[3]['text']
+    assert rows[3]['text'] == '其他条件（未写明） → 降至60%并复评'
+    assert '97' in rows[3]['full_text']
     assert '反抽失败' not in rows[3]['text'] and '反抽失败' in rows[3]['full_text']
     assert '<10个百分点' in execution_matrix('Hold',100,[],[],10)[0]['tolerance_note']
 
@@ -170,3 +171,21 @@ def test_grid_rules_only_layout_plan_rows_not_expanded_text(tmp_path):
     assert all(node.parent.name=='details' and node.parent.find('summary',recursive=False) for node in full)
     assert any('连续确认2日' in node.get_text() and '新完整条件' in node.get_text() for node in full)
     assert sum('旧完整条件' in node.get_text() for node in full)==3
+
+
+def test_matrix_spec_briefs_preserve_full_text_and_known_enum():
+    leg = {'kind': '风险减配', 'trigger_rule': '其他条件', 'trigger_price': 184.86, 'post_allocation_pct': 0,
+           'preconditions': '盘中有效报价触及184.86即退出'}
+    rows = execution_matrix('Hold', 100, [], [leg])
+    assert rows[3]['text'] == '其他条件：盘中有效报价触及184.86即退出 → 降至0%并复评'
+    assert '其他条件 184.86 → 降至0%并复评' in rows[3]['full_text']
+    leg['trigger_rule'] = None
+    rows = execution_matrix('Hold', 100, [], [leg], leg_validation_raw={'reduce_legs.0.trigger_rule': '盘中触及'})
+    assert rows[3]['text'].startswith('盘中触及（未规范） 184.86 → 降至0%并复评')
+    buy = {'status': '待触发', 'confirm_days': 2, 'trigger_price': 201.99, 'preconditions': '前' * 35}
+    rows = execution_matrix('Hold', 100, [buy], [])
+    assert rows[0]['text'].endswith('｜前提：' + '前' * 30 + '…')
+    buy['status'] = '仅观察'
+    assert '｜' not in execution_matrix('Hold', 100, [buy], [])[0]['text']
+    excess = {'kind': '超配回落', 'trigger_rule': '进入区间受阻', 'zone_low': 201.99, 'zone_high': 204.9}
+    assert execution_matrix('Hold', 122, [], [excess])[2]['text'] == '超配≥10个百分点且201.99–204.90受阻时减至122%'
