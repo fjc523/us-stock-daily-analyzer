@@ -123,11 +123,15 @@ T29九项已完成独立功能审核（R1–R3闭合）。主仓/TradingAgents�
 价位锚点增加 `252d_High/Low` 及发生日期、实际有效日数、距P收盘的带符号百分比和ATR14倍数。不足252日注明已有日数，不推断上市日；复用500自然日日线窗口，缺分母不外推。同源日线若 `Low < 0.5×min(Open,Close)` 或 `High > 2×max(Open,Close)`，仅在锚点计算副本剔除，并在结构化warnings及文本注明条数和日期，不改缓存、不跨源补数；20/60/252日极值先取原窗口再剔除，不补更旧样本，ATR14也剔除同类异常，收盘均线保持原口径。P日命中则锚点不可用，不能用更早日线替代P。日历仅对截至上下文时刻已发布的HIGH/MEDIUM事件计算同单位“实际−预期”，百分比用百分点，并描述高于/低于预期或持平；未发布和无预期明示，未知裸数单位不比较；BLS具体失业率/工资增长事件与标题明示单位仅用于渲染，不改原数据、不判断资产利多利空。固定历史计算只证明保存输入的计算路径，不等于重新核验市场数据，详见[来源限制](doc/data-sources.md#etf结构与一年极值t12t13)。
 
 
-角色模型配置位于`tradingagents.role_llm_overrides`（默认空）、`role_llm_scheme`（默认空）、`legacy_speaker_rotation`（默认false）。四分析师不接受override；八个决策角色可显式选择既定`claude_exec/claude-opus-5-5/high`，默认quick/deep保持原路径。CLI runner请求前在同空目录/清理凭据环境只读认证，非订阅状态0模型请求；实际model与订阅provider再验证、结构化本地校验，明确用户/项目插件来源拒绝，无API或模型fallback。失败返回用量也记录，未报告用量为null。
+角色模型配置位于`tradingagents.role_llm_overrides`（默认空）、`role_llm_scheme`（默认空）、`legacy_speaker_rotation`（默认false）。四分析师不接受override；八个决策角色可显式选择既定`claude_exec/claude-opus-5-5/high`，默认quick/deep保持原路径。CLI runner请求前在同空目录/清理凭据环境只读认证，非订阅状态0模型请求；实际model与订阅provider再验证、结构化本地校验，明确用户/项目插件来源拒绝，无API计费回退；分类订阅失败按下述角色默认模型回退。失败返回用量也记录，未报告用量为null。
+
+T37启用准备：生产方案仍为空，空方案/覆盖不创建角色包装。Settings 默认 `claude_timeout=300`（60–600秒）、`claude_retries=1`（0–2）、`role_llm_fallback=true`。Claude额度/配置错误立即回退到该角色原默认Codex订阅quick/deep及档位并熔断本批；限流/超时/传输默认重试一次、退避30秒，第二次耗尽熔断。熔断后零认证/Claude请求；并发图与同批追加共用状态，新批重置。人工中止不回退，普通结构化解析失败仍走既有自由文本兜底。角色日志、决策flags、首页「第二模型回退」及批次 `fallback_count` 明示降级；该控制事件不计为模型调用/token消费。T23入口强制关闭回退和重试，并拒绝含fallback事件的结果。
+
+新结果 `llm.scheme` 优先custom（排序JSON紧凑UTF-8的sha256前8位），然后A/B/B+fallback/default；按deep/quick模型与档位生成 `model_fingerprint`，并记录source/fallback_roles。新结算键保存这些来源标签；旧结果有roles时只读匹配A/B，否则custom，无roles为default。已有结算键不补写标签，报告显示「default（推断，未写入）」。按方案/指纹追加C3各层各窗口命中与平均主收益、D2 Brier/n、C4 v1/v2腿数分列；标签不进入去重键，原合并统计不变，小样本只作描述，真实自然回退效果NOT_TESTED。
 
 受限A/B必须显式附加`--role-scheme A`或`B`及`--legacy-speaker-rotation`，组名仅隔离工件，不自动选方案。A奇偶日互换多空/激进保守角色，B研究经理/交易员/组合经理；legacy显式先发轮换，structured仍并行。每图记录不变base input_hash/original_data_hash及独立effective_config_hash和源码指纹，复用原baseline，不为换代码版本重复模型。仓位比较兼容target_allocation与target_allocation_pct，两键冲突标不可比；不适用计划不把候选点位当执行区间。Sol input包含cached子集，Claude总prompt=input+cache_creation+cache_read（缺项未知），原字段/目录价与订阅实付分列，未有费率不造美元。生产配置未启用测试方案或自动双跑。
 
-C6测试资源固定Claude retries=0、timeout=600秒、concurrency=1，来源在每图test_resource_provenance声明；该限制只进入effective配置hash，不改变v2输入hash与生产默认。混合调用任一用量未报告，聚合相应token为null，逐调用原始字段仍保留。
+C6测试资源固定role_llm_fallback=false、Claude retries=0、timeout=600秒、concurrency=1，来源在每图test_resource_provenance声明；该限制只进入effective配置hash，不改变v2输入hash与生产默认。混合调用任一用量未报告，聚合相应token为null，逐调用原始字段仍保留。
 
 
 混合用量逐指标校验完整性：空tokens或缺缓存创建/读取不累计为0，推理token只采用明确字段（含CLI thinking明细），未报告为null及metric_status；raw input合计与total_prompt_tokens分列。成功/失败的llm.roles分别保存configured、observed模型/计费provider、call_count与状态；Sol无运行时模型回显则observed未知，auth前拒绝记录安全尝试角色但model请求0，尚未执行不冒称实际Opus。adapter provider=claude_exec与返回actual_api_providers分开，失败bedrock路由如实保留而不会改写订阅firstParty。默认无override不新增roles字段。

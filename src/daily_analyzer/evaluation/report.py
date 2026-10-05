@@ -310,6 +310,43 @@ def _group_table(groups: dict[str, dict[str, Any]], label: str) -> list[str]:
     return lines
 
 
+def scheme_report(rows):
+    """共用去重保留集，方案/指纹只描述分列，不改变合并指标。"""
+    from daily_analyzer.model_scheme import record_scheme
+    from .calibration import calibration, probability
+    groups=defaultdict(list)
+    for row in rows:
+        label=record_scheme(row)
+        groups[(label['scheme'],label.get('model_fingerprint','NOT_REPORTED'))].append(row)
+    lines=['## 按模型方案分列','','描述性指标；不同方案未随机分配，不作因果比较。C3按层和窗口列三分类命中率/平均主口径收益；D2按层和5/20日分别列Brier及n；C4腿数为已有点位记录数（v1旧三类与v2结构化腿分列）。', '',
+        '|方案|模型指纹|记录数|C3 命中率 / 平均主收益|D2 Brier|C4 腿数|',
+        '|---|---|---|---|---|---|']
+    for (scheme,fingerprint),group in sorted(groups.items()):
+        inferred=all(record_scheme(row).get("source")=="inferred_unwritten" for row in group)
+        c3=[];d2=[];legs=Counter()
+        for layer,title in LAYERS.items():
+            for window in (5,10,20):
+                samples=samples_for(group,layer,window)
+                hits=hit_rates(samples,window)
+                average=summary([row['return'] for row in samples])
+                c3.append(f"{title}{window}日 命中{_value(hits['three'],percentage=True)}({_sample_note(hits['three_n'])}) / 收益{_value(average['mean'],percentage=True)}({_sample_note(average['n'])})")
+            for window in (() if layer=='trader' else ('5','20')):
+                pairs=[]
+                for row in group:
+                    outcome=row.get('windows',{}).get(window,{})
+                    p=probability(row.get('probabilities',{}).get(layer,{}).get(window))
+                    value=number(outcome.get('primary_return'))
+                    if outcome.get('status')=='settled' and p is not None and value is not None:pairs.append((p,value>0))
+                result=calibration(pairs)
+                d2.append(f"{title}{window}日 {_value(result['brier'])}({_sample_note(result['n'])})")
+        for row in group:
+            for leg in (row.get('point_plans') or {}).values():
+                if isinstance(leg,dict):legs[leg.get('rule_version','c4-v1')]+=1
+        label=scheme+'（推断，未写入）' if inferred else scheme
+        lines.append(f"|{label}|{fingerprint}|{_sample_note(len(group))}|"+'<br>'.join(c3)+'|'+'<br>'.join(d2)+f"|v1={legs['c4-v1']}；v2={legs['c4-v2']}|")
+    return '\n'.join(lines)
+
+
 def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datetime) -> str:
     raw_rows = rows
     rows, _ = deduplicate(raw_rows)
@@ -331,6 +368,8 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
                      f"保留 {removed['retained']['run_id']}/{removed['retained']['symbol']}。")
     if result["warning"]:
         lines += ["", '<span style="color:red">告警：最近10个实际交易日均有观测，PM 看多占比为0，且多数日市场环境偏强。</span>']
+    from daily_analyzer.model_scheme import scheme_counts
+    lines += ['', '模型方案计数：'+'；'.join(f'{label} n={count}' for label,count in sorted(scheme_counts(rows).items()))+'。']
     statuses = Counter(row.get("windows", {}).get(str(window), {}).get("status", "未配置") for row in rows)
     lines += ["", "窗口状态：" + "；".join(f"{key} n={value}" for key, value in sorted(statuses.items())) + "。"]
     for layer, data in result["layers"].items():
@@ -365,7 +404,7 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     ]
     from .price_plans import point_report
     from .calibration import calibration_report
-    lines += ["", point_report(rows), "", calibration_report(rows)]
+    lines += ["", point_report(rows), "", calibration_report(rows), "", scheme_report(rows)]
     return "\n".join(lines) + "\n"
 
 

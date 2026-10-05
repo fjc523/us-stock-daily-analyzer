@@ -24,6 +24,7 @@ from daily_analyzer.data_sources import AlpacaDataSource, YahooDataSource
 from daily_analyzer.data_sources.index_metadata import IndexMetadataSource
 from daily_analyzer.site import _decision_section
 from daily_analyzer.storage import read_json
+from daily_analyzer.model_scheme import result_scheme
 from daily_analyzer.time_utils import NEW_YORK, as_new_york, session_bounds
 
 RATINGS = {name.upper(): name for name in ("Buy", "Overweight", "Hold", "Underweight", "Sell")}
@@ -181,6 +182,7 @@ def new_record(result: dict[str, Any], settings: EvaluationSettings, manual: dic
     plans = {"rm": result.get("investment_plan"), "trader": result.get("trader_investment_plan"), "pm": result.get("final_trade_decision")}
     return {
         "run_id": result["run_id"], "symbol": symbol,
+        "llm": result_scheme(result),
         "analysis_symbol": result.get("analyzed_symbol") or symbol, "type": kind,
         "trade_date": result.get("upstream_trade_date") or finished.astimezone(NEW_YORK).date().isoformat(),
         "finished_at": result["finished_at"], "target_session": result.get("target_session"),

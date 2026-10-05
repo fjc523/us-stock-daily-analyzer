@@ -19,7 +19,7 @@ INITIAL_FIELDS = ('company_of_interest', 'company_name', 'trade_date', 'asset_ty
 REQUIRED_FIELDS = ('company_of_interest', 'trade_date', 'asset_type', 'instrument_context',
                    'instrument_context_full', 'instrument_context_brief', 'past_context', 'portfolio_context')
 RATINGS = ('Sell', 'Underweight', 'Hold', 'Overweight', 'Buy')
-CLAUDE_TEST_BUDGET = {'claude_retries':0,'claude_timeout':600,'claude_max_concurrency':1}
+CLAUDE_TEST_BUDGET = {'role_llm_fallback':False,'claude_retries':0,'claude_timeout':600,'claude_max_concurrency':1}
 ANALYST_NODES = {'Market Analyst', 'Sentiment Analyst', 'News Analyst', 'Fundamentals Analyst'}
 
 
@@ -83,6 +83,8 @@ def isolated_config(snapshot, output, *, from_stage='debate', overrides=None):
     if overrides:
         config.update(deepcopy(overrides))
     config.update(CLAUDE_TEST_BUDGET)
+    if config.get('role_llm_fallback') is not False or config.get('claude_retries') != 0:
+        raise ValueError('一致性入口必须关闭角色回退和重试')
     config.update(results_dir=str(output/'results'), data_cache_dir=str(output/'cache'),
                   memory_log_path=str(output/'memory'/'unused.md'),
                   evaluation_outcomes_path=str(output/'unused-outcomes.jsonl'),
@@ -351,7 +353,8 @@ def implementation_version():
     root=Path(__file__).resolve().parents[3]
     relative=('src/daily_analyzer/evaluation/consistency.py','src/daily_analyzer/model_usage.py',
               'src/daily_analyzer/config.py','src/daily_analyzer/analyzer.py','src/daily_analyzer/runner.py',
-              'TradingAgents/tradingagents/graph/role_llms.py','TradingAgents/tradingagents/graph/setup.py',
+              'TradingAgents/tradingagents/graph/role_llms.py','TradingAgents/tradingagents/graph/role_fallback.py',
+              'src/daily_analyzer/model_scheme.py','TradingAgents/tradingagents/graph/setup.py',
               'TradingAgents/tradingagents/llm_clients/claude_exec/runner.py')
     hashes={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in relative if (root/name).exists()}
     heads={}
@@ -433,6 +436,8 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
                 raise ValueError('冻结输入被修改')
             usage_path = output/'llm_calls.jsonl'
             calls = [json.loads(line) for line in usage_path.read_text().splitlines() if line.strip()] if usage_path.exists() else []
+            if any(row.get('result')=='fallback' for row in calls):
+                raise ValueError('一致性结果含角色回退，拒绝混合模型')
             atomic_write_json(output/'result.json', {'test_only': True, 'production_decision': False,
                 'input_hash': digest, 'effective_config_hash': effective_hash, 'from_stage': from_stage, 'fully_frozen': from_stage == 'debate' and not reconstructed,
                 'reconstructed': reconstructed, 'reconstruction': snapshot.get('reconstruction'), 'group': group,

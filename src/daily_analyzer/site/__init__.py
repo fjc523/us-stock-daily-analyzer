@@ -308,6 +308,9 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_conf
         marks.append('评级与概率不一致')
     if any(any(row.get(key) for key in ('buy_leg_conflicts_rating', 'risk_trigger_above_buy_zone', 'risk_reduce_missing_post_allocation', 'legs_missing')) for row in flags.values() if isinstance(row, Mapping)):
         marks.append('点位条件需核对')
+    for layer,title in (('rm','研究经理'),('trader','交易员'),('pm','组合经理')):
+        if isinstance(flags.get(layer),Mapping) and flags[layer].get('llm_fallback'):
+            marks.append(f'第二模型回退（{title}）')
     checks = flags.get('plan_checks') or {}
     if any(any(value for key, value in (leg.get('checks') or {}).items() if key != 'target_far') for legs in checks.values() if isinstance(legs, list) for leg in legs if isinstance(leg, Mapping)):
         marks.append('点位规则未通过')

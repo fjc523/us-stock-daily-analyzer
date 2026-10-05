@@ -624,6 +624,8 @@ def _analyze_item(
         if getattr(graph, 'role_llm_metadata', None):
             from daily_analyzer.model_usage import role_execution_evidence
             result['llm']['roles'] = role_execution_evidence(graph.role_llm_metadata, _read_usage_rows(batch_dir/'llm_calls.jsonl'), item.symbol)
+        from daily_analyzer.model_usage import apply_execution_labels
+        apply_execution_labels(result, shared_config)
         snapshot = getattr(graph, 'consistency_snapshot', None)
         if callable(snapshot):
             result['consistency_input'] = snapshot(final_state)
@@ -662,6 +664,8 @@ def _analyze_item(
         if graph is not None and getattr(graph, 'role_llm_metadata', None):
             from daily_analyzer.model_usage import role_execution_evidence
             result['llm']['roles'] = role_execution_evidence(graph.role_llm_metadata, _read_usage_rows(batch_dir/'llm_calls.jsonl'), item.symbol, auth_failed_role=getattr(exc,'role',None) if getattr(exc,'stage',None)=='auth_preflight' and getattr(exc,'model_requests',None)==0 else None)
+        from daily_analyzer.model_usage import apply_execution_labels
+        apply_execution_labels(result, shared_config)
         result["llm_usage"] = _usage_for_ticker(
             batch_dir / "llm_calls.jsonl", item.symbol
         )
@@ -1160,6 +1164,8 @@ def run_analysis(
             project_root=root,
             has_alpha_vantage=project.credentials.alpha_vantage_api_key is not None,
         )
+        from tradingagents.graph.role_fallback import RoleBatchBreaker
+        shared_config["_role_llm_breaker"] = RoleBatchBreaker()
         fork = _fork_state(root)
         batch = {
             "schema_version": 1,

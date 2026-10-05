@@ -223,6 +223,9 @@ class TradingAgentsSettings(ConfigModel):
     debate_mode: Literal['structured', 'legacy'] = 'structured'
     role_llm_overrides: dict[str, dict[str, str]] = Field(default_factory=dict)
     role_llm_scheme: Literal['A', 'B'] | None = None
+    role_llm_fallback: bool = True
+    claude_timeout: int = Field(default=300, ge=60, le=600)
+    claude_retries: int = Field(default=1, ge=0, le=2)
     legacy_speaker_rotation: bool = False
 
     @model_validator(mode='after')

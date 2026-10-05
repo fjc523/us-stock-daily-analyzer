@@ -22,7 +22,8 @@ def call_evidence(rows):
                          'prompt_token_basis':'Claude input+creation+read，缺一未知' if provider=='claude_exec' else 'Sol input含cached子集',
                          'estimated_cost_usd':row.get('estimated_cost_usd'),
                          'cost_basis':row.get('cost_basis','NOT_REPORTED：无实际费率不造美元'),
-                         'result':row.get('result')})
+                         'result':row.get('result'),
+                         **({key:row.get(key) for key in ('category','from','to','breaker')} if row.get('result')=='fallback' else {})})
     return evidence
 
 
@@ -38,6 +39,8 @@ def mixed_usage(rows):
             if numeric(value):return value
         return None
     def complete(values):return sum(values) if values and all(numeric(value) for value in values) else None
+    fallback_count=sum(row.get('result')=='fallback' for row in rows)
+    rows=[row for row in rows if row.get('result')!='fallback']
     evidence=call_evidence(rows)
     metrics={
         'input_tokens':[reported(row,('input_tokens','prompt_tokens')) for row in rows],
@@ -54,7 +57,7 @@ def mixed_usage(rows):
             value=details.get('thinking_tokens') if isinstance(details,dict) else None
             if numeric(value):metrics['reasoning_output_tokens'][index]=value
     totals={key:complete(values) for key,values in metrics.items()}
-    return {'calls':len(rows),**totals,'model_calls':evidence,
+    return {'calls':len(rows),'fallback_count':fallback_count,**totals,'model_calls':evidence,
             'metric_status':{key:'REPORTED' if totals[key] is not None else 'NOT_REPORTED' for key in metrics},
             'input_token_basis':'原input字段合计；统一prompt见total_prompt_tokens（Sol不重复加缓存，Claude含creation/read）'}
 
@@ -68,12 +71,25 @@ def role_execution_evidence(configured,rows,ticker, auth_failed_role=None):
     result={}
     for role,config in configured.items():
         calls=[row for row in rows if row.get('ticker')==ticker and aliases.get(row.get('role') or row.get('agent_name'),row.get('role') or row.get('agent_name'))==role]
+        fallback=next((row for row in reversed(calls) if row.get('result')=='fallback'),None)
         actual=[row for row in calls if row.get('provider')=='claude_exec' and row.get('model')]
-        result[role]={'configured':config,'call_count':len(calls),
+        result[role]={'configured':config,'call_count':sum(row.get('result')!='fallback' for row in calls),
                       'auth_preflight_rejected':role==auth_failed_role,
-                      'status':'AUTH_REJECTED_ZERO_MODEL_REQUESTS' if role==auth_failed_role and not calls else 'NOT_EXECUTED_OR_NOT_RECORDED' if not calls else 'SUCCESS' if all(row.get('result')=='success' for row in calls) else 'FAILED' if all(row.get('result')!='success' for row in calls) else 'MIXED',
+                      'status':'FALLBACK' if fallback else 'AUTH_REJECTED_ZERO_MODEL_REQUESTS' if role==auth_failed_role and not calls else 'NOT_EXECUTED_OR_NOT_RECORDED' if not calls else 'SUCCESS' if all(row.get('result')=='success' for row in calls) else 'FAILED' if all(row.get('result')!='success' for row in calls) else 'MIXED',
                       'observed':{'models':sorted({row['model'] for row in actual}) or None,
                                   'providers':sorted({provider for row in calls for provider in (row.get('actual_api_providers') or [])}) or None,
                                   'model_status':'CLI_CONTROL_REPORTED' if actual else 'NOT_REPORTED：Sol配置或未执行不作为实际模型证明'},
                       'calls':call_evidence(calls)}
+        if fallback:result[role]['fallback']={key:fallback.get(key) for key in ('result','role','category','from','to','breaker')}
     return result
+
+
+def apply_execution_labels(result, config):
+    """角色回退写入决策标记，方案标签只标记当前新结果。"""
+    from daily_analyzer.model_scheme import result_scheme
+    llm=result.setdefault('llm',{})
+    for role,layer in (('research_manager','rm'),('trader','trader'),('portfolio_manager','pm')):
+        evidence=(llm.get('roles') or {}).get(role) or {}
+        if evidence.get('fallback'):
+            result.setdefault('decision_flags',{}).setdefault(layer,{})['llm_fallback']=evidence['fallback']['category']
+    llm.update(result_scheme(result,config))
