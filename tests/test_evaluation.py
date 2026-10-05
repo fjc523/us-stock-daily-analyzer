@@ -344,7 +344,7 @@ def test_c3_completion_timezone_runid_and_symbol_ties(reverse):
     assert info['fallbacks'] == []
 
 
-def test_c3_missing_time_whole_group_fallback_and_legacy_symbol():
+def test_c3_missing_time_competition_fallback_and_legacy_symbol():
     from daily_analyzer.evaluation.report import deduplicate
     missing = c3_record('MISSING', analysis_symbol='A', run_id='z');missing.pop('finished_at')
     present = c3_record('PRESENT', analysis_symbol='A', run_id='a', finished_at='2026-10-02T23:00:00-04:00')
@@ -352,18 +352,20 @@ def test_c3_missing_time_whole_group_fallback_and_legacy_symbol():
     values = [missing, present, legacy]
     retained, info = deduplicate(values)
     assert deduplicate(list(reversed(values))) == (retained, info)
-    assert [row['symbol'] for row in retained] == ['MISSING', 'LEGACY']
-    assert len(info['fallbacks']) == 2 and '整组' in info['fallbacks'][0]['reason']
-    assert 'finished_at' not in retained[0]
+    assert [row['symbol'] for row in retained] == ['PRESENT', 'LEGACY']
+    assert len(info['fallbacks']) == 1 and '竞争候选' in info['fallbacks'][0]['reason']
+    assert deduplicate([missing])[1]['fallbacks'] == []
     # 低优先级ETF缺时间不导致已有真实时间的index候选降级。
     index = c3_record('INDEX', type='index', analysis_symbol='A')
     assert deduplicate([missing, index])[1]['fallbacks'] == []
 
 
 @pytest.mark.parametrize('finished', ['bad', '2026-10-02T16:00:00', '   ', 123])
-def test_c3_nonempty_invalid_completion_rejected(finished):
-    with pytest.raises(ValueError, match='完成时间不可核验'):
-        analyze([c3_record('BAD', finished_at=finished)])
+def test_c3_nonempty_invalid_completion_diagnosed(finished):
+    result = analyze([c3_record('BAD', finished_at=finished)])
+    assert result['rows'] == 1
+    assert len(result['deduplication']['invalid_times']) == 1
+    assert result['deduplication']['fallbacks'] == []
 
 
 def test_c3_evaluate_readonly_and_c4_d2_shared_deduplicated_inputs(tmp_path, monkeypatch):
@@ -388,3 +390,73 @@ def test_c3_evaluate_readonly_and_c4_d2_shared_deduplicated_inputs(tmp_path, mon
     text = Path(result['path']).read_text()
     assert '原始 2，保留 1，重复剔除 1' in text
     assert 'C4点位/D2校准同样共用保留 1 条记录' in text
+
+
+def test_t37_cross_day_normalized_open_latest_decision_shared_reports(tmp_path, monkeypatch):
+    from daily_analyzer.evaluation import price_plans, calibration
+    from daily_analyzer.evaluation.report import deduplicate, render_report
+    dates = [('2026-10-02', 'next_open'), ('2026-10-04', 'next_open'), ('2026-10-05', 'same_day_open')]
+    rows = [c3_record('SPY', run_id=day, trade_date=day, finished_at=day+'T08:00:00-04:00',
+                     price_data_end_date='2026-10-02', type='index' if n == 0 else 'etf')
+            for n, (day, basis) in enumerate(dates)]
+    for row, (_, basis) in zip(rows, dates):
+        row['entry'].update(date='2026-10-05', planned_basis=basis)
+    before = copy.deepcopy(rows)
+    retained, info = deduplicate(rows)
+    assert retained == [rows[-1]] and info['stage1_retained'] == 3
+    assert len(info['cross_day_removed']) == 2
+    assert {x['removed']['run_id'] for x in info['cross_day_removed']} == {'2026-10-02', '2026-10-04'}
+    assert deduplicate(list(reversed(rows))) == (retained, info) and rows == before
+    seen = []
+    monkeypatch.setattr(price_plans, 'point_report', lambda records: seen.append(copy.deepcopy(records)) or 'C4')
+    monkeypatch.setattr(calibration, 'calibration_report', lambda records: seen.append(copy.deepcopy(records)) or 'D2')
+    result = analyze(rows)
+    assert result['rows'] == 1
+    text = render_report(rows, result, stamp('2026-10-05T10:00:00-04:00'))
+    assert seen == [retained, retained] and '跨日同入场剔除' in text
+    assert rows == before
+
+
+def test_t37_cross_day_distinct_p_close_and_missing_fields():
+    from daily_analyzer.evaluation.report import deduplicate
+    rows = [c3_record('A', run_id=str(n), trade_date=day, price_data_end_date=p)
+            for n, (day, p) in enumerate([('2026-10-01', '2026-09-30'), ('2026-10-02', '2026-10-01'),
+                                         ('2026-10-03', '2026-10-01'), ('2026-10-04', None)])]
+    for row in rows:
+        row['entry'].update(date='2026-10-05', planned_basis='next_open')
+    rows[2]['entry']['planned_basis'] = 'same_day_close'
+    retained, info = deduplicate(rows)
+    assert retained == rows and info['cross_day_removed'] == []
+    assert info['skipped_missing'][0]['run_id'] == '3'
+    missing_date = copy.deepcopy(rows[0]); missing_date['entry'].pop('date')
+    missing_basis = copy.deepcopy(rows[0]); missing_basis['entry'].pop('basis', None); missing_basis['entry'].pop('planned_basis')
+    assert len(deduplicate([missing_date])[1]['skipped_missing']) == 1
+    assert len(deduplicate([missing_basis])[1]['skipped_missing']) == 1
+
+
+def test_t37_invalid_lower_priority_time_and_cross_day_ties():
+    from daily_analyzer.evaluation.report import deduplicate
+    old = c3_record('INDEX', type='index', analysis_symbol='A', run_id='z', trade_date='2026-10-02',
+                    finished_at='2026-10-02T14:00:00-04:00', price_data_end_date='2026-10-01')
+    new = c3_record('ETF', type='etf', analysis_symbol='A', run_id='a', trade_date='2026-10-03',
+                    finished_at='2026-10-02T18:00:00+00:00', price_data_end_date='2026-10-01')
+    for row in [old, new]: row['entry'].update(date='2026-10-05', planned_basis='next_open')
+    assert deduplicate([old, new])[0] == [new]
+    bad = {**old, 'symbol': 'BAD', 'type': 'etf', 'finished_at': 'bad'}
+    retained, info = deduplicate([old, bad])
+    assert retained == [old] and len(info['invalid_times']) == 1 and info['fallbacks'] == []
+    new['finished_at'] = 'invalid'
+    retained, info = deduplicate([old, new])
+    assert retained == [old] and len(info['fallbacks']) == 1
+
+
+def test_t37_cross_day_basis_fallback_and_all_unknown_tie():
+    from daily_analyzer.evaluation.report import deduplicate
+    rows = [c3_record('A', run_id=str(n), trade_date=day, finished_at=None, price_data_end_date='2026-10-02')
+            for n, day in enumerate(['2026-10-02', '2026-10-03', '2026-10-04'])]
+    for row in rows: row['entry'].update(date='2026-10-05', basis='next_open', planned_basis=None)
+    rows[-1]['entry'].pop('planned_basis')
+    kept, info = deduplicate(rows)
+    assert kept == [rows[-1]] and info['skipped_missing'] == []
+    assert len(info['fallbacks']) == 1 and info['fallbacks'][0]['stage'] == 'cross_day'
+    assert deduplicate(list(reversed(rows))) == (kept, info)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import math
 from pathlib import Path
 import time
@@ -21,36 +21,83 @@ LAYERS = {"rm": "研究经理", "trader": "交易员", "pm": "组合经理"}
 
 
 def deduplicate(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """只读选择同日同代理；不推测缺失的完成时间。"""
+    """先同日代理、再同P入场价格点选择；只读原记录。"""
     groups = defaultdict(list)
+    invalid_times, fallbacks = [], []
+    unknown = datetime.min.replace(tzinfo=timezone.utc)
+
+    def identity(row):
+        return {"run_id": row.get("run_id"), "symbol": row["symbol"],
+                "trade_date": row["trade_date"],
+                "analysis_symbol": row.get("analysis_symbol") or row["symbol"]}
+
+    def completion(row):
+        value = row.get("finished_at")
+        if value is None or value == "":
+            return unknown
+        try:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ValueError("缺少时区")
+            return parsed.astimezone(timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            invalid_times.append({**identity(row), "finished_at": value,
+                                  "reason": "finished_at非法或无时区，按完成时间未知处理"})
+            return unknown
+
+    # 解析全部候选，低优先级被剔除的非法时间也保留诊断。
+    times = {id(row): completion(row) for row in rows}
+    stable_key = lambda row: (str(row.get("run_id") or ""), row["symbol"])
+
+    def select(candidates, stage, day, symbol):
+        selected = max(candidates, key=lambda row: (
+            times[id(row)], *((row["trade_date"],) if stage == "cross_day" else ()),
+            *stable_key(row)))
+        if len(candidates) > 1 and any(times[id(row)] == unknown for row in candidates):
+            fallbacks.append({"stage": stage, "trade_date": day, "analysis_symbol": symbol,
+                              "reason": "竞争候选完成时间未知，已知时间优先，未知按稳定键降级",
+                              "selected_run_id": selected.get("run_id"),
+                              "selected_symbol": selected["symbol"]})
+        return selected
+
     for row in rows:
         groups[(row["trade_date"], row.get("analysis_symbol") or row["symbol"])].append(row)
-    retained, fallbacks = [], []
+    stage1 = []
     for (day, symbol), group in sorted(groups.items()):
         candidates = [row for row in group if row.get("type") == "index"] or group
-        finished = []
-        for row in candidates:
-            value = row.get("finished_at")
-            if value is None or value == "":
-                finished.append(None)
-                continue
-            try:
-                parsed = datetime.fromisoformat(value)
-                if parsed.tzinfo is None or parsed.utcoffset() is None:
-                    raise ValueError("缺少时区")
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"评估完成时间不可核验：{row.get('run_id')}/{row['symbol']} finished_at={value!r}") from exc
-            finished.append(parsed)
-        stable_key = lambda row: (str(row.get("run_id") or ""), row["symbol"])
-        if any(value is None for value in finished):
-            selected = max(candidates, key=stable_key)
-            fallbacks.append({"trade_date": day, "analysis_symbol": symbol,
-                              "reason": "优先候选缺finished_at，整组按run_id/symbol确定性选择",
-                              "selected_run_id": selected.get("run_id"), "selected_symbol": selected["symbol"]})
-        else:
-            selected = max(zip(candidates, finished), key=lambda pair: (pair[1], *stable_key(pair[0])))[0]
+        stage1.append(select(candidates, "same_day", day, symbol))
+
+    entry_groups = defaultdict(list)
+    retained, skipped_missing, cross_day_removed = [], [], []
+    for row in stage1:
+        entry = row.get("entry") or {}
+        basis = entry.get("planned_basis") or entry.get("basis")
+        if not row.get("price_data_end_date") or not entry.get("date") or not basis:
+            retained.append(row)
+            skipped_missing.append({**identity(row), "price_data_end_date": row.get("price_data_end_date"),
+                                    "entry_date": entry.get("date"), "basis": basis,
+                                    "reason": "缺P或入场，未参与跨日去重"})
+            continue
+        point = "close" if basis == "same_day_close" else "open"
+        key = (row.get("analysis_symbol") or row["symbol"], row["price_data_end_date"], entry["date"], point)
+        entry_groups[key].append(row)
+    for (symbol, price_day, entry_day, point), group in sorted(entry_groups.items()):
+        selected = select(group, "cross_day", max(row["trade_date"] for row in group), symbol)
         retained.append(selected)
-    return retained, {"original": len(rows), "retained": len(retained), "removed": len(rows) - len(retained), "fallbacks": fallbacks}
+        for row in sorted(group, key=lambda value: (value["trade_date"], *stable_key(value))):
+            if row is selected:
+                continue
+            cross_day_removed.append({"analysis_symbol": symbol, "price_data_end_date": price_day,
+                                      "entry_date": entry_day, "price_point": point,
+                                      "retained": identity(selected), "removed": identity(row),
+                                      "removed_ratings": row.get("ratings") or {}})
+    retained.sort(key=lambda row: (row["trade_date"], row.get("analysis_symbol") or row["symbol"], *stable_key(row)))
+    invalid_times.sort(key=lambda row: (row["trade_date"], row["analysis_symbol"], str(row.get("run_id") or ""), row["symbol"]))
+    return retained, {"original": len(rows), "stage1_retained": len(stage1),
+                      "same_day_removed": len(rows) - len(stage1), "retained": len(retained),
+                      "removed": len(rows) - len(retained), "fallbacks": fallbacks,
+                      "invalid_times": invalid_times, "cross_day_removed": cross_day_removed,
+                      "skipped_missing": skipped_missing}
 
 
 def primary_metric(sample: dict[str, Any]) -> str:
@@ -271,8 +318,17 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     lines = [f"# 评级评估报告 · {now.date().isoformat()}", "", f"生成时刻：{now.isoformat(timespec='seconds')}；窗口：{window}交易日；默认current筛选；{_sample_note(len(rows))}。", "",
              "本报告仅描述已观察样本，不证明策略有效性。真实未来窗口尚未成熟的记录保持 pending；未来运行验收为 NOT_TESTED。"]
     lines += ["", f"C3代理去重：原始 {dedup['original']}，保留 {dedup['retained']}，重复剔除 {dedup['removed']}；C3分布、命中、收益、基线和归因共用保留集。C4点位/D2校准同样共用保留 {len(rows)} 条记录。"]
+    lines.append(f"- 两段去重：同日后 {dedup['stage1_retained']}，跨日剔除 {len(dedup['cross_day_removed'])}，最终 {dedup['retained']}。")
     for fallback in dedup["fallbacks"]:
-        lines.append(f"- 时间缺失降级：{fallback['trade_date']} / {fallback['analysis_symbol']}：{fallback['reason']}；保留 {fallback['selected_run_id']}/{fallback['selected_symbol']}。")
+        lines.append(f"- 时间未知竞争降级：{fallback['trade_date']} / {fallback['analysis_symbol']}：{fallback['reason']}；保留 {fallback['selected_run_id']}/{fallback['selected_symbol']}。")
+    for invalid in dedup["invalid_times"]:
+        lines.append(f"- 非法完成时间：{invalid['run_id']}/{invalid['symbol']}：{invalid['reason']}。")
+    for skipped in dedup["skipped_missing"]:
+        lines.append(f"- 缺P或入场，未参与跨日去重：{skipped['run_id']}/{skipped['symbol']}。")
+    for removed in dedup["cross_day_removed"]:
+        lines.append(f"- 跨日同入场剔除：{removed['analysis_symbol']} / P={removed['price_data_end_date']} / {removed['entry_date']} {removed['price_point']}；"
+                     f"剔除 {removed['removed']['run_id']}/{removed['removed']['symbol']}（评级 {removed['removed_ratings']}），"
+                     f"保留 {removed['retained']['run_id']}/{removed['retained']['symbol']}。")
     if result["warning"]:
         lines += ["", '<span style="color:red">告警：最近10个实际交易日均有观测，PM 看多占比为0，且多数日市场环境偏强。</span>']
     statuses = Counter(row.get("windows", {}).get(str(window), {}).get("status", "未配置") for row in rows)
@@ -297,7 +353,7 @@ def render_report(rows: list[dict[str, Any]], result: dict[str, Any], now: datet
     for transition, groups in result["attribution"].items():
         lines += _group_table(groups, transition)
     lines += ["", "## 口径说明", "",
-        "1. 存储唯一键run_id+symbol；只读取is_current=true，按trade_date筛选。C3按trade_date+analysis_symbol去重（旧记录缺代理回退symbol）：index优先，优先类型内真实带时区finished_at较晚者优先，同刻取run_id字典序较大者，再取symbol字典序较大者；优先候选缺完成时间时整组按run_id/symbol确定性选择并列明降级，不制造时间；非法非空或无时区时间拒绝。原始记录不改写。收益为小数比例，未模拟资金、组合、交易成本。指数使用代理ETF；指数/配置宽基主口径绝对收益，股票/其他ETF主口径对SPY超额，股票板块超额为辅助；SPY代理对自身超额为空。",
+        "1. 存储唯一键run_id+symbol；只读取is_current=true，按trade_date筛选。C3按trade_date+analysis_symbol去重（旧记录缺代理回退symbol）：index优先，优先类型内真实带时区finished_at较晚者优先，同刻取run_id字典序较大者，再取symbol字典序较大者；优先候选竞争且完成时间未知时列明降级，已知时间优先，未知按稳定键选择；非法非空或无时区时间按未知处理并单独诊断。随后按analysis_symbol+price_data_end_date+entry.date+价格点跨日去重：same_day_close记close，其余basis记open（next_open和same_day_open合并）；跨日最新完成时间优先，平局取较晚trade_date/run_id/symbol，不再优先index。缺P/入场/basis保留并列示。原始记录不改写。收益为小数比例，未模拟资金、组合、交易成本。指数使用代理ETF；指数/配置宽基主口径绝对收益，股票/其他ETF主口径对SPY超额，股票板块超额为辅助；SPY代理对自身超额为空。",
         "2. finished_at开盘前取当日开，开盘至实际收盘（含边界）取当日收盘近似；收盘后/休市取下一交易日开。XNYS含假日/半日市；开盘窗口N含入场日，收盘窗口N从下一交易日起；标的和基准入场类型/出场收盘相同；每个资产窗口在同一来源和同次复权快照取入场/出场，窗口pricing记录实际价格与来源，顶层entry.price保留首次展示观测（可能不同复权单位），不用于后续复权收益；只用完整日线，缺价不可用、未成熟pending。",
         "3. Buy/Overweight/Hold/Underweight/Sell评分=2/1/0/-1/-2。死区d=0.5×分析时ATR14/P_Close×sqrt(N)；收益>d涨、<-d跌、边界含在平。看多对应涨、Hold对应平、看空对应跌；缺ATR/P_Close不进入三分类。符号命中率排除Hold，收益0无方向命中。",
         "4. IC仅在excess_vs_spy超额组内计算，raw_return绝对组只报命中率和分档收益，未知/缺主口径明示且不进入IC；兼容IC字段只代表超额组。Spearman采用并列平均秩；同日n≥5计算横截面，报告有效日期IC均值、样本标准差、t=均值/(标准差/sqrt(有效日期数))。无有效横截面改池化并注明。常数评分/收益IC未定义；仅一个有效日期或标准差0时标准差/t相应未定义；池化不报时间序列t。",
