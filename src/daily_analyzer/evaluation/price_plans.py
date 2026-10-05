@@ -167,6 +167,8 @@ def evaluate_plan(plan, bars, *, start, end, basis, mature=True, units_verified=
 def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, units_verified=True):
     """v2先在入场有效期确认成交，再沿同源20日快照检验每腿退出。"""
     base={'kind':plan.get('kind'),'rule_version':'c4-v2','status':'pending'}
+    if plan.get('preconditions'):
+        base['price_only_approximation'] = True
     if end is None:
         return {**base,'reason':'缺20日退出日期，不能提前结算'}
     if not mature:
@@ -193,9 +195,22 @@ def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, 
                  any(row['low']<=trigger_price<=row['high'] for _,row in entry_rows) if trigger_price else None)
         return {**base,'status':'observation','level_touched':touched}
     if plan.get('kind')=='风险减配':
-        if plan.get('trigger_rule')!='收盘跌破' or trigger_price is None:
-            return {**base,'status':'indeterminate','reason':'风险减配无明确收盘跌破价，不猜测其他条件'}
-        trigger=next((index for index,(day,row) in enumerate(selected) if day<=entry_end and row['close']<trigger_price),None)
+        if plan.get('trigger_rule') is None:
+            return {**base,'status':'indeterminate','reason':'触发规则缺失'}
+        if plan.get('trigger_rule')!='收盘跌破':
+            return {**base,'status':'indeterminate','reason':'非收盘跌破规则'}
+        if trigger_price is None:
+            return {**base,'status':'indeterminate','reason':'风险减配缺明确收盘跌破价'}
+        confirm_days = plan.get('confirm_days') if plan.get('confirm_days') is not None else 1
+        if confirm_days not in (1, 2):
+            return {**base,'status':'indeterminate','reason':'风险减配确认天数不可判'}
+        trigger = None
+        streak = 0
+        for index, (day, row) in enumerate(entry_rows):
+            streak = streak + 1 if row['close'] < trigger_price else 0
+            if streak >= confirm_days:
+                trigger = index
+                break
         if trigger is None:
             return {**base,'status':'settled','triggered':False}
         if trigger+1>=len(selected):
@@ -210,12 +225,20 @@ def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, 
                 'mfe_pct':max(0.,max(entry-row['low'] for row in considered))/entry,
                 'mae_pct':max(0.,max(row['high']-entry for row in considered))/entry,
                 'path_note':'收盘条件确认后下一开盘减配；方向收益为避免持有至20日期末，日线极值为近似'}
+    if not is_buy and plan.get('kind') == '超配回落':
+        if plan.get('trigger_rule') is None:
+            return {**base,'status':'indeterminate','reason':'触发规则缺失'}
+        if plan.get('trigger_rule') != '进入区间受阻':
+            return {**base,'status':'indeterminate','reason':'非区间受阻规则，C4 v2 不可判'}
     if low is None or high is None or low>high:
         return {**base,'status':'indeterminate','reason':'缺少有效明确区间'}
     confirmation=None
+    expected_rule = {'可执行': '触及区间', '待触发': '收盘站上'}.get(plan.get('status')) if is_buy else None
+    if expected_rule and plan.get('trigger_rule') is not None and plan['trigger_rule'] != expected_rule:
+        return {**base,'status':'indeterminate','reason':'触发规则与状态不一致'}
     if is_buy and plan.get('status')=='待触发':
         confirm_days=plan.get('confirm_days')
-        if plan.get('trigger_rule')!='收盘站上' or trigger_price is None or confirm_days not in (1,2):
+        if trigger_price is None or confirm_days not in (1,2):
             return {**base,'status':'indeterminate','reason':'待触发腿缺明确收盘确认价或1–2日确认'}
         streak=0
         for index,(day,bar) in enumerate(entry_rows):
@@ -247,6 +270,8 @@ def evaluate_leg(plan, bars, *, start, entry_end, end=None, basis, mature=True, 
     legacy={**plan,'kind':'建仓' if is_buy else '减仓','low':low,'high':high,'parse_status':'parsed'}
     outcome=evaluate_plan(legacy,bars,start=entry_day,end=end,basis=basis,units_verified=units_verified)
     outcome.update(kind=plan.get('kind'),rule_version='c4-v2',entry_date=entry_day)
+    if base.get('price_only_approximation'):
+        outcome['price_only_approximation'] = True
     if outcome.get('exit_reason') == '减仓有效期末':
         outcome['exit_reason'] = '减仓20日期末'
     if confirmation:
@@ -315,8 +340,13 @@ def point_report(rows):
            '', '|类别|状态|目标方法|目标距离|腿数|触发可判n|已触发退出可判n|触发率|止损率|目标率|平均R|平均方向收益|平均MFE|平均MAE|观察触及n|',
            '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|']
     groups=defaultdict(list)
+    approximations=[]
     for row in versions['c4-v2']:
-        for plan in row['point_plans'].values():
+        for leg_id, plan in row['point_plans'].items():
+            outcome = plan.get('outcome') or {'status':'pending'}
+            if plan.get('preconditions') or outcome.get('price_only_approximation'):
+                approximations.append((row, leg_id, plan, outcome))
+                continue
             key=(plan.get('kind') or '未提供',plan.get('status') or '未提供',
                  plan.get('target_method') or '不适用',plan.get('target_distance_bucket') or '不可核验')
             groups[key].append(plan.get('outcome') or {'status':'pending'})
@@ -342,4 +372,13 @@ def point_report(rows):
     lines+=['', 'v2状态：'+'；'.join(f'{name} n={count}' for name,count in sorted(statuses.items()))]
     reasons=Counter(out.get('reason') for group in groups.values() for out in group if out.get('reason'))
     lines+=['', *[f'- {reason}：n={count}' for reason,count in reasons.items()]]
+    if approximations:
+        lines += ['', '### 含非价格前置条件（价格近似）', '',
+                  '以下仅按价格评价，未核验非价格前置条件；全部排除于上方确定统计的触发/退出分母、比率、R、收益、MFE和MAE。', '',
+                  '|标的|腿|类别|价格评价状态|价格触发|前置条件|', '|---|---|---|---|---|---|']
+        for row, leg_id, plan, outcome in approximations:
+            cells = [row.get('symbol'), leg_id, plan.get('kind'), outcome.get('status'),
+                     '是' if outcome.get('triggered') is True else '否' if outcome.get('triggered') is False else '不可判',
+                     plan.get('preconditions') or '未提供（已有近似标签）']
+            lines.append('|' + '|'.join(str(cell or '').replace('|', '／').replace('\n', ' ') for cell in cells) + '|')
     return '\n'.join(lines)

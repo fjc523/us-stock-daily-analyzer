@@ -687,14 +687,15 @@ def test_source_status_shared_home_detail_and_legacy():
     value = _source_status(record)
     assert value["tone"] == "failed"
     for html in (HOME.render(rows=[{"source_status": value}], summary={}), DETAIL.render(source_status=value)):
-        assert "数据源 1/4 正常" in html
+        assert "适用 3 项：正常 1 · 降级 1 · 失败 1 · 跳过 0" in html
+        assert "未启用 0 · 不适用 1" in html
         assert 'aria-haspopup="dialog"' in html and 'class="source-dialog"' in html
         assert 'data-source-close' in html
         if 'class="watch-table"' in html:
             assert html.index('class="source-dialog"') > html.index('</tbody></table>')
         import re
         time_section = re.search(r'<details[^>]*><summary>时间与质量.*?</details>', html, re.S).group()
-        assert 'source-table' not in time_section and '数据源 1/4 正常' not in time_section
+        assert 'source-table' not in time_section and '适用 3 项' not in time_section
         for text in ("source-normal", "source-degraded", "source-failed", "source-inactive", "CBOE失败"):
             assert text in html
     assert "旧报告未记录数据源状态" in DETAIL.render(source_status=_source_status({}))

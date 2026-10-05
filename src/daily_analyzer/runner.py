@@ -452,6 +452,10 @@ def _default_context_manager(settings: Settings, root: Path, mode: str, clock):
         project_root=str(root),
         clock=clock,
     )
+    from daily_analyzer.context.extended_minutes import ExtendedMinuteBatch
+    services.extended_minutes = ExtendedMinuteBatch(services.alpaca, host=settings.futu.host,
+        port=settings.futu.port, futu_enabled=settings.futu.enabled, clock=clock,
+        options=settings.extended_minutes.model_dump())
     names = list(settings.context_providers)
     if settings.tradingagents.position_structure_enabled and "position_structure" not in names:
         names.append("position_structure")
@@ -1248,6 +1252,10 @@ def run_analysis(
             batch_source_token = set_vendor_observer(batch_source_collector.observe)
             try:
                 batch_blocks = context_manager.prepare(batch_context)
+                minute_service = getattr(context_manager.services, 'extended_minutes', None) if hasattr(context_manager, 'services') else None
+                if minute_service is not None:
+                    batch['extended_minutes_preflight'] = minute_service.health
+                    atomic_write_json(batch_dir / 'batch.json', batch)
             finally:
                 reset_vendor_observer(batch_source_token)
             atomic_write_json(batch_dir / "context.json", serialize_blocks(batch_blocks))

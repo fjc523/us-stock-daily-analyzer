@@ -72,6 +72,9 @@ TREASURY_INDICATORS = frozenset({"10y_treasury", "DGS10", "2y_treasury", "DGS2",
 def _fallback_used(category, attempts, used, config):
     """判断是否用了兜底来源；扩展时段与宏观指标按时段或指标确定主源。"""
     if category == "扩展时段报价" and config.get("futu_enabled", True):
+        minute = [event for event in attempts if (event.get('statement_metadata') or {}).get('minute_contract')]
+        if minute:
+            return any((event.get('statement_metadata') or {}).get('fallback_used') for event in minute)
         # 夜盘富途常缺分时段时间，Alpaca 夜盘是该时段的既定来源；IEX 盘前覆盖不完整，仍算降级。
         return any(_canonical_source(source) != "futu" and source != "Alpaca feed=overnight" for source in used)
     if category == "宏观指标":
@@ -118,9 +121,9 @@ class SourceStatusCollector:
             self.events.append(row)
 
     def _context(self, blocks):
-        def record(category, source, outcome="success", error=None):
+        def record(category, source, outcome="success", error=None, metadata=None):
             self.observe({"category": category, "method": "context", "source": source,
-                          "outcome": outcome, "error": error})
+                          "outcome": outcome, "error": error, 'statement_metadata': metadata})
         for name, block in blocks.items():
             data = block.get("data") if isinstance(block, Mapping) else None
             if not isinstance(data, Mapping):
@@ -139,8 +142,9 @@ class SourceStatusCollector:
                     for segment_name in ("after", "overnight", "pre"):
                         segment = segments.get(segment_name)
                         if isinstance(segment, Mapping) and segment.get("status"):
-                            valid = segment.get("status") in ("可用", "时段未核验（无分时段时间）")
-                            record("扩展时段报价", segment.get("source") or "扩展时段来源", "success" if valid else "failed", segment.get("warning") or (None if valid else segment.get("status")))
+                            valid = segment.get("status") in ("可用", "无成交", "时段未核验（无分时段时间）")
+                            metadata = {'minute_contract': True, 'fallback_used': bool(segment.get('fallback_used')), 'preflight': data.get('preflight'), 'source_failures': segment.get('source_failures')} if segment.get('volume_scope') else None
+                            record("扩展时段报价", segment.get("source") or "扩展时段来源", "success" if valid else "failed", segment.get("warning") or (None if valid else segment.get("status")), metadata)
             if name == "sector_strength" and data.get("benchmark_reason"):
                 record("板块映射", data.get("benchmark_reason"))
             category = {"price_anchors": "日线", "macro_releases": "新闻"}.get(name)

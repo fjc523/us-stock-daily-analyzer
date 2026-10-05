@@ -422,6 +422,13 @@ class EvaluationSettings(ConfigModel):
         return sorted(value)
 
 
+class ExtendedMinutesSettings(ConfigModel):
+    """扩展行情仅展示的稀薄阈值；不改变交易或模型限制。"""
+    thin_enabled: bool = True
+    thin_adv20_ratio: float = Field(default=0.0005, ge=0, le=1)
+    thin_min_traded_minutes: int = Field(default=10, ge=0)
+
+
 class Settings(ConfigModel):
     evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
@@ -443,6 +450,7 @@ class Settings(ConfigModel):
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     futu: FutuSettings = Field(default_factory=FutuSettings)
     alpaca: AlpacaSettings = Field(default_factory=AlpacaSettings)
+    extended_minutes: ExtendedMinutesSettings = Field(default_factory=ExtendedMinutesSettings)
 
     @field_validator("context_providers")
     @classmethod

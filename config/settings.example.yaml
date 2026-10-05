@@ -84,6 +84,12 @@ futu:
 alpaca:
   requests_per_minute: 180
 
+# 仅展示分钟成交稀薄，不作为模型或投资约束；末笔100股不据此判断。
+extended_minutes:
+  thin_enabled: true
+  thin_adv20_ratio: 0.0005
+  thin_min_traded_minutes: 10
+
 # 独立评估，不改变旧五日记忆结算与反思。
 evaluation:
   broad_market_etfs: [SPY, QQQ, IWM, DIA, VOO, IVV, VTI]

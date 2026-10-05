@@ -78,3 +78,9 @@ class AlpacaDataSource:
             limit=limit,
             max_pages=max_pages,
         )
+
+    def complete_minute_bars(self, symbols, start, end, *, feed, request_limiter):
+        """扩展分钟走唯一HTTP入口，有限重试与分页，不订阅。"""
+        return self.client.get_bars(symbols, start, end, feed=feed, adjustment='raw',
+                                    timeframe='1Min', timeout=10, retries=1, max_pages=8,
+                                    request_limiter=request_limiter)

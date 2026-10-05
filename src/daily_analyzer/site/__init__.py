@@ -308,6 +308,15 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_conf
         marks.append('评级与概率不一致')
     if any(any(row.get(key) for key in ('buy_leg_conflicts_rating', 'risk_trigger_above_buy_zone', 'risk_reduce_missing_post_allocation', 'legs_missing')) for row in flags.values() if isinstance(row, Mapping)):
         marks.append('点位条件需核对')
+    critical_fields = {'trigger_rule', 'status', 'kind', 'confirm_days', 'zone_low', 'zone_high', 'trigger_price',
+                       'stop_loss', 'first_target', 'target_method', 'post_allocation_pct'}
+    stored_leg_flags = [flag for source in (flags, result.get('structured') or {}) if isinstance(source, Mapping)
+                        for row in source.values() if isinstance(row, Mapping)
+                        for flag in (row.get('leg_validation_flags') or []) if isinstance(flag, str)]
+    if any('trigger_status_mismatch' in flag or
+           (flag.endswith(':invalid_value') and flag.rsplit('.', 1)[-1].split(':', 1)[0] in critical_fields)
+           for flag in stored_leg_flags):
+        marks.append('执行条件字段缺失')
     for layer,title in (('rm','研究经理'),('trader','交易员'),('pm','组合经理')):
         if isinstance(flags.get(layer),Mapping) and flags[layer].get('llm_fallback'):
             marks.append(f'第二模型回退（{title}）')
@@ -315,7 +324,7 @@ def _marks(result: Mapping[str, Any], retry_failure: Any = None, validation_conf
     # 存量无status的已落盘检查维持旧parsed_zone告警；不重算或回写历史。
     if any((any(value for key, value in (leg.get('checks') or {}).items() if key != 'target_far')
             if leg.get('status', 'parsed_zone') in ('可执行', '待触发', 'parsed_zone')
-            else bool((leg.get('checks') or {}).get('rr_reason_text')) if leg.get('status') == '仅观察' else False)
+            else bool((leg.get('checks') or {}).get('rr_reason_text')) if leg.get('status') in ('仅观察', None) else False)
            for legs in checks.values() if isinstance(legs, list) for leg in legs if isinstance(leg, Mapping)):
         marks.append('点位规则未通过')
     return marks
@@ -647,12 +656,15 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
                 target = None
         allocation = f'目标配置 {target:g}% · 标准仓位=100%' if target is not None else '目标配置未提供 · 标准仓位=100%'
         full_plans = '\n\n'.join(plan['label'] + '：' + plan['full_text'] for plan in plans)
-        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance)
+        layer = 'pm' if legs is structured.get('pm_decision') else 'trader'
+        stored_flags = list(legs.get('leg_validation_flags') or []) + list(((result.get('decision_flags') or {}).get(layer) or {}).get('leg_validation_flags') or [])
+        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance, leg_validation_flags=stored_flags)
         for plan in plans:
             plan['full_text'] += '\n\n' + full_plans
     matrix_note = plans[0].get('tolerance_note', '') if legs else ''
     error = result.get("error") or _safe_retry_error(retry)
     premarket = _summary_premarket(result)
+    from .data_quality import quote_quality
     duration = result.get("duration_seconds")
     duration_text = "耗时未记录"
     if isinstance(duration, (int, float)) and math.isfinite(duration) and duration >= 0:
@@ -683,6 +695,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "late_news_count": len(result.get("late_news") or []),
         "late_macro_count": len(result.get("late_macro") or []),
         "source_status": _source_status(result),
+        "quote_quality": quote_quality(result),
         "started_at": _pretty_timestamp(result.get("started_at")),
         "start_clock": _start_clock(result.get("started_at")) if result.get("started_at") else "",
         "finished_at": _pretty_timestamp(result.get("finished_at")),
@@ -692,13 +705,20 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
 
 def _source_status(result):
     records = result.get("data_source_status")
-    tones = {"正常": "normal", "降级": "degraded", "失败": "failed", "未配置": "inactive", "未使用": "inactive"}
+    tones = {"正常": "normal", "降级": "degraded", "失败": "failed", "跳过": "degraded", "未配置": "inactive", "未使用": "inactive"}
     if not isinstance(records, list):
         return {"legacy": True, "tone": "inactive", "rows": []}
     rows = [{**row, "tone": tones.get(row.get("status"), "inactive")} for row in records if isinstance(row, Mapping)]
     statuses = {row.get("status") for row in rows}
-    tone = "failed" if "失败" in statuses else "degraded" if "降级" in statuses else "normal" if "正常" in statuses else "inactive"
-    return {"legacy": False, "tone": tone, "rows": rows, "normal": sum(row.get("status") == "正常" for row in rows), "total": len(rows)}
+    tone = "failed" if "失败" in statuses else "degraded" if statuses & {'降级', '跳过'} else "normal" if "正常" in statuses else "inactive"
+    counts = {status: sum(row.get('status') == status for row in rows) for status in ('正常', '降级', '失败', '跳过')}
+    inactive = [row for row in rows if row.get('status') in {'未配置', '未开通', '未开通/不可行', '未启用'}]
+    unused = [row for row in rows if row.get('status') in {'未使用', '不适用'}]
+    return {"legacy": False, "tone": tone, "rows": rows, "normal": counts['正常'],
+            "degraded": counts['降级'], "failed": counts['失败'], "skipped": counts['跳过'],
+            "total": sum(counts.values()), "inactive": len(inactive), "unused": len(unused),
+            "inactive_categories": '、'.join(str(row.get('category', '')) for row in inactive),
+            "unknown": len(rows) - sum(counts.values()) - len(inactive) - len(unused)}
 
 
 def _timestamp_rows(result: Mapping[str, Any]) -> list[dict[str, str]]:
@@ -945,6 +965,8 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         if batch_path.is_file():
             batch_items = _as_mapping(_load_json(batch_path).get("items"))
     news_watch = read_json(root / "data/news_watch.json", {})
+    from .data_quality import classify_article, macro_followups, macro_review_marks, stamp
+    watches = {}
     rows = []
     for item in items:
         result = latest_by_symbol.get(item.symbol)
@@ -958,11 +980,17 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         watch = news_watch.get('items', {}).get(item.symbol, {})
         if (watch.get('run_id') == result.get('run_id') and
             watch.get('information_through') == result.get('information_through') and
-            news_watch.get('trade_date') == local_today.isoformat() and watch.get('count')):
+            news_watch.get('trade_date') == local_today.isoformat() and watch.get('count') and
+            stamp(news_watch.get('checked_at')) and stamp(news_watch['checked_at']) <= now):
+            watches[item.symbol] = {**watch, 'checked_at': news_watch.get('checked_at'), 'source': news_watch.get('source')}
+            articles = [classify_article(article, result) for article in watch.get('articles', [])
+                        if stamp(article.get('published_at')) and stamp(result.get('information_through')) < stamp(article['published_at']) <= now]
+            articles = [{**article, 'time': _pretty_timestamp(article['published_at'])} for article in articles if not article.get('macro')]
             row['news_watch'] = {**watch, 'checked_at':_pretty_timestamp(news_watch.get('checked_at')),
-                                 'articles':[{**article, 'time':_pretty_timestamp(article['published_at'])}
-                                             for article in watch.get('articles', [])]}
+                                'count': len(articles), 'major': any(article.get('major') for article in articles), 'articles': articles}
         row["name"] = item.name or row["name"]
+        followups = macro_followups([result], watches, now)
+        row['macro_review'] = macro_review_marks(result, followups)
         attempt_status = _as_mapping(batch_items.get(symbol_slug(item.symbol))).get("status")
         if attempt_status in {"running", "pending"}:
             row["status"] = "今日分析中" if attempt_status == "running" else "今日排队中"
@@ -994,6 +1022,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         market_label=market.get("label") or "暂无数据", vix=vix_text,
         market_cards=_context_cards(latest_context, latest_results),
         macro_rows=macro_rows, macro_html=macro_html, sector_rows=sector_rows, sector_html=sector_html,
+        macro_followups=macro_followups(latest_results, watches, now),
         model_label=("分析师/辩论 quick：" + _role_summary(load_settings(root).llm.quick.model_dump())
                      + "；研究经理/交易员/组合经理 deep：" + _role_summary(load_settings(root).llm.deep.model_dump())),
     ))

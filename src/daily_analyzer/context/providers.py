@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from .analysis_quote import active_window, recent_after_window, observation, raw_futu, raw_alpaca
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
 from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
+from ..time_utils import session_bounds
 
 EASTERN = ZoneInfo("America/New_York")
 MARKET_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA")
@@ -432,11 +433,13 @@ class ExtendedHoursProvider:
 
     def prepare(self, batch: Any) -> None:
         self.batch = batch
+        if self.services.extended_minutes is not None:
+            symbols = list(dict.fromkeys([*[_symbol(item) for item in _items(batch)], *MARKET_SYMBOLS]))
+            self.services.extended_minutes.prepare(symbols, _trade_date(batch), _price_end(batch), _cutoff_datetime(_value(batch, 'context_as_of')))
         if str(_value(batch, "mode", "live")) == "backfill" or not self.services.futu_enabled:
             return
         symbols = [_symbol(item) for item in _items(batch)]
         symbols.extend(MARKET_SYMBOLS)
-        symbols.extend(SECTOR_ETFS)
         self.services.futu.start_batch(symbols)
         self.futu_prepared = True
 
@@ -448,11 +451,13 @@ class ExtendedHoursProvider:
         as_of = _cutoff_datetime(cutoff)
         symbols = list(dict.fromkeys([_symbol(item), *MARKET_SYMBOLS]))
         mode = str(_value(self.batch, "mode", "live"))
-        if mode == "backfill":
+        if self.services.extended_minutes is not None:
+            payload, sources = self._complete_minutes(symbols, trade_day, price_end, as_of)
+        elif mode == "backfill":
             payload, sources = self._backfill(symbols, trade_day, as_of)
         else:
             payload, sources = self._live(symbols, trade_day, price_end, as_of)
-        if mode == "backfill":
+        if mode == "backfill" and self.services.extended_minutes is None:
             for symbol in symbols:
                 pre = payload[symbol]["pre"]
                 candidate = dict(pre, time_field="minute.t") if pre.get("quote_time") else None
@@ -465,20 +470,23 @@ class ExtendedHoursProvider:
         target_change = _number(payload.get(target_symbol, {}).get("pre", {}).get("change_pct"))
         relative = target_change - spy_change if target_change is not None and spy_change is not None else None
         payload["premarket_relative_to_spy_pct"] = relative
-        lines = ["| 标的 | 时段 | 最新价 | 来源前收盘 | 相对 P 收盘 | 成交量 | 最高 | 最低 | 报价时间 | 来源 | 状态 |", "|---|---|---:|---:|---:|---:|---:|---:|---|---|---|"]
+        lines = ["| 标的 | 时段 | 最新价 | 来源前收盘 | 相对 P 收盘 | 时段累计量 | 有量分钟 | 占20日均量比例 | 最高 | 最低 | 报价时间 | 来源 | 状态 |", "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|"]
         for symbol in symbols:
             for session, label in (("after", "最近交易日盘后"), ("overnight", "夜盘"), ("pre", "盘前")):
                 segment = payload.get(symbol, {}).get(session, {})
                 status = segment.get("status") or "数据不可用"
                 if segment.get("warning"):
                     status = f"{status}（{segment['warning']}）"
+                status += '；' + '；'.join(filter(None, [segment.get('liquidity_note'), segment.get('adv20_status')])) if segment.get('liquidity_note') or segment.get('adv20_status') else ''
                 if segment.get("age_seconds") is not None:
                     status += f"；距获取时点 {segment['age_seconds'] / 3600:.1f} 小时"
                 lines.append(
                     f"| {symbol} | {label} | {_format_number(segment.get('price'))} | "
                     f"{_format_number(segment.get('source_previous_close'))} | "
                     f"{_format_pct(_number(segment.get('change_pct')) / 100 if _number(segment.get('change_pct')) is not None else None)} | "
-                    f"{segment.get('volume') if segment.get('volume') is not None else '—'} | "
+                    f"{segment.get('cumulative_volume') if segment.get('cumulative_volume') is not None else '—'} | "
+                    f"{segment.get('traded_minutes') if segment.get('traded_minutes') is not None else '—'} | "
+                    f"{_format_pct(segment.get('volume_adv20_ratio'))} | "
                     f"{_format_number(segment.get('high'))} | {_format_number(segment.get('low'))} | "
                     f"{segment.get('quote_time') or '—'} | {segment.get('source') or '—'} | "
                     f"{status} |"
@@ -497,6 +505,49 @@ class ExtendedHoursProvider:
             lines.append("\n注：Alpaca 夜盘来源前收盘与常规时段收盘口径不同，仅列示，不参与核对。")
         lines.append(f"\n{target_symbol} 相对 SPY 的盘前涨跌幅差：{_format_pct(relative / 100 if relative is not None else None)}。")
         return ContextBlock(self.name, "\n".join(lines), payload, as_of, _source_list(sources))
+
+    def _complete_minutes(self, symbols, trade_day, price_end, cutoff):
+        """仅取源更正，保留常规时段当前报价与P收盘比较口径。"""
+        loader = self.services.extended_minutes
+        payload, sources = {}, []
+        _, closed = session_bounds(price_end)
+        overnight_end = datetime.combine(trade_day, time(4), EASTERN)
+        opened, _ = session_bounds(trade_day)
+        pre_end = opened
+        try: active, _, _ = active_window(cutoff)
+        except ValueError: active = None
+        quotes = {}
+        if active == 'regular':
+            quotes = self.services.futu.get_quotes(symbols) or {}
+        for symbol in symbols:
+            close, _ = self._recent_closes(symbol, price_end)
+            adv20 = None
+            cached = getattr(self.services.prices, '_cache', {}).get((symbol.upper(), price_end))
+            if cached and 'SIP' in str(cached[1]) and 'adjustment=raw' in str(cached[1]):
+                rows = sorted([row for row in cached[0] if str(row.get('t', row.get('date', '')))[:10] <= price_end.isoformat()], key=lambda row: str(row.get('t', row.get('date'))))[-20:]
+                volumes = [_number(row.get('v', row.get('volume'))) for row in rows]
+                if len(volumes) == 20 and all(value is not None and value >= 0 for value in volumes):
+                    adv20 = {'source': 'sip', 'adjustment': 'raw', 'count': 20, 'value': sum(volumes) / 20}
+            windows = {'after': (closed, datetime.combine(price_end, time(20), EASTERN)),
+                       'overnight': (overnight_end - timedelta(hours=8), overnight_end),
+                       'pre': (overnight_end, pre_end)}
+            payload[symbol] = {session: loader.segment(symbol, session, start, end, cutoff, close=close, adv20=adv20,
+                               backfill=str(_value(self.batch, 'mode', 'live')) == 'backfill')
+                               for session, (start, end) in windows.items()}
+            candidate = payload[symbol].get('after' if recent_after_window(cutoff) else active)
+            if active == 'regular' and recent_after_window(cutoff) is None:
+                candidate = raw_futu(quotes.get(futu_symbol(symbol)), 'regular', '富途常规报价')
+                if candidate is None:
+                    try: candidate = raw_alpaca(_alpaca_snapshots(self.services.alpaca, [symbol], 'iex').get(symbol), 'Alpaca feed=iex')
+                    except Exception: candidate = None
+            if candidate and candidate.get('status') == '无成交':
+                payload[symbol]['analysis_quote'] = dict(candidate, symbol=symbol, cutoff=cutoff.isoformat(), status='盘前无成交' if active == 'pre' else '本时段无成交')
+            else:
+                payload[symbol]['analysis_quote'] = observation(symbol, cutoff, candidate, close, recent_after=recent_after_window(cutoff) is not None)
+            sources.extend(row.get('source') for row in payload[symbol].values() if isinstance(row, Mapping) and row.get('source'))
+        payload['preflight'] = loader.health
+        payload['request_budget'] = {'history_attempts': dict(loader.history_attempts), 'history_pages': dict(loader.history_pages), 'total_requests': loader.budget.total}
+        return payload, sources
 
     def _live(
         self, symbols: list[str], trade_day: date, price_end: date, cutoff: datetime

@@ -86,7 +86,7 @@ def test_o6_reduction_v2_label_only_and_original_numeric_contract():
     bars={day:{'open':105,'high':106,'low':104,'close':103} for day in DATES}
     v1=evaluate_plan({'kind':'减仓','parse_status':'parsed','low':104,'high':106},bars,
         start=DATES[0],end=DATES[-1],basis='next_open')
-    v2=evaluate_leg({'kind':'超配回落','zone_low':104,'zone_high':106},bars,
+    v2=evaluate_leg({'kind':'超配回落','trigger_rule':'进入区间受阻','zone_low':104,'zone_high':106},bars,
         start=DATES[0],entry_end=DATES[4],end=DATES[-1],basis='next_open')
     assert v1['exit_reason']=='减仓有效期末' and v2['exit_reason']=='减仓20日期末'
     for key in ('entry_price','exit_price','exit_date','direction_adjusted_return','mfe_pct','mae_pct'):

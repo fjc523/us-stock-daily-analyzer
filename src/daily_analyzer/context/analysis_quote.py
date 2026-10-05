@@ -78,19 +78,19 @@ def observation(symbol, cutoff, candidate=None, close=None, *, recent_after=Fals
         return result
     evidence = candidate.get('time_field')
     allowed = {'latestTrade.t', 'minute.t', 'data_date+data_time', 'pre_update_time',
-               'after_update_time', 'overnight_update_time'}
+               'after_update_time', 'overnight_update_time', 'futu_kline.time_key', 'sip_minute.t'}
     if recent_after:
         # 最近盘后只认独立after或同源成交/分钟时间，不能借盘前、夜盘或当前价时间。
-        allowed = {'after_update_time', 'latestTrade.t', 'minute.t'}
+        allowed = {'after_update_time', 'latestTrade.t', 'minute.t', 'futu_kline.time_key', 'sip_minute.t'}
     if evidence not in allowed:
         result['status'] = '真实行情时间未核验'
     elif stamp > cutoff:
         result['status'] = '未来报价（超过分析截止）'
-    elif not start <= stamp < end or (recent_after and stamp == start and evidence != 'after_update_time'):
+    elif (not start < stamp <= end if evidence in {'futu_kline.time_key', 'sip_minute.t'} else not start <= stamp < end) or (recent_after and stamp == start and evidence != 'after_update_time'):
         result['status'] = '非本时段数据'
     elif recent_after and evidence == 'minute.t' and (stamp.second or stamp.microsecond or stamp + timedelta(minutes=1) > min(cutoff, end)):
         result['status'] = '分钟尚未完整（超过分析截止）'
-    elif not (recent_after and cutoff >= end) and (cutoff - stamp).total_seconds() > 1800:
+    elif not (recent_after and cutoff >= end) and (cutoff - stamp).total_seconds() > (2700 if evidence == 'sip_minute.t' and 'feed=sip' in str(candidate.get('source')) else 1800):
         result['status'] = '过期'
     else:
         result['status'] = '可用'

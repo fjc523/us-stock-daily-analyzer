@@ -62,6 +62,7 @@ def check_news(root, *, now=None, source=None):
             if proxy not in article.get('symbols', []) or not published or not cutoff < published <= now or key in seen: continue
             seen.add(key)
             articles.append({'title':article.get('headline',''), 'summary':article.get('summary',''),
+                             'id': article.get('id'), 'symbols': article.get('symbols', []),
                              'published_at':published.isoformat(), 'url':article.get('url',''), 'major':is_major(article)})
         rows[symbol] = {'run_id':run_id, 'information_through':cutoff_text, 'count':len(articles),
                         'major':any(row['major'] for row in articles), 'articles':articles}

@@ -46,7 +46,7 @@ def test_conflicts_only_flag_and_matrix_holdings():
     rows=execution_matrix('Overweight',125,buy,reductions,10)
     assert [row['label'] for row in rows]==['无仓','低于目标','高于目标','风险']
     assert '228.21' in rows[0]['text'] and '补至125%' in rows[1]['text']
-    assert '受阻减至125%' in rows[2]['text'] and '（未提供）' in rows[3]['text']
+    assert '超配≥10个百分点且197.08–201.99受阻时减至125%' in rows[2]['text'] and '（未提供）' in rows[3]['text']
     bearish=execution_matrix('Underweight',80,buy,reductions,0)
     assert '不新建仓' in bearish[0]['text'] and '不加仓' in bearish[1]['text']
     flags=leg_conflict_flags('Sell',buy,reductions)
@@ -77,7 +77,8 @@ def test_matrix_full_conditions_and_tolerance_zero():
           'post_allocation_pct':60,'reason':'支撑反抽失败'}],0)
     assert rows[0]['tolerance_note']=='容差关闭，按目标精确比较'
     assert '连续确认2日' in rows[0]['full_text'] and '仅收盘确认后执行' in rows[0]['full_text']
-    assert '97' in rows[3]['text'] and '60%' in rows[3]['text'] and '反抽失败' in rows[3]['text']
+    assert '97' in rows[3]['text'] and '60%' in rows[3]['text']
+    assert '反抽失败' not in rows[3]['text'] and '反抽失败' in rows[3]['full_text']
     assert '<10个百分点' in execution_matrix('Hold',100,[],[],10)[0]['tolerance_note']
 
 

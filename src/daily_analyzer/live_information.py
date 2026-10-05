@@ -74,7 +74,17 @@ def _wrap(function, *, alpha=False):
             if alpha:
                 return _alpha_response(value, stamp)
             if isinstance(value, str):
-                value += f"\n\n本次信息检索截止 {stamp.isoformat()}；缺发布时间的条目无法核验，不进入本次证据；未返回结果不等于没有消息。"
+                text = str(value) + f"\n\n本次信息检索截止 {stamp.isoformat()}；缺发布时间的条目无法核验，不进入本次证据；未返回结果不等于没有消息。"
+                from tradingagents.dataflows.social_result import SocialResult, live_social_reason
+                if isinstance(value, SocialResult):
+                    rebuilt = type(value)(text)
+                    rebuilt.__dict__.update(value.__dict__)
+                    rebuilt._daily_live_information_cutoff = stamp.isoformat()
+                    if getattr(value, 'source_outcome', None) == 'failed' or not value.available:
+                        rebuilt._daily_live_display_reason = live_social_reason(value)
+                    value = rebuilt
+                else:
+                    value = text
             return value
 
     read._daily_live_information = True

@@ -97,6 +97,7 @@ class ProviderServices:
     index_metadata: Any = None
     etf_holdings: Any = None
     futu_data: Any = None
+    extended_minutes: Any = None
     project_root: str = "."
     clock: Callable[[], datetime] = datetime.now
     sleep: Callable[[float], None] | None = None

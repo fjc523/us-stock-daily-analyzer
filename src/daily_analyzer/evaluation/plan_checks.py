@@ -94,7 +94,7 @@ def check_buy_leg(leg, anchors, atr=None, *, config=None, text='', structured=Tr
             'expected_target': {'name': expected[1], 'price': expected_price} if expected else None,
             'stop_anchor': valid_anchor,
             'stop_anchor_name_status': ('recognized' if candidates else 'unrecognized' if leg.get('stop_anchor') else 'missing') if structured else 'parsed_zone',
-            'target_anchor_name_status': ('recognized' if list(_anchor_names(leg.get('target_anchor'), (*HIGHS, *MAS))) else 'unrecognized' if leg.get('target_anchor') else 'missing') if structured else 'parsed_zone',
+            'target_anchor_name_status': ('not_applicable' if leg.get('target_method') == 'ATR替代' else 'recognized' if list(_anchor_names(leg.get('target_anchor'), (*HIGHS, *MAS))) else 'unrecognized' if leg.get('target_anchor') else 'missing') if structured else 'parsed_zone',
             'checks': flags,
             'r36_expected_fails': expected_fails, 'qualified': not expected_fails}
 
@@ -139,7 +139,7 @@ def decision_plan_checks(result, config):
     return flags
 
 
-def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10):
+def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *, leg_validation_flags=None):
     """用户自行对照持仓，系统不读取账户。"""
     def val(value, *, price=True):
         parsed = finite(value)
@@ -147,13 +147,22 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10):
     buy = [x for x in (buy_legs or []) if isinstance(x, dict)]
     reduce = [x for x in (reduce_legs or []) if isinstance(x, dict)]
     active = [x for x in buy if x.get('status') in ('可执行', '待触发')]
+    def has_conditions(items, name):
+        originals = buy_legs if name == 'buy_legs' else reduce_legs
+        return any(item.get('preconditions') or any(
+            (flag.startswith(f'{name}.{index}.') or flag.startswith(f'{name}.{index}:')) and (flag.endswith(':invalid_value') or 'mismatch' in flag)
+            for flag in (leg_validation_flags or []) if isinstance(flag, str))
+            for index, item in enumerate(originals or []) if isinstance(item, dict) and item in items)
+    def hint(text, items, name):
+        return text + ('｜另有条件，见展开原文' if has_conditions(items, name) else '')
     if rating in ('Underweight', 'Sell'):
         entry = f'不新建仓（评级{rating}）'
         add = '不加仓（评级偏空，目标为上限）'
     elif active:
         pieces = []
         for leg in active:
-            prefix = f'待触发：收盘站上{val(leg.get("trigger_price"))}后 ' if leg.get('status') == '待触发' else '可执行：'
+            confirmation = (f'连续{val(leg.get("confirm_days"), price=False)}日确认' if leg.get('confirm_days') is not None else '确认天数未提供')
+            prefix = f'待触发：收盘站上{val(leg.get("trigger_price"))}{confirmation}后 ' if leg.get('status') == '待触发' else '可执行：'
             pieces.append(prefix + f'{val(leg.get("zone_low"))}–{val(leg.get("zone_high"))}，止损{val(leg.get("stop_loss"))}，目标{val(leg.get("first_target"))}（{leg.get("target_method") or "未提供"}）')
         entry = '；'.join(pieces)
         add = f'同上，补至{val(target_pct, price=False)}%' if finite(target_pct) is not None else '同上；最终目标配置未提供，先复评后确认补仓差额'
@@ -163,19 +172,21 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10):
         add = '暂无合格买点；仅复评，不补仓'
     excess = [x for x in reduce if x.get('kind') == '超配回落']
     risk = [x for x in reduce if x.get('kind') == '风险减配']
-    high = '；'.join((f'{val(x.get("zone_low"))}–{val(x.get("zone_high"))} 受阻' if x.get('trigger_rule') == '进入区间受阻' else str(x.get('trigger_rule') or '条件未提供')) + f'减至{val(target_pct, price=False)}%' for x in excess) or '仅超出目标部分按条件减回目标；未提供时机'
+    parsed_tolerance = finite(tolerance)
+    excess_gate = f'超配≥{parsed_tolerance:g}个百分点且' if parsed_tolerance is not None and parsed_tolerance > 0 else '容差关闭，超出目标且'
+    rules = {'进入区间受阻': '受阻', '立即': '立即', '其他条件': '其他条件（见原文）'}
+    high = '；'.join(excess_gate + f'{val(x.get("zone_low"))}–{val(x.get("zone_high"))}' + rules.get(x.get('trigger_rule'), x.get('trigger_rule') or '触发规则缺失（见原文）') + f'时减至{val(target_pct, price=False)}%' for x in excess) or '仅超出目标部分按条件减回目标；未提供时机'
     risk_parts = []
     for item in risk:
-        trigger = item.get('trigger_rule') or '未提供条件'
+        trigger = item.get('trigger_rule') or '触发规则缺失（见原文）'
         price = finite(item.get('trigger_price'))
         if price is not None:
-            trigger += val(price)
-        if item.get('reason'):
-            trigger += '（' + str(item['reason']) + '）'
+            trigger += ' ' + val(price)
+        if item.get('trigger_rule') == '收盘跌破' and item.get('confirm_days') is not None:
+            trigger += f'（连续{val(item.get("confirm_days"), price=False)}日确认）'
         post = finite(item.get('post_allocation_pct'))
         risk_parts.append(trigger + ' → 降至' + val(post, price=False) + ('%' if post is not None else '') + '并复评')
-    risk_text = '；'.join(risk_parts) or '未提供风险减配条件'
-    parsed_tolerance = finite(tolerance)
+    risk_text = '；'.join(risk_parts) or '未设风险减配腿（复评条件见原文）'
     tolerance_note = (f'与目标相差<{parsed_tolerance:g}个百分点视为已达标'
                       if parsed_tolerance is not None and parsed_tolerance > 0 else '容差关闭，按目标精确比较')
     buy_details = []
@@ -185,12 +196,16 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10):
                            f'连续确认{val(item.get("confirm_days"), price=False)}日｜区间{val(item.get("zone_low"))}–{val(item.get("zone_high"))}｜'
                            f'止损{val(item.get("stop_loss"))}（{item.get("stop_anchor") or "锚点未提供"}）｜'
                            f'目标{val(item.get("first_target"))}（{item.get("target_method") or "方法未提供"}；{item.get("target_anchor") or "锚点未提供"}）｜'
-                           + str(item.get('reason') or ''))
+                           + str(item.get('reason') or '') + ('｜前置条件：' + str(item['preconditions']) if item.get('preconditions') else ''))
     reduction_details = [f'{item.get("kind") or "未提供类别"}｜{item.get("trigger_rule") or "触发未提供"} {val(item.get("trigger_price"))}｜'
                          f'区间{val(item.get("zone_low"))}–{val(item.get("zone_high"))}｜减后配置{val(item.get("post_allocation_pct"), price=False)}'
-                         + ('%' if finite(item.get('post_allocation_pct')) is not None else '') + '｜' + str(item.get('reason') or '') for item in reduce]
+                         + ('%' if finite(item.get('post_allocation_pct')) is not None else '') + '｜' + str(item.get('reason') or '')
+                         + ('｜连续确认' + val(item.get('confirm_days'), price=False) + '日' if item.get('confirm_days') is not None else '')
+                         + ('｜前置条件：' + str(item['preconditions']) if item.get('preconditions') else '') for item in reduce]
     output = []
     for label, text in [('无仓', entry), ('低于目标', add), ('高于目标', high), ('风险', risk_text)]:
         details = buy_details if label in ('无仓', '低于目标') else reduction_details
+        items = buy if label in ('无仓', '低于目标') else excess if label == '高于目标' else risk
+        text = hint(text, items, 'buy_legs' if label in ('无仓', '低于目标') else 'reduce_legs')
         output.append({'label': label, 'text': text, 'full_text': text + '\n' + '\n'.join(details), 'tolerance_note': tolerance_note})
     return output
