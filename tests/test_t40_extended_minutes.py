@@ -335,3 +335,14 @@ def test_preflight_reason_sip_delay_and_both_failures():
         result = batch.segment('SMTC', 'pre', start, end, now)
         assert result['status'] == '盘前报价不可用：富途 ConnectionRefusedError：拒绝连接；SIP RuntimeError：SIP失败'
         assert result['quote_time'] is None
+
+
+def test_ended_sip_session_has_no_delay_but_active_session_keeps_delay():
+    batch, _, _, _, now = make_batch()
+    batch._sip = Mock(return_value={'SMTC': [sip_row('2026-10-02T19:51:00-04:00', 194.9, 11262)]})
+    ended = batch.segment('SMTC', 'after', instant('2026-10-02T16:00:00-04:00'), instant('2026-10-02T20:00:00-04:00'), now)
+    assert ended['status'] == '可用' and ended['warning'] == '已结束时段，仅参考'
+    batch.health['futu'] = {'status': '失败', 'reason': 'ConnectionRefusedError：拒绝连接'}
+    batch._sip.return_value = {'SMTC': [sip_row('2026-10-05T08:10:00-04:00', 193.55, 12649)]}
+    active = batch.segment('SMTC', 'pre', instant('2026-10-05T04:00:00-04:00'), instant('2026-10-05T09:30:00-04:00'), now)
+    assert active['status'] == '可用（SIP 延迟约 21 分钟）'

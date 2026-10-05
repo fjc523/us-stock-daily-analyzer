@@ -317,7 +317,7 @@ class ExtendedMinuteBatch:
                 ended = cutoff >= end
                 limit = 45 * 60 if 'feed=sip' in chosen.get('source', '') else 30 * 60
                 if not ended and age > limit: chosen['status'] = '过期'
-                if chosen['status'] == '可用' and 'feed=sip' in chosen.get('source', ''):
+                if not ended and chosen['status'] == '可用' and 'feed=sip' in chosen.get('source', ''):
                     chosen['status'] = f'可用（SIP 延迟约 {round(max(0, age) / 60)} 分钟）'
                 if ended: chosen['warning'] = '；'.join(filter(None, [chosen.get('warning'), '已结束时段，仅参考']))
             # SIP拆股调整日线成交量与当前原始分钟量使用当前股数单位。

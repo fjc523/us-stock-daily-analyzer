@@ -1002,8 +1002,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
         result = latest_by_symbol.get(row['symbol']) or {}
         row['macro_review'] = macro_review_marks(result, followups)
         brief = []
-        major_count = sum(bool(article.get('major')) for article in (watches.get(row['symbol']) or {}).get('articles', [])
-                          if stamp(article.get('published_at')) and stamp(result.get('information_through')) < stamp(article['published_at']) <= now)
+        major_count = sum(bool(article.get('major')) for article in (row.get('news_watch') or {}).get('articles', []))
         if major_count: brief.append(f'重大消息 {major_count} 条·建议复跑')
         counts = {label: row['source_status'].get(key, 0) for label, key in (('失败', 'failed'), ('降级', 'degraded'), ('跳过', 'skipped'))}
         source_parts = [f'{label}{counts[label]}' for label in ('失败', '降级', '跳过') if counts.get(label)]

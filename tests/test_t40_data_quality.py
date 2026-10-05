@@ -258,7 +258,7 @@ def test_macro_nbsp_calendar_merge_three_times_and_counterexamples():
     assert rows[-1]['actual'] == '50.1' and rows[-1]['prior'] == '50.2'
 
 
-def test_report_brief_saved_major_count_and_details_preserve_content(tmp_path):
+def test_report_brief_classified_major_count_and_details_preserve_content(tmp_path):
     import json
     from bs4 import BeautifulSoup
     from daily_analyzer.site import render_home
@@ -277,8 +277,9 @@ def test_report_brief_saved_major_count_and_details_preserve_content(tmp_path):
     html = render_home(tmp_path, now=datetime.fromisoformat('2026-10-05T10:05:00-04:00'), grouped={'2026-10-05': [result]})
     soup = BeautifulSoup(html, 'html.parser')
     details = soup.select_one('[data-report-details]')
-    assert details.select_one('summary').get_text() == '重大消息 2 条·建议复跑 · 数据源 降级1'
-    assert 'source-degraded' in details.select_one('summary')['class']
+    assert details.select_one('summary').get_text() == '数据源 降级1'
+    assert 'source-degraded' not in details.select_one('summary').get('class', [])
+    assert details.select('[data-news-watch] p.source-degraded') == []
     assert details.select_one('[data-time-quality-summary]') and details.select_one('[data-news-watch]')
     assert '已纳入事件的跟进报道' in details.get_text()
 
