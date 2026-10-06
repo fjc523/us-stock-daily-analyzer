@@ -184,7 +184,7 @@ def test_matrix_spec_briefs_preserve_full_text_and_known_enum():
     assert rows[3]['text'].startswith('盘中触及（未规范） 184.86 → 降至0%并复评')
     buy = {'status': '待触发', 'confirm_days': 2, 'trigger_price': 201.99, 'preconditions': '前' * 35}
     rows = execution_matrix('Hold', 100, [buy], [])
-    assert rows[0]['text'].endswith('｜前提：' + '前' * 30 + '…')
+    assert rows[0]['text'].endswith('｜前提：' + '前' * 35)
     buy['status'] = '仅观察'
     assert '｜' not in execution_matrix('Hold', 100, [buy], [])[0]['text']
     excess = {'kind': '超配回落', 'trigger_rule': '进入区间受阻', 'zone_low': 201.99, 'zone_high': 204.9}

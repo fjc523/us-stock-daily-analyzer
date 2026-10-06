@@ -534,10 +534,10 @@ def test_missing_relative_values_are_not_zero_or_cross_symbol():
     assert row["strength"] == "不适用" and row["relative"]["20"]["text"] == "—"
 
 
-def test_summary_is_bounded_and_does_not_render_scripts():
+def test_summary_is_complete_and_does_not_render_scripts():
     from daily_analyzer.site import _advice_summary
-    assert _advice_summary("**Executive Summary**: 持有。\n\n**Risk**: 后续长报告") == "持有。"
-    assert len(_advice_summary("建议" * 100)) == 141
+    assert _advice_summary("**Executive Summary**: 持有。继续观察。\n\n**Risk**: 后续长报告") == "持有。继续观察。"
+    assert _advice_summary("建议" * 100) == "建议" * 100
     assert "alert" not in _advice_summary("<script>alert(1)</script>继续观察。")
 
 
@@ -663,7 +663,7 @@ def test_new_price_summary_keeps_full_anchor_and_legacy_format():
     result["trader_investment_plan"] = "**减仓点位**: 98–100 USD；依据支撑。"
     plans = _summary_row(result, None, "")["plans"]
     assert plans[0]["text"] == first
-    assert plans[1]["text"] == "不适用：缺少确认。"
+    assert plans[1]["text"] == "不适用：缺少确认。等待信号。"
     assert "98–100 USD" in plans[2]["text"]
 
 

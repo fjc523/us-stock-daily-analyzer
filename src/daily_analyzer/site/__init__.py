@@ -502,10 +502,7 @@ def _advice_summary(value: Any, limit: int = 140) -> str:
     text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", text, flags=re.IGNORECASE | re.DOTALL)
     text = unescape(re.sub(r"<[^>]+>", " ", str(_markdown(text))))
     text = re.sub(r"\s+", " ", text).strip()
-    sentence = re.search(r"^.*?[。！？](?=\s|[^。！？]|$)", text)
-    if sentence:
-        text = sentence.group(0)
-    return text[:limit].rstrip() + ("…" if len(text) > limit else "")
+    return text
 
 
 def _relative_metric(value: Any) -> dict[str, str]:

@@ -209,8 +209,7 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *,
         text = hint(text, items, 'buy_legs' if label in ('无仓', '低于目标') else 'reduce_legs')
         output.append({'label': label, 'text': text, 'full_text': text + '\n' + '\n'.join(details), 'tolerance_note': tolerance_note})
     def brief(value):
-        text = str(value)
-        return text[:30] + '…' if len(text) > 30 else text
+        return str(value)
     def rule(item):
         value = item.get('trigger_rule')
         if not value:
