@@ -51,6 +51,7 @@ BASE = _ENV.from_string(
 </div></header>
 <main>
   <div class="page-heading"><h1>{{ title }}</h1>{% if root_prefix %}<a class="button" href="{{ root_prefix }}index.html">自选首页</a>{% endif %}</div>
+  <p class="small muted" data-display-timezone>页面时刻均为北京时间（YYYY-MM-DD HH:MM:SS）；交易日、日线日期及市场时段保持原口径。</p>
   {{ body|safe }}
 </main>
 <footer>仅供个人研究参考，不构成投资建议。</footer>
@@ -68,11 +69,21 @@ BASE = _ENV.from_string(
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return Number(values.hour) * 60 + Number(values.minute);
   }
-  function prettyTime(value, zone) {
-    if (!value) return "未记录";
-    const instant = new Date(value);
-    if (Number.isNaN(instant.getTime())) return String(value);
-    return new Intl.DateTimeFormat("zh-CN", {timeZone:zone,month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(instant);
+  function prettyTime(value) {
+    if (value == null || value === "") return "—";
+    const text = String(value).trim();
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(text);
+    const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2})(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.exec(text);
+    if (!dateOnly && !match) return ["未提供","未核验","真实时段时间未知","来源时点未提供","—"].includes(text) ? text : "时间未核验";
+    const day = new Date((dateOnly ? text : match[1]) + "T00:00:00Z");
+    if (Number.isNaN(day.getTime()) || day.toISOString().slice(0,10) !== (dateOnly ? text : match[1])) return "时间未核验";
+    if (dateOnly) return text;
+    if (Number(match[2].slice(0,2)) > 23 || Number(match[2].slice(3)) > 59 || Number(match[3] || 0) > 59) return "时间未核验";
+    const instant = new Date(match[1] + "T" + match[2] + ":" + (match[3] || "00") + (match[4] || "") + match[5]);
+    if (Number.isNaN(instant.getTime())) return "时间未核验";
+    const parts = new Intl.DateTimeFormat("en-US", {timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(instant);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return values.year + "-" + values.month + "-" + values.day + " " + values.hour + ":" + values.minute + ":" + values.second;
   }
   function elapsed(started, now) {
     const start = new Date(started).getTime();
@@ -107,9 +118,9 @@ BASE = _ENV.from_string(
       const status = run.status;
       const progress = run.progress || {};
       const counts = String(progress.completed ?? run.completed ?? 0) + "/" + String(progress.total ?? run.total ?? 0);
-      const started = prettyTime(run.started_at, "Asia/Shanghai") + " 北京 / " + prettyTime(run.started_at, "America/New_York") + " 美东";
-      if (status === "running") return {kind:"running",title:"今日运行中 " + counts,detail:started + "；" + elapsed(run.started_at, now) + (run.estimated_finish_at ? "；预计完成 " + prettyTime(run.estimated_finish_at,"Asia/Shanghai") + " 北京 / " + prettyTime(run.estimated_finish_at,"America/New_York") + " 美东" : "")};
-      if (status === "completed") return {kind:"done",title:"今日已完成",detail:started + (run.finished_at ? "；结束 " + prettyTime(run.finished_at,"Asia/Shanghai") + " 北京 / " + prettyTime(run.finished_at,"America/New_York") + " 美东" : "")};
+      const started = prettyTime(run.started_at);
+      if (status === "running") return {kind:"running",title:"今日运行中 " + counts,detail:started + "；" + elapsed(run.started_at, now) + (run.estimated_finish_at ? "；预计完成 " + prettyTime(run.estimated_finish_at) : "")};
+      if (status === "completed") return {kind:"done",title:"今日已完成",detail:started + (run.finished_at ? "；结束 " + prettyTime(run.finished_at) : "")};
       if (status === "partial") return {kind:"failed",title:"今日部分失败",detail:errorSummary(run.last_error) || "部分标的未完成"};
       if (status === "failed" || status === "interrupted") {
         const error = errorSummary(run.last_error) || (status === "interrupted" ? "运行中断" : "运行失败");
@@ -129,6 +140,7 @@ BASE = _ENV.from_string(
     return {kind:"pending",title:"今日尚未运行",detail:detail};
   }
   global.dailyAnalyzerBannerState = bannerState;
+  global.dailyAnalyzerPrettyTime = prettyTime;
   if (!global.document) return;
   const banner = global.document.getElementById("status-banner");
   if (banner) {
@@ -140,7 +152,7 @@ BASE = _ENV.from_string(
     const eventLine = banner.querySelector("p[data-role=event]");
     if (event && event.result && eventLine) {
       const labels = {started:"开始运行",recovery_started:"恢复运行",skipped_not_trading_day:"非交易日，跳过",skipped_before_anchor:"未到锚点，跳过",skipped_after_close:"已收盘，跳过",skipped_already_done:"今日已运行，跳过"};
-      eventLine.textContent = prettyTime(event.at,"Asia/Shanghai") + " 调度：" + (labels[event.result] || event.result || "已记录") + (event.reason ? "（"+event.reason+"）" : "");
+      eventLine.textContent = prettyTime(event.at) + " 调度：" + (labels[event.result] || event.result || "已记录") + (event.reason ? "（"+event.reason+"）" : "");
     }
   }
   const byDate = site.index || [];
@@ -339,7 +351,7 @@ BASE = _ENV.from_string(
         fillEfforts(value.llm[role].reasoning_effort);
         modelSelect.onchange=()=>fillEfforts(settingsForm.elements[role+"_effort"].value);
       });
-      global.document.getElementById("model-source").textContent=value.source+"；更新时间 "+(value.updated_at||"未提供");
+      global.document.getElementById("model-source").textContent=value.source+"；更新时间 "+prettyTime(value.updated_at);
       settingsForm.elements.parallel.value=value.run.max_parallel_tickers;
       settingsForm.elements.calls.value=value.llm.max_concurrent_calls;
       settingsMessage.textContent="";settingsForm.querySelector("button[type=submit]").disabled=false;

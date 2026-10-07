@@ -752,7 +752,7 @@ def test_analysis_price_with_source_time_and_independent_benchmark():
     _analysis_fixture(result, price=357.13, close=None)
     row = _summary_row(result, None, "")
     assert row["premarket_price"] == "357.13 美元" and row["premarket"] == "—"
-    assert "Alpaca feed=iex" in row["premarket_title"] and "08:31:00 美东" in row["quote_time"]
+    assert "Alpaca feed=iex" in row["premarket_title"] and "2026-10-02 20:31:00" in row["quote_time"]
     assert "P收盘基准未核验" in row["premarket_title"]
 
 
@@ -773,7 +773,7 @@ def test_report_status_shows_start_clock_after_date(tmp_path):
     result["_date"] = "2026-10-02"
     result["started_at"] = "2026-10-02T08:31:02-04:00"
     row = _summary_row(result, None, "")
-    assert row["start_clock"] == "开始 20:31 北京 / 08:31 美东"
+    assert row["start_clock"] == "开始 2026-10-02 20:31:02"
     result.pop("started_at")
     assert _summary_row(result, None, "")["start_clock"] == ""
 
@@ -790,8 +790,8 @@ def test_home_row_renders_premarket_price_and_start_clock(tmp_path):
     _write_json(path, result)
     table = render_home(tmp_path).split('aria-label="自选建议与相对基准强弱"')[1].split("</table>")[0]
     assert '<span class="premarket-price">101.00 美元</span>+1.00%' in table
-    assert "2026-10-01 报告 · 开始 20:31 北京 / 08:31 美东" in table
-    assert "分析时价格" in table and "08:29:00 美东" in table and "相对P收盘" in table
+    assert "2026-10-01 报告 · 开始 2026-10-01 20:31:00" in table
+    assert "分析时价格" in table and "2026-10-01 20:29:00" in table and "相对P收盘" in table
 
 
 @pytest.mark.parametrize("verified", [False, True])
@@ -809,7 +809,7 @@ def test_price_cell_wraps_reason_and_time_in_home_and_overview(tmp_path, verifie
     for html in (render_home(tmp_path, managed=True), (tmp_path / "site/days/2026-10-01/index.html").read_text()):
         cell = re.search(r'<td class="number analysis-price"[^>]*>(.*?)</td>', html, re.S).group(1)
         if verified:
-            assert "101.00 美元" in cell and "08:29:00 美东" in cell
+            assert "101.00 美元" in cell and "2026-10-01 20:29:00" in cell
             assert "quote-reason" not in cell
         else:
             assert '<span class="small muted quote-reason">真实行情时间未核验（旧报告）</span>' in cell

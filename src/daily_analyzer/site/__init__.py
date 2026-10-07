@@ -11,6 +11,7 @@ import uuid
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, timedelta, timezone
 from html import escape, unescape
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -78,7 +79,7 @@ def _markdown(value: Any) -> Markup:
     if value is None or value == "":
         return Markup("<p class=\"muted\">暂无内容。</p>")
     # 提供器的表格可能紧接元数据说明，Markdown 表格需要空行分隔。
-    text = re.sub(r"(?<=\S)\n(?=\|[^\n]+\|\n\|[-:| ]+\|)", "\n\n", str(value))
+    text = re.sub(r"(?<=\S)\n(?=\|[^\n]+\|\n\|[-:| ]+\|)", "\n\n", _context_time_display(str(value)))
     text = re.sub(
         r"(?m)^\*\*Action\*\*\s*[:：]\s*(Buy|Overweight|Hold|Underweight|Sell)\b",
         lambda match: f"**动作**: {_RATING[match[1].upper()][0]}（{match[1]}）", text,
@@ -194,7 +195,7 @@ def _rows(value: Any, kind: str) -> list[dict[str, str]]:
                     "actual": _display(_first(item, ("actual", "value"))),
                     "expected": _display(_first(item, ("expected", "estimate", "consensus"))),
                     "prior": _display(_first(item, ("prior", "previous", "prior_value", "prior_revised"))),
-                    "published_at": _display(_first(item, ("published_at", "release_time", "time", "created_at"))),
+                    "published_at": _pretty_timestamp(_first(item, ("published_at", "release_time", "time", "created_at"))),
                 }
             )
         else:
@@ -245,18 +246,129 @@ def _rating(result: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def _pretty_timestamp(value: Any) -> str:
+    """只换算有明确时区的时刻；日期不补时分秒。"""
     if value is None or value == "":
         return "—"
-    text = str(value)
+    text = str(value).strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        try:
+            return date.fromisoformat(text).isoformat()
+        except ValueError:
+            return "时间未核验"
+    offset = re.search(r"[+-](\d{2}):(\d{2})$", text)
+    if offset and (int(offset[1]) >= 24 or int(offset[2]) >= 60):
+        return "时间未核验"
     try:
         instant = datetime.fromisoformat(text.replace("Z", "+00:00"))
         if instant.tzinfo is None:
-            return text
-        beijing = instant.astimezone(_BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S")
-        new_york = instant.astimezone(ZoneInfo(_MARKET_TZ)).strftime("%Y-%m-%d %H:%M:%S")
-        return f"{beijing} 北京 / {new_york} 美东"
+            return "时间未核验"
+        return instant.astimezone(_BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S")
     except (ValueError, OverflowError):
-        return text
+        return text if text in {"未提供", "未核验", "真实时段时间未知", "来源时点未提供", "—"} else "时间未核验"
+
+
+# 仅识别完整日期时刻，不能命中价格、日期字段或更长标识的局部。
+_DISPLAY_TIMESTAMP = re.compile(
+    r"(?<![A-Za-z0-9_/])\d{4}-\d{2}-\d{2}(?:T|(?P<space> ))\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?"
+    r"(?(space)(?:Z|[+-]\d{2}:\d{2})|(?:Z|[+-]\d{2}:\d{2})?)(?![A-Za-z0-9_:+-])"
+)
+
+
+_ET_TIMESTAMP = re.compile(
+    r"(?<![A-Za-z0-9_/–—-])\d{4}-\d{2}-\d{2} "
+    r"\d{2}:\d{2}(?::\d{2})? ET(?![A-Za-z0-9_])"
+)
+
+
+def _et_display(value: str) -> str:
+    """ET 完整日期依纽约时区换算；缩写日期不能补造年份。"""
+    text = value.removesuffix(" ET")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?", text):
+        return "时间未核验"
+    try:
+        instant = datetime.fromisoformat(text).replace(tzinfo=ZoneInfo(_MARKET_TZ))
+        return _pretty_timestamp(instant)
+    except ValueError:
+        return "时间未核验"
+
+
+def _context_time_display(text: str) -> str:
+    """只投影提供器明确标为 ET 的压缩时间段，不改模型原文。"""
+    news_compact = False
+    calendar_time_column = False
+    lines = []
+    for line in text.splitlines():
+        if line == "新闻及当日发布时刻均为ET，当日仅列时分秒，其他日期列月日时刻。":
+            news_compact = True
+            line = "保存的新闻时刻缺少完整日期，显示时间未核验。"
+        elif line.startswith("重要度：高=HIGH、中=MEDIUM；时间为ET，"):
+            line = "重要度：高=HIGH、中=MEDIUM；完整日期时刻统一北京时间，省略日期的时刻未核验。事件均为美国。"
+        elif line.startswith("### "):
+            news_compact = False
+            calendar_time_column = False
+        if line.startswith("|发布时间ET|"):
+            calendar_time_column = True
+            line = line.replace("|发布时间ET|", "|发布时间（北京时间）|", 1)
+        elif calendar_time_column and line.startswith("|"):
+            cells = line.split("|")
+            if re.fullmatch(r"(?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?|\d{2}:\d{2}(?::\d{2})?|↳", cells[1]):
+                cells[1] = _et_display(cells[1] + " ET")
+                line = "|".join(cells)
+        if news_compact:
+            line = re.sub(r"(?<=截至 )(?:\d{2}-\d{2} )?\d{2}:\d{2}:\d{2} ET", "时间未核验", line)
+            line = re.sub(r"^(- )(?:\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}(?=[:：])", r"\1时间未核验", line)
+        lines.append(line)
+    return "\n".join(lines)
+
+
+class _BeijingDisplay(HTMLParser):
+    """转换已渲染正文的时刻文本，原样保留链接与 HTML 属性。"""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.fragments: list[str] = []
+        self.code_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        self.fragments.append(self.get_starttag_text())
+        if tag in {"pre", "code"}:
+            self.code_depth += 1
+
+    def handle_startendtag(self, tag, attrs):
+        self.fragments.append(self.get_starttag_text())
+
+    def handle_endtag(self, tag):
+        self.fragments.append(f"</{tag}>")
+        if tag in {"pre", "code"}:
+            self.code_depth -= 1
+
+    def handle_data(self, data):
+        # 单独的时间字面量仍是展示；真实代码、URL 内容不作改写。
+        if not self.code_depth or _DISPLAY_TIMESTAMP.fullmatch(data.strip()) or _ET_TIMESTAMP.fullmatch(data.strip()):
+            def replace(match):
+                prefix = data[:match.start()]
+                if re.search(r"(?:https?://|mailto:)\S*$", prefix):
+                    return match[0]
+                return _pretty_timestamp(match[0])
+            data = _DISPLAY_TIMESTAMP.sub(replace, data)
+            data = _ET_TIMESTAMP.sub(lambda match: _et_display(match[0]), data)
+        self.fragments.append(data)
+
+    def handle_entityref(self, name):
+        self.fragments.append(f"&{name};")
+
+    def handle_charref(self, name):
+        self.fragments.append(f"&#{name};")
+
+    def handle_comment(self, data):
+        self.fragments.append(f"<!--{data}-->")
+
+
+def _beijing_display(body: Markup) -> Markup:
+    display = _BeijingDisplay()
+    display.feed(str(body))
+    display.close()
+    return Markup("".join(display.fragments))
 
 
 def _status(result: Mapping[str, Any]) -> str:
@@ -461,16 +573,8 @@ def _summary_premarket(result: Mapping[str, Any]) -> dict[str, str]:
 
 
 def _start_clock(value: Any) -> str:
-    """开始分析时间只取时分，沿用北京/美东双时区。"""
-    try:
-        instant = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except (TypeError, ValueError):
-        return ""
-    if instant.tzinfo is None:
-        return ""
-    beijing = instant.astimezone(_BEIJING_TZ).strftime("%H:%M")
-    new_york = instant.astimezone(ZoneInfo(_MARKET_TZ)).strftime("%H:%M")
-    return f"开始 {beijing} 北京 / {new_york} 美东"
+    """开始分析时刻沿用统一的北京时间展示。"""
+    return "开始 " + _pretty_timestamp(value) if value else ""
 
 
 def _summary_sector_rank(result: Mapping[str, Any]) -> Any:
@@ -911,7 +1015,7 @@ def _page(
 ) -> str:
     return BASE.render(
         title=title,
-        body=body,
+        body=_beijing_display(body),
         managed=managed,
         root_prefix=root_prefix,
         ui_data={
