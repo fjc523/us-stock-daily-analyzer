@@ -33,7 +33,7 @@ def write_request(batch_dir, request):
 
 
 STOP_MESSAGES = {
-    'skipped_quota': 'Codex额度已用尽，本批已停止派发',
+    'skipped_quota': '本批此前Codex调用遇到额度限制，已停止派发；这不是当前额度检测，请再次点击尝试恢复',
     'skipped_fatal': 'Codex配置错误，本批已停止派发',
     'skipped_timeout': '批次已达到最长运行时间',
 }

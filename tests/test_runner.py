@@ -1281,3 +1281,108 @@ def test_optional_snapshot_and_memory_failure_do_not_fail_batch(tmp_path,monkeyp
     assert current['data_limitations']==['决策记忆更新失败']
     assert current['consistency_input_status']=='unavailable: OSError'
     assert any('决策记忆更新失败' in path.read_text() for path in (root/'logs').glob('*.log'))
+
+
+@pytest.mark.parametrize('still_quota', [False, True])
+@pytest.mark.parametrize('old_request_first', [False, True])
+def test_explicit_quota_recovery_dispatches_only_new_selection(tmp_path, monkeypatch, still_quota, old_request_first):
+    """实际派发验证恢复或仍 quota，旧 pending 不随恢复运行，历史结果不覆盖。"""
+    import daily_analyzer.runner as runner
+    from daily_analyzer.manual_analysis import AnalysisLauncher, AnalysisBusyError
+    from daily_analyzer.storage import read_json
+    from tradingagents.llm_clients.codex_exec.errors import CodexQuotaError
+    monkeypatch.setattr(runner, '_codex_version', lambda _: 'test')
+    monkeypatch.setattr(runner, '_fork_state', lambda _: {})
+    root = _project(tmp_path, symbols=('NVDA', 'QQQ', 'TSLA', 'IWM', 'SPY', 'DIA'))
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    launcher = AnalysisLauncher(root, clock=lambda: now,
+        popen=lambda *a, **kw: pytest.fail('运行锁持有时不得启动第二批'))
+    second_started = threading.Event()
+    requested = []
+    old_result = []
+    class RecoveryGraph(_FakeGraph):
+        def propagate(self, *args, **kwargs):
+            if self.item.symbol == 'NVDA':
+                self.analyzed.append('NVDA')
+                raise CodexQuotaError('旧额度失败')
+            if self.item.symbol == 'QQQ':
+                assert second_started.wait(5)
+            if self.item.symbol == 'SPY':
+                second_started.set()
+                if still_quota:
+                    self.analyzed.append('SPY')
+                    raise CodexQuotaError('本次调用额度仍受限')
+            return super().propagate(*args, **kwargs)
+    def build(root, **kwargs):
+        directory = next((root / 'data/runs/2026-10-02/batches').iterdir())
+        batch = read_json(directory / 'batch.json')
+        if batch.get('append_stop_reason') == 'skipped_quota' and not requested:
+            old_result.append((directory / 'results/NVDA.json').read_bytes())
+            with pytest.raises(AnalysisBusyError, match='不是当前额度检测'):
+                launcher.start('NVDA')
+            with pytest.raises(AnalysisBusyError, match='已包含'):
+                launcher.start('QQQ')
+            from daily_analyzer.append_requests import append_lock, write_request
+            def old_request():
+                with append_lock(directory):
+                    write_request(directory, {'request_id': 'old-schema', 'symbol': 'DIA', 'trade_date': '2026-10-02'})
+            if old_request_first:
+                old_request()
+            requested.append(launcher.start('SPY'))
+            if not old_request_first:
+                old_request()
+        return {'ok': True}
+    manager = _ContextManager()
+    manager.extend = lambda _: None
+    _FakeGraph.errors_by_symbol = {}; _FakeGraph.fail_symbols = set()
+    result = _run(root, clock=lambda: now, tickers='NVDA,QQQ,TSLA,IWM',
+                  context_manager=manager, analyzer_factory=RecoveryGraph, site_builder=build)
+    directory = root / 'data/runs/2026-10-02/batches' / result.run_id
+    batch = read_json(directory / 'batch.json')
+    assert len(requested) == 1
+    assert any(row['request_id'] == 'old-schema' and '不是当前额度检测' in row['reason'] for row in batch['append_rejections'])
+    assert 'DIA' not in batch['items']
+    assert set(_FakeGraph.analyzed) == {'NVDA', 'QQQ', 'SPY'}
+    assert len(_FakeGraph.analyzed) == 3
+    assert batch['items']['SPY']['status'] == ('failed' if still_quota else 'success')
+    assert batch['items']['TSLA']['status'] == batch['items']['IWM']['status'] == 'skipped_quota'
+    assert read_json(directory / 'results/TSLA.json')['status'] == 'skipped_quota'
+    assert (directory / 'results/NVDA.json').read_bytes() == old_result[0]
+    assert batch.get('append_stop_reason') == ('skipped_quota' if still_quota else None)
+    assert read_json(directory / 'context.json')['batch']['data'] == {'market': '稳定'}
+
+
+def test_click_before_quota_requires_another_explicit_click(tmp_path, monkeypatch):
+    """点击后尚未消费就出现 quota 时，不把普通点击自动解释为恢复。"""
+    import daily_analyzer.runner as runner
+    from daily_analyzer.manual_analysis import AnalysisLauncher
+    from daily_analyzer.append_requests import read_requests
+    from daily_analyzer.storage import read_json
+    from tradingagents.llm_clients.codex_exec.errors import CodexQuotaError
+    monkeypatch.setattr(runner, '_codex_version', lambda _: 'test')
+    monkeypatch.setattr(runner, '_fork_state', lambda _: {})
+    root = _project(tmp_path)
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    launcher = AnalysisLauncher(root, clock=lambda: now)
+    original_wait = runner.wait
+    clicked = []
+    def wait(*args, **kwargs):
+        done = original_wait(*args, **kwargs)
+        if not clicked:
+            clicked.append(launcher.start('SPY'))
+            directory = next((root / 'data/runs/2026-10-02/batches').iterdir())
+            assert read_requests(directory)[0][0]['retry_quota'] is False
+        return done
+    monkeypatch.setattr(runner, 'wait', wait)
+    class QuotaGraph(_FakeGraph):
+        def propagate(self, *args, **kwargs):
+            self.analyzed.append(self.item.symbol)
+            raise CodexQuotaError('实际额度失败')
+    _FakeGraph.errors_by_symbol = {}; _FakeGraph.fail_symbols = set()
+    result = _run(root, clock=lambda: now, tickers='NVDA', analyzer_factory=QuotaGraph)
+    directory = root / 'data/runs/2026-10-02/batches' / result.run_id
+    batch = read_json(directory / 'batch.json')
+    assert _FakeGraph.analyzed == ['NVDA']
+    assert 'SPY' not in batch['items']
+    assert len(batch['append_rejections']) == 1
+    assert '再次点击尝试恢复' in batch['append_rejections'][0]['reason']

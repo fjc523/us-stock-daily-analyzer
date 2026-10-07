@@ -386,7 +386,7 @@ def test_progress_no_history_and_other_config_reference(tmp_path):
 
 
 @pytest.mark.parametrize('accepting,stop,reason', [(False,None,'正在收尾'), (None,None,'旧批次'),
-                                                  (True,'skipped_quota','额度'), (True,'skipped_fatal','配置错误'),
+                                                  (True,'skipped_fatal','配置错误'),
                                                   (True,'skipped_timeout','最长运行时间')])
 def test_busy_append_reasons(tmp_path, accepting, stop, reason):
     root = project(tmp_path)
@@ -422,6 +422,7 @@ def test_busy_http_append_all_only_missing_and_no_batch_write(tmp_path):
             assert set(value['active_symbols']) == {'NVDA','QQQ'}
             assert value['items']['QQQ']['stage'] == '排队中'
             assert [row['symbol'] for row in read_requests(directory)[0]] == ['QQQ']
+            assert read_requests(directory)[0][0]['retry_quota'] is False
             assert (directory / 'batch.json').read_bytes() == original
             assert request(f'http://127.0.0.1:{server.server_port}/api/analysis', {'scope':'all'})[0] == 409
     finally:
@@ -444,3 +445,52 @@ def test_viewer_starts_and_stops_news_watcher(tmp_path, monkeypatch):
     monkeypatch.setattr(viewer,'create_server',lambda _:Server())
     viewer.serve(tmp_path)
     assert events==['启动','停止']
+
+
+@pytest.mark.parametrize('status', ['failed', 'skipped_quota', 'running', 'success'])
+def test_quota_history_dedup_and_explicit_followup(tmp_path, status):
+    """旧状态不是额度探针，同批保留原记录，结束后显式请求可开新批。"""
+    from daily_analyzer.append_requests import read_requests
+    root = project(tmp_path)
+    directory = root / 'data/runs/2026-10-02/batches/test'
+    batch = {'run_id': 'test', 'trade_date': '2026-10-02', 'status': 'running',
+             'accepting_appends': True, 'append_stop_reason': 'skipped_quota',
+             'items': {'NVDA': {'symbol': 'NVDA', 'status': status}}}
+    atomic_write_json(directory / 'batch.json', batch)
+    atomic_write_json(root / 'data/status.json', {'last_run': {'trade_date': '2026-10-02', 'run_id': 'test'}})
+    calls = []
+    launcher = AnalysisLauncher(root, clock=lambda: datetime(2026, 10, 2, 10, tzinfo=NEW_YORK),
+        popen=lambda *a, **kw: calls.append(a[0]) or SimpleNamespace(poll=lambda: None))
+    original = (directory / 'batch.json').read_bytes()
+    with run_lock(root):
+        expected = '不是当前额度检测' if status in {'failed', 'skipped_quota'} else '已包含'
+        with pytest.raises(AnalysisBusyError, match=expected):
+            launcher.start('NVDA')
+        assert not calls and not read_requests(directory)[0]
+    launcher.start('NVDA')
+    assert len(calls) == 1
+    assert (directory / 'batch.json').read_bytes() == original
+
+
+def test_quota_explicit_append_only_writes_request_and_closing_blocks_launch(tmp_path):
+    """quota 恢复意图只写追加通道，收尾持锁期间不会另开批次。"""
+    from daily_analyzer.append_requests import read_requests
+    root = project(tmp_path)
+    directory = root / 'data/runs/2026-10-02/batches/test'
+    batch = {'run_id': 'test', 'trade_date': '2026-10-02', 'status': 'running',
+             'accepting_appends': True, 'append_stop_reason': 'skipped_quota', 'items': {}}
+    atomic_write_json(directory / 'batch.json', batch)
+    atomic_write_json(root / 'data/status.json', {'last_run': {'trade_date': '2026-10-02', 'run_id': 'test'}})
+    calls = []
+    launcher = AnalysisLauncher(root, clock=lambda: datetime(2026, 10, 2, 10, tzinfo=NEW_YORK),
+        popen=lambda *a, **kw: calls.append(a) or SimpleNamespace(poll=lambda: None))
+    original = (directory / 'batch.json').read_bytes()
+    with run_lock(root):
+        assert '实际调用' in launcher.start('NVDA')['message']
+        assert read_requests(directory)[0][0]['retry_quota'] is True
+        assert (directory / 'batch.json').read_bytes() == original
+        batch['accepting_appends'] = False
+        atomic_write_json(directory / 'batch.json', batch)
+        with pytest.raises(AnalysisBusyError, match='收尾'):
+            launcher.start('NVDA')
+        assert calls == []

@@ -138,8 +138,9 @@ class AnalysisLauncher:
                 raise AnalysisBusyError("旧批次不支持追加，请等完成后再试")
             if not batch["accepting_appends"] or batch.get("status") != "running":
                 raise AnalysisBusyError("本批正在收尾，请等完成后重新点击")
-            if batch.get("append_stop_reason"):
-                raise AnalysisBusyError(STOP_MESSAGES[batch["append_stop_reason"]])
+            stop_reason = batch.get("append_stop_reason")
+            if stop_reason and stop_reason != "skipped_quota":
+                raise AnalysisBusyError(STOP_MESSAGES[stop_reason])
             if batch["trade_date"] != trade_date.isoformat():
                 raise AnalysisBusyError("点击日期与当前批次交易日不同，请等待本批结束")
             requests, _ = read_requests(batch_dir)
@@ -148,12 +149,15 @@ class AnalysisLauncher:
             included.update(row["symbol"] for row in requests if row["request_id"] not in rejected)
             missing = [symbol for symbol in symbols if symbol not in included]
             if not missing:
+                previous = [row for row in batch["items"].values() if row["symbol"] in symbols]
+                if any(row.get("status") == "failed" or str(row.get("status", "")).startswith("skipped") for row in previous):
+                    raise AnalysisBusyError("本批已有所选标的的失败或未派发记录；这不是当前额度检测，请等本批结束后重新点击重试")
                 raise AnalysisBusyError("本批已包含全部所选订阅，无需重复追加")
             for symbol in missing:
                 write_request(batch_dir, {"request_id": uuid.uuid4().hex, "symbol": symbol,
-                    "trade_date": trade_date.isoformat(), "clicked_at": now.isoformat()})
+                    "trade_date": trade_date.isoformat(), "clicked_at": now.isoformat(), "retry_quota": stop_reason == "skipped_quota"})
         result = self._snapshot()
-        result["message"] = "已加入当前批次"
+        result["message"] = "已请求尝试恢复派发；是否恢复以本次实际调用结果为准" if stop_reason == "skipped_quota" else "已加入当前批次"
         return result
 
     def snapshot(self) -> dict:

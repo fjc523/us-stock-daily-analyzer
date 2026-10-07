@@ -1264,6 +1264,7 @@ def run_analysis(
 
             build_lock = threading.Lock()
             pending = deque(items)
+            quota_pending = deque()
             futures: dict[Future, Any] = {}
             stop_reason: str | None = None
             fatal_seen = False
@@ -1273,15 +1274,19 @@ def run_analysis(
             append_seeds = {}
 
             def receive_appends():
-                nonlocal append_offset
+                nonlocal append_offset, stop_reason
                 accepted = []
                 with append_lock(batch_dir):
                     requests, append_offset = read_requests(batch_dir, append_offset)
                     enabled = {item.symbol: item for item in load_watchlist(root).active_items} if requests else {}
+                    quota_stopped = stop_reason == "skipped_quota"
                     for request in requests:
                         symbol = request.get("symbol")
                         slug = symbol_slug(symbol)
-                        reason = STOP_MESSAGES.get(stop_reason)
+                        resume_quota = stop_reason == "skipped_quota" and request.get("retry_quota") is True
+                        reason = None if resume_quota else STOP_MESSAGES.get(stop_reason)
+                        if quota_stopped and request.get("retry_quota") is not True:
+                            reason = STOP_MESSAGES["skipped_quota"]
                         if reason is None and monotonic() - run_started_mono >= settings.run.max_duration_minutes * 60:
                             reason = STOP_MESSAGES["skipped_timeout"]
                         if reason is None and request.get("trade_date") != batch["trade_date"]:
@@ -1293,6 +1298,14 @@ def run_analysis(
                         if reason:
                             batch["append_rejections"].append({**request, "reason": reason})
                             continue
+                        if resume_quota:
+                            # 仅派发用户本次显式选择，旧队列仍按原 quota 原因结束。
+                            quota_pending.extend(pending)
+                            for old_item in pending:
+                                batch["items"][symbol_slug(old_item.symbol)]["status"] = "skipped_quota"
+                            pending.clear()
+                            stop_reason = None
+                            batch.pop("append_stop_reason", None)
                         item = enabled[symbol]
                         batch["items"][slug] = {"symbol": symbol, "status": "pending", "source": "append",
                             "appended_at": _clock_now(clock).isoformat(), "request_id": request["request_id"]}
@@ -1415,21 +1428,23 @@ def run_analysis(
                             + (f"；{outcome.result.get('error')}" if outcome.result.get("error") else ""),
                         )
 
-            for item in list(pending):
+            remaining = [(item, "skipped_quota") for item in quota_pending]
+            remaining.extend((item, stop_reason) for item in pending)
+            for item, item_stop_reason in remaining:
                 reason = {
                     "skipped_quota": "Codex 额度已达到上限，未派发此标的",
                     "skipped_fatal": "Codex 配置错误后停止派发",
                     "skipped_timeout": "批次达到最长运行时间，未派发此标的",
-                }.get(stop_reason or "", "未派发")
+                }.get(item_stop_reason or "", "未派发")
                 result = _write_skipped_result(
                     item=item,
                     run_id=run_id,
                     window=window,
-                    status=stop_reason or "skipped",
+                    status=item_stop_reason or "skipped",
                     reason=reason,
                     batch_dir=batch_dir,
                 )
-                outcome = AttemptOutcome(item, result, stop_reason, False)
+                outcome = AttemptOutcome(item, result, item_stop_reason, False)
                 current_now = _clock_now(clock)
                 _record_attempt(
                     root=root,
