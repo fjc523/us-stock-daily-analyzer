@@ -10,6 +10,7 @@ import pytest
 
 def project(root):
     (root/'config').mkdir()
+    atomic_write_json(root/'data/tradingagents/cache/sec_edgar/company_tickers.json', {'0': {'ticker':'TSLA', 'title':'Tesla Inc.'}})
     (root/'config/watchlist.yaml').write_text('items:\n  - symbol: TSLA\n    type: stock\n  - symbol: SPY\n    type: etf\n')
     for symbol, cutoff in [('TSLA','2026-10-02T09:00:17-04:00'),('SPY','2026-10-02T09:05:00-04:00')]:
         atomic_write_json(root/f'data/runs/2026-10-02/current/{symbol}.json',
@@ -82,3 +83,37 @@ def test_failed_fetch_preserves_previous_hint(tmp_path):
         def news(self,*args,**kwargs): raise RuntimeError('查询失败')
     with pytest.raises(RuntimeError): check_news(root,now=datetime(2026,10,2,10,tzinfo=NEW_YORK),source=Failed())
     assert path.read_bytes()==previous
+
+
+@pytest.mark.parametrize('title,summary,names,expected', [
+    ('Tesla Q3 deliveries beat estimates','',['TSLA','Tesla'],True),
+    ('Goldman raises Tesla price target to $500','',['TSLA','Tesla'],True),
+    ('Semtech announces acquisition of a company','',['SMTC','Semtech'],True),
+    ('Tesla discussed. SpaceX price target rises','',['TSLA','Tesla'],False),
+    ('Tesla discussed — SpaceX deliveries rise','',['TSLA','Tesla'],False),
+    ('Tesla discussed','SpaceX price target rises',['TSLA','Tesla'],False),
+    ('TeslaCorp deliveries rise','',['TSLA','Tesla'],False),
+    ('TSLA earnings beat estimates','',['TSLA'],True),
+])
+def test_t47_stock_sentence_binding(title, summary, names, expected):
+    assert bool(is_major({'headline':title,'summary':summary},names)) is expected
+
+
+def test_t47_cache_missing_only_code_and_etf_unchanged(tmp_path):
+    from daily_analyzer.news_watch import _company_names
+    assert _company_names(tmp_path,'TSLA') == ['TSLA']
+    assert is_major({'headline':'SpaceX price target rises'}) is True
+
+
+def test_t47_real_cramer_snapshot():
+    # 10-08 Alpaca存档原始标题/摘要，未读取Benzinga全文。
+    row = {'headline':'Elon Musk’s SpaceX Could Pay Off for Investors Before Tesla Ever Did, Says Jim Cramer — Top Investment Bank Sees Over 37% Upside for SPCX Investors (UPDATED)',
+           'summary':'Jim Cramer praised SpaceX as a real, profitable business, citing AI compute deals and Goldman Sachs’ $230 price target.'}
+    assert not is_major(row, ['TSLA','Tesla'])
+
+
+def test_t47_unreadable_company_cache_uses_code(tmp_path):
+    from daily_analyzer.news_watch import _company_names
+    path=tmp_path/'data/tradingagents/cache/sec_edgar/company_tickers.json'
+    path.parent.mkdir(parents=True);path.write_text('{invalid')
+    assert _company_names(tmp_path,'TSLA')==['TSLA']

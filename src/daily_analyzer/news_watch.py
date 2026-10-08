@@ -21,8 +21,30 @@ MAJOR_KEYWORDS = (
 _MAJOR = re.compile('|'.join(MAJOR_KEYWORDS), re.IGNORECASE)
 
 
-def is_major(article):
-    return bool(_MAJOR.search(str(article.get('headline', '')) + ' ' + str(article.get('summary', ''))))
+def is_major(article, names=None):
+    """个股须在同一句绑定标的；未传名称的ETF/指数沿用全文词表。"""
+    texts = [str(article.get(key, '')) for key in ('headline', 'summary')]
+    if names is None:
+        return bool(_MAJOR.search(' '.join(texts)))
+    identity = re.compile('|'.join(r'\b' + re.escape(name) + r'\b' for name in names if name), re.IGNORECASE)
+    return any(_MAJOR.search(sentence) and identity.search(sentence)
+               for text in texts for sentence in re.split(r'[。；;!?]|\.\s+| — ', text))
+
+
+def _company_names(root, symbol):
+    """仅读既有公司名缓存；缓存缺失时仅按代码绑定。"""
+    names = [symbol]
+    try:
+        table = read_json(root / 'data/tradingagents/cache/sec_edgar/company_tickers.json', {})
+    except (OSError, ValueError):
+        return names
+    for entry in table.values() if isinstance(table, dict) else ():
+        if entry.get('ticker', '').upper() == symbol.upper():
+            title = re.sub(r'\s*,?\s*\b(?:Inc|Corp|Corporation|Co)\.?$', '', entry.get('title', ''), flags=re.IGNORECASE).strip()
+            if title:
+                names.append(title)
+            break
+    return names
 
 
 def _time(value):
@@ -43,7 +65,7 @@ def check_news(root, *, now=None, source=None):
         result = read_json(root / 'data/runs' / now.date().isoformat() / 'current' / f'{symbol_slug(item.symbol)}.json', {})
         cutoff = _time(result.get('information_through'))
         if result.get('status') == 'success' and cutoff and cutoff < now:
-            selected[item.symbol] = (item.analysis_symbol, result.get('run_id'), cutoff, result['information_through'])
+            selected[item.symbol] = (item.analysis_symbol, result.get('run_id'), cutoff, result['information_through'], _company_names(root, item.analysis_symbol) if item.type == 'stock' else None)
     if not selected: return None
     if source is None:
         credentials = load_credentials(root)
@@ -54,7 +76,7 @@ def check_news(root, *, now=None, source=None):
     with run_config({'alpaca_requests_per_minute':load_settings(root).alpaca.requests_per_minute}):
         response = source.news(list(dict.fromkeys(row[0] for row in selected.values())), min(row[2] for row in selected.values()), now, limit=None)
     rows = {}
-    for symbol, (proxy, run_id, cutoff, cutoff_text) in selected.items():
+    for symbol, (proxy, run_id, cutoff, cutoff_text, names) in selected.items():
         articles, seen = [], set()
         for article in response.get('articles', []):
             published = _time(article.get('created_at'))
@@ -63,7 +85,7 @@ def check_news(root, *, now=None, source=None):
             seen.add(key)
             articles.append({'title':article.get('headline',''), 'summary':article.get('summary',''),
                              'id': article.get('id'), 'symbols': article.get('symbols', []),
-                             'published_at':published.isoformat(), 'url':article.get('url',''), 'major':is_major(article)})
+                             'published_at':published.isoformat(), 'url':article.get('url',''), 'major':is_major(article, names)})
         rows[symbol] = {'run_id':run_id, 'information_through':cutoff_text, 'count':len(articles),
                         'major':any(row['major'] for row in articles), 'articles':articles}
     payload = {'checked_at':now.isoformat(), 'trade_date':now.date().isoformat(), 'source':'Alpaca',
