@@ -352,6 +352,17 @@ def _usage_for_ticker(path: Path, ticker: str | None = None) -> dict[str, Any]:
     return totals
 
 
+def final_state_result_fields(final_state, rating):
+    """生产与隔离影子结果共用最终决策字段，保持原字段语义。"""
+    return {
+        "final_rating": str(rating),
+        "rating_cn": _rating_cn(rating),
+        "final_trade_decision": final_state.get("final_trade_decision"),
+        "structured": {key: final_state.get("structured_" + key)
+                       for key in ("research_plan", "trader_proposal", "pm_decision")},
+    }
+
+
 def _failed_result(
     *,
     item: Any,
@@ -584,12 +595,9 @@ def _analyze_item(
                 portfolio_context=portfolio.render(graph.analysis_symbol) if portfolio else None,
             ),
             "target_session": _target_session(window.mode, started_at, window.trade_date),
-            "final_rating": str(rating),
-            "rating_cn": _rating_cn(rating),
-            "final_trade_decision": final_state.get("final_trade_decision"),
+            **final_state_result_fields(final_state, rating),
             "decision_plan_validity_trading_days": shared_config.get("decision_plan_validity_trading_days", 5),
             "decision_flags": final_state.get("decision_flags") or {},
-            "structured": {key: final_state.get("structured_" + key) for key in ("research_plan", "trader_proposal", "pm_decision")},
             "late_news": final_state.get("late_news", []),
             "late_news_errors": final_state.get("late_news_errors", []),
             "late_macro": final_state.get("late_macro", []),
@@ -1139,6 +1147,7 @@ def run_analysis(
                 if schedule_result == "recovery_started"
                 else "到达锚点，开始分析"
             )
+        planned_items = [item.symbol for item in items]
         current = _current_results(root, window.trade_date)
         if scheduled and schedule_result == "recovery_started":
             items = [item for item in items if not _is_success(current.get(symbol_slug(item.symbol)))]
@@ -1180,7 +1189,9 @@ def run_analysis(
         from tradingagents.graph.role_fallback import RoleBatchBreaker
         shared_config["_role_llm_breaker"] = RoleBatchBreaker()
         fork = _fork_state(root)
+        from daily_analyzer.evaluation.consistency import implementation_version
         batch = {
+            "implementation_version": implementation_version(),
             "schema_version": 1,
             "run_id": run_id,
             "pid": os.getpid(),
@@ -1207,6 +1218,7 @@ def run_analysis(
             },
             "codex_version": _codex_version(settings),
             **fork,
+            "planned_items": planned_items,
             "items": {
                 symbol_slug(item.symbol): {"symbol": item.symbol, "status": "pending"}
                 for item in items
@@ -1555,6 +1567,9 @@ def run_analysis(
                 get_shared_data_source().close_batch()
         finally:
             lock_context.__exit__(None, None, None)
+        if scheduled and batch is not None and batch.get('mode')=='live' and batch.get('status')=='completed':
+            from daily_analyzer.evaluation.ab_orchestrator import completed_batch_hook
+            completed_batch_hook(root,now=_clock_now(clock))
 
 
 def _close_appends(batch_dir, batch, offset):

@@ -414,6 +414,9 @@ def test_scheduled_recovery_marks_dead_running_batch_and_only_analyzes_missing_s
     assert recovered_batch["items"]["SPY"]["status"] == "interrupted"
     status = json.loads((root / "data" / "status.json").read_text(encoding="utf-8"))
     assert status["last_schedule_event"]["result"] == "recovery_started"
+    new_batch = json.loads(next(p for p in (day_dir / "batches").glob("*/batch.json") if p != old_batch).read_text())
+    assert new_batch["planned_items"] == ["NVDA", "SPY"]
+    assert list(new_batch["items"]) == ["SPY"]
 
 
 def test_scheduled_failed_fatal_batch_is_skipped_without_retry_or_context_start(

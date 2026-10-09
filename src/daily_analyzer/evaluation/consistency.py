@@ -19,8 +19,12 @@ INITIAL_FIELDS = ('company_of_interest', 'company_name', 'trade_date', 'asset_ty
 REQUIRED_FIELDS = ('company_of_interest', 'trade_date', 'asset_type', 'instrument_context',
                    'instrument_context_full', 'instrument_context_brief', 'past_context', 'portfolio_context')
 RATINGS = ('Sell', 'Underweight', 'Hold', 'Overweight', 'Buy')
-CLAUDE_TEST_BUDGET = {'role_llm_fallback':False,'claude_retries':0,'claude_timeout':600,'claude_max_concurrency':1}
+CLAUDE_TEST_BUDGET = {'role_llm_fallback':False,'claude_retries':0,'codex_retries':0,'claude_timeout':600,'claude_max_concurrency':1}
 ANALYST_NODES = {'Market Analyst', 'Sentiment Analyst', 'News Analyst', 'Fundamentals Analyst'}
+
+
+class PathIntegrityError(ValueError):
+    """冻结输入、身份或正式保护指纹失配，实验必须持久停止。"""
 
 
 def _public_config(value):
@@ -255,7 +259,7 @@ def protected_fingerprint(root):
     """正式结果、记忆与缓存的字节和文件清单，工件目录不在其内。"""
     root = Path(root)
     files = {}
-    for relative in ('data/runs', 'data/tradingagents', 'data/cache', 'data/status.json', 'reports'):
+    for relative in ('data/runs', 'data/tradingagents', 'data/cache', 'data/status.json', 'data/evaluation/outcomes.jsonl', 'config/settings.yaml', 'config/watchlist.yaml', 'reports'):
         path = root/relative
         candidates = path.rglob('*') if path.is_dir() else [path]
         for candidate in candidates:
@@ -356,6 +360,11 @@ def implementation_version():
               'TradingAgents/tradingagents/graph/role_llms.py','TradingAgents/tradingagents/graph/role_fallback.py',
               'src/daily_analyzer/model_scheme.py','TradingAgents/tradingagents/graph/setup.py',
               'TradingAgents/tradingagents/llm_clients/claude_exec/runner.py')
+    relative += ('src/daily_analyzer/evaluation/ab_path.py','src/daily_analyzer/evaluation/ab_ledger.py',
+                 'src/daily_analyzer/evaluation/ab_budget.py','src/daily_analyzer/evaluation/ab_orchestrator.py',
+                 'src/daily_analyzer/evaluation/ab_reports.py','src/daily_analyzer/evaluation/ab_lifecycle.py','TradingAgents/tradingagents/llm_clients/codex_exec/runner.py',
+                 'TradingAgents/tradingagents/memory/log.py',
+                 'TradingAgents/tradingagents/memory/settlement.py','src/daily_analyzer/evaluation/settlement.py')
     hashes={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in relative if (root/name).exists()}
     heads={}
     for name,path in (('main',root),('TradingAgents',root/'TradingAgents')):
@@ -366,11 +375,15 @@ def implementation_version():
 
 def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=False, symbols=None,
                     executor=execute_saved, monotonic=time.monotonic, overrides=None,
-                    snapshot_paths=None, reconstructed=False, group=None):
+                    snapshot_paths=None, reconstructed=False, group=None, path_mode=False, past_context_file=None):
     """必须显式test_mode；所有输入先检查后调用，避免部分消费才发现缺口。"""
     if not test_mode:
         raise ValueError('一致性重复仅允许显式测试入口：请指定--test-mode；生产默认关闭')
-    if from_stage not in ('debate', 'analysts') or not (1 if reconstructed else 2) <= repeats <= 10:
+    if path_mode and (reconstructed or from_stage != 'debate' or repeats != 1 or not (group or '').startswith('abpath-')):
+        raise ValueError('路径模式须debate、单次、abpath-组且禁止reconstructed')
+    if bool(past_context_file) != bool(path_mode):
+        raise ValueError('路径模式必须显式提供past-context-file，其他模式禁止替换历史')
+    if from_stage not in ('debate', 'analysts') or not (1 if reconstructed or path_mode else 2) <= repeats <= 10:
         raise ValueError('测试起点须debate/analysts，重复次数须2–10')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', run_id):
         raise ValueError('非法run-id')
@@ -410,11 +423,15 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
         if str(record.get('consistency_input_status') or '').startswith('unavailable:'):
             raise ValueError('保存一致性快照不可用：'+record['consistency_input_status'])
         build_debate_state(record.get('consistency_input'))
+        if path_mode and (record['consistency_input']['state']['company_of_interest']!=record['symbol'] or record['consistency_input']['state']['trade_date']!=record.get('trade_date')):
+            raise PathIntegrityError('路径标的或决策日期身份不一致')
         validate_test_overrides(record['consistency_input'], overrides)
         if not reconstructed and record['consistency_input'].get('reconstruction', {}).get('reconstructed'):
             raise ValueError('历史重建输入必须通过显式受限测试入口')
         if not re.fullmatch(r'[A-Za-z0-9^][A-Za-z0-9.^_-]*', record.get('symbol', '')):
             raise ValueError('非法保存标的代码')
+    past_text = Path(past_context_file).read_text(encoding='utf-8') if path_mode else None
+    past_sha = hashlib.sha256(Path(past_context_file).read_bytes()).hexdigest() if path_mode else None
     destination = root/'data/evaluation/consistency'
     before = protected_fingerprint(root)
     stamp = str(time.time_ns())
@@ -422,7 +439,11 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
     executions = []
     version=implementation_version()
     for record in records:
-        snapshot = record['consistency_input']
+        original_snapshot = record['consistency_input']
+        original_digest = input_hash(original_snapshot)
+        snapshot = deepcopy(original_snapshot)
+        if path_mode:
+            snapshot['state']['past_context'] = past_text
         digest = input_hash(snapshot)
         effective_hash = input_hash({**snapshot['config'], **(overrides or {}), **CLAUDE_TEST_BUDGET})
         symbol = record['symbol']
@@ -432,16 +453,22 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
         for repeat in range(repeats):
             output = destination/run_id/(group or 'strict')/stamp/symbol/str(repeat+1) if group else destination/run_id/stamp/symbol/str(repeat+1)
             started = monotonic()
-            final = executor(deepcopy(snapshot), output, from_stage=from_stage, overrides=overrides, project_root=root)
+            execution_input = deepcopy(snapshot)
+            final = executor(execution_input, output, from_stage=from_stage, overrides=overrides, project_root=root)
+            if input_hash(execution_input) != digest:
+                raise PathIntegrityError('冻结输入被修改')
             duration = monotonic()-started
             if input_hash(snapshot) != digest:
-                raise ValueError('冻结输入被修改')
+                raise PathIntegrityError('冻结输入被修改')
             usage_path = output/'llm_calls.jsonl'
             calls = [json.loads(line) for line in usage_path.read_text().splitlines() if line.strip()] if usage_path.exists() else []
             if any(row.get('result')=='fallback' for row in calls):
-                raise ValueError('一致性结果含角色回退，拒绝混合模型')
+                raise PathIntegrityError('一致性结果含角色回退，拒绝混合模型')
             atomic_write_json(output/'result.json', {'test_only': True, 'production_decision': False,
-                'input_hash': digest, 'effective_config_hash': effective_hash, 'from_stage': from_stage, 'fully_frozen': from_stage == 'debate' and not reconstructed,
+                'input_hash': digest, 'original_snapshot_hash': original_digest,
+                'path_mode': path_mode, 'past_context_file_sha256': past_sha,
+                'past_context_source': str(Path(past_context_file).resolve()) if path_mode else '原冻结快照',
+                'effective_config_hash': effective_hash, 'from_stage': from_stage, 'fully_frozen': from_stage == 'debate' and not reconstructed,
                 'reconstructed': reconstructed, 'reconstruction': snapshot.get('reconstruction'), 'group': group,
                 'original_data_hash': original_data_hash(snapshot), 'input': snapshot,
                 'snapshot_file_sha256': record.get('snapshot_file_sha256'), 'implementation_version':version,
@@ -460,7 +487,7 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
                                 **compare_states(states[a], states[b], snapshot.get('reference_price'))})
     after = protected_fingerprint(root)
     if before != after:
-        raise ValueError('测试前后正式结果/记忆/缓存发生变化，工件不得视为通过')
+        raise PathIntegrityError('测试前后正式结果/记忆/缓存发生变化，工件不得视为通过')
     report = ['# 同输入一致性测试', f'原运行：{run_id}；起点：{from_stage}；重复：{repeats}。',
               '仅测试工件，不是生产决策；正式结果、记忆、缓存前后字节/清单一致。',
               '历史重建/缩样：原past缺失显式空，身份/档位/配置重建见各输入来源；不是原历史完全冻结。' if reconstructed else '冻结保存报告/injected/past及原配置。' if from_stage == 'debate' else '非完全冻结：保留原注入上下文，分析师工具会重新取数。',
@@ -471,7 +498,8 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
         report.extend([f"\n## {row['symbol']} 第{row['runs'][0]}/{row['runs'][1]}次",
                        '```json', json.dumps(row, ensure_ascii=False, indent=2), '```'])
     destination.mkdir(parents=True, exist_ok=True)
-    path = destination/(run_id+('-'+group if group else '')+'-'+stamp+'.md')
+    path = destination/run_id/group/stamp/'report.md' if path_mode else destination/(run_id+('-'+group if group else '')+'-'+stamp+'.md')
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(report)+'\n')
     summary_dir = destination/run_id/group/stamp if group else destination/run_id/stamp
     atomic_write_json(summary_dir/'summary.json', {'comparisons': comparisons, 'executions': executions,
