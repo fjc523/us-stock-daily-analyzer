@@ -139,7 +139,18 @@ def decision_plan_checks(result, config):
     return flags
 
 
-def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *, leg_validation_flags=None, leg_validation_raw=None):
+def today_action(rating, buy_legs, reduce_legs):
+    """只按PM结构腿提示今日操作，不读取价格或账户。"""
+    messages = []
+    if rating not in ('Underweight', 'Sell') and any(
+            leg.get('status') == '可执行' for leg in (buy_legs or []) if isinstance(leg, dict)):
+        messages.append('今日有可执行买入腿，见无仓/低于目标行')
+    if any(leg.get('trigger_rule') == '立即' for leg in (reduce_legs or []) if isinstance(leg, dict)):
+        messages.append('今日有立即执行的减仓腿，见高于目标/风险行')
+    return '；'.join(messages) or '今日无立即操作：现有持仓不动，买卖均需按下表条件触发'
+
+
+def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *, leg_validation_flags=None, leg_validation_raw=None, reduce_plan=''):
     """用户自行对照持仓，系统不读取账户。"""
     def val(value, *, price=True):
         parsed = finite(value)
@@ -241,9 +252,13 @@ def execution_matrix(rating, target_pct, buy_legs, reduce_legs, tolerance=10, *,
             original = original.replace(old_rule + ' ' + val(item['trigger_price']), old_rule, 1)
         original = original.replace(old_rule, rule(item), 1)
         new_risk.append(original)
+    review = '；'.join(part.strip() for part in re.split('[。；]', reduce_plan or '')
+                      if any(word in part for word in ('复评', '失守', '跌破', '警戒'))
+                      and not any(word in part for word in ('超配', '目标内'))) if not risk else ''
+    no_risk = '未设风险减配腿' + ('；复评条件：' + review if review else '')
     texts = [conditions(entry, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else entry,
              conditions(add, active, 'buy_legs') if active and rating not in ('Underweight', 'Sell') else add,
              conditions('；'.join(high_parts) if excess else high, excess, 'reduce_legs'),
-             conditions('；'.join(new_risk) if risk else '未设风险减配腿', risk, 'reduce_legs')]
+             conditions('；'.join(new_risk) if risk else no_risk, risk, 'reduce_legs')]
     for item, text in zip(output, texts): item['text'] = text
     return output

@@ -736,6 +736,10 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
     legs = next((structured.get(key) for key in ('pm_decision', 'trader_proposal')
                  if isinstance(structured.get(key), Mapping) and
                  (structured[key].get('buy_legs') or structured[key].get('reduce_legs'))), None)
+    from daily_analyzer.evaluation.plan_checks import today_action
+    pm = structured.get('pm_decision')
+    pm = pm if isinstance(pm, Mapping) else {}
+    action = today_action(result.get('final_rating') or pm.get('rating'), pm.get('buy_legs'), pm.get('reduce_legs')) if pm.get('buy_legs') or pm.get('reduce_legs') else ''
     tolerance = result.get('allocation_tolerance_pct', 10)
     allocation = _allocation_summary(result)
     if legs:
@@ -760,7 +764,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         layer = 'pm' if legs is structured.get('pm_decision') else 'trader'
         stored_flags = list(legs.get('leg_validation_flags') or []) + list(((result.get('decision_flags') or {}).get(layer) or {}).get('leg_validation_flags') or [])
         stored_raw = {**(legs.get('leg_validation_raw') or {}), **(((result.get('decision_flags') or {}).get(layer) or {}).get('leg_validation_raw') or {})}
-        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance, leg_validation_flags=stored_flags, leg_validation_raw=stored_raw)
+        plans = execution_matrix(matrix_rating, target, legs.get('buy_legs'), legs.get('reduce_legs'), tolerance, leg_validation_flags=stored_flags, leg_validation_raw=stored_raw, reduce_plan=pm.get('reduce_plan'))
         for plan in plans:
             plan['full_text'] += '\n\n' + full_plans
     matrix_note = plans[0].get('tolerance_note', '') if legs else ''
@@ -779,7 +783,7 @@ def _summary_row(result: Mapping[str, Any], retry: Any, detail_path: str, root: 
         "proxy": result.get("analyzed_symbol") if symbol_type == "index" else None,
         "rating": rating, "rating_class": rating_class,
         "advice": _advice_summary(advice),
-        "plans": plans, "matrix_note": matrix_note, "allocation": allocation,
+        "plans": plans, "matrix_note": matrix_note, "allocation": allocation, "today_action": action,
         "premarket": premarket["change"], "premarket_price": premarket["price"],
         "premarket_title": premarket["title"], "quote_time": premarket["time"], "quote_reason": premarket["reason"],
         "sector_rank": _display(sector.get("sector_rank") if sector.get("sector_rank") is not None
