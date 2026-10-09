@@ -223,3 +223,15 @@ D20之后包括反思在内不再调用模型，同一成功定时批次hook仍�
 主负责人T0检查：prepare成功不能代替T0−1真实结算完成日志；须保留前批batch与实际结算日志/共同memory和outcomes原件。T0首批结束核对上述verification及四标逐条state/result原件；任何失败先执行`.venv/bin/python -m daily_analyzer ab-path disable`并保留integrity原件，不清停机文件强行重试。A成功后按`A/data/runs/<日期>/batches/<run_id>/results/*.json`逐条核`A/data/tradingagents/memory/trading_memory.md`的日期、标的和final_trade_decision正文；共同尾后连续多标/多日追加同步不得串块、丢条，失败同样停机。具体读取步骤见外部`m1-rework/implementation/m1-handoff.md`，未发生的首日自然证据不得核销。
 
 真实材料局限：最近五日10-05~09缺SPCX前四日原件，10-06/07无成功定时、SPCX10-09仅手动，不能组成四标五日首成功定时金标。局部16条真实B正文追加同步逐条一致；首轮回放漏共同C2输入导致10-09四context mismatch，原失败与diff保留，补真实outcomes并按前批完成时刻PIT同步后四条逐字一致（源为10-08最后completed手动批次，非R5自然首定时PIT），仅属当前真实原件按asof派生，不是历史A/各日原始共同快照。真实D7成熟/反思及完整五日仍NOT_TESTED；70条前提仅原文/来源清单交投研标注，不自行给投研标签。
+
+#### T49 F2分类、自然证据准备与启动继续门禁
+
+投研T49F2已确认M1通过，本轮不复跑M1/全量。前提执行与离线trace共用`precondition_trace`，按完整子句P1–P5分类并保留原文Unicode跨度；可判与门槛满足分开，未知OUT不放行。保留实际配置严格`>`/`≥`、跨句配置/目标指代和有效期N的既有合同，届满更新不续旧腿；整体账本有效期不变。投研146条原文标签只读，不改标签凑结果。
+
+只读自然采集独立于实验开关，默认无`config/t49-evidence.json`则完全关闭。获准安全安装后可仅打开采集：`{"enabled":true,"start_date":"2026-10-12","output_dir":"/Users/zhoulei/Documents/.t49-development-20261010/f2-rework/natural-evidence"}`。现有`run --scheduled`新进程自动读生产editable源码和该配置，不改调度时间、订阅、模型或B成败；实验enabled仍false。停止采集只把此文件enabled改false；不要用实验enable启动采集。
+
+批次开始保全全量共同memory/outcomes（含此前手动更新）、实际配置原件/路径；正式memory追加前后、C2结算前后、批次结束保全源副本及SHA、batch/result内snapshot/context、既有日志及只读缓存OHLC。未来A追加/共同同步前后也有相同只读事件。项目AnalyzerGraph.record_decision不提前store，runner单写者首次append前后才是B追加边界；并行TA反思不保证单标原子快照。手动批次显式scheduled:false并保留，不能计成功定时金标。缺件、读取中变化或采集错误不得冒称完整证据，采集失败只缺证、不改变B结果，也绝不自动放行实验。
+
+替代金标按实际T0前统一最近五个scheduled/live/completed交易日首成功批次冻结，不能按标挑天或用手动凑满；当前仅10-02/05/08/09，SPY/QQQ/TSLA/SPCX为3/5、4/5、3/5、0/5。投研原6/10 context一致结论保留：10-02 QQQ缺原context，不是两文本比较失败；10-09三标实际差异不能挪用M1不同分叉范围4/4。自有C2/非四标历史与逐日原始共同快照缺口未可信重建，完整黄金仍阻断启动；新增自然采集不是提前验收通过。
+
+首日只读验收命令`.venv/bin/python -m daily_analyzer.evaluation.ab_startup --manifest <真实manifest>`逐标对应actual planned_items、batch item/B成功或缺失、snapshot、allocation audit/run_symbols和verification.checked；不能以空checked、少应验标的或硬编码四标代替。D1–D5每日用投研`T49F2/probes/check_startup_memory.py`检查原序列化结构、共同字节和各自真实正文，手动/额外条目原样披露，不过滤凑一致。任一工具非0须先`ab-path disable`并保全输出及原件；可执行包装与manifest格式在外部`f2-rework/implementation/f2-handoff.md`。prepare成功不代替T0−1真实结算日志；T0自然checked、D1–D5真实回执/补齐SPCX和20日/续评仍NOT_TESTED，OpenSpec37.7未完成。

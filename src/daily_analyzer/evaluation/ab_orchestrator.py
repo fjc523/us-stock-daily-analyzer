@@ -123,7 +123,11 @@ def _write_shadow_result(root, record, state, calls=None, artifact=None):
     target=experiment_root(root)/'A/data/runs'/record['trade_date']
     atomic_write_json(target/'batches'/record['run_id']/'results'/f"{record['symbol']}.json",result)
     atomic_write_json(target/'current'/f"{record['symbol']}.json",result)
+    from .ab_evidence import capture_evidence
+    source_batch=Path(root)/'data/runs'/record['trade_date']/'batches'/record['run_id']
+    capture_evidence(root,source_batch,'A_append_before',symbol=record['symbol'])
     TradingMemoryLog(cfg).store_decision(record['symbol'],record['trade_date'],state['final_trade_decision'],rating)
+    capture_evidence(root,source_batch,'A_append_after',symbol=record['symbol'])
     return result
 
 

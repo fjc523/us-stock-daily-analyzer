@@ -141,7 +141,11 @@ def prepare_shadow_context(root, record, *, reflector, services, previous_batch_
     cutoff = previous_trading_day(date.fromisoformat(day))
     if previous_batch_finished.astimezone(NEW_YORK).date() > cutoff:
         raise ValueError('影子C2时刻越过t−1，拒绝未来日线')
+    from .ab_evidence import capture_evidence
+    source_batch=Path(root)/'data/runs'/day/'batches'/record['run_id']
+    capture_evidence(root,source_batch,'A_common_sync_before',symbol=record['symbol'],extra={'visible_at':previous_batch_finished.isoformat()})
     copy_common_settlements(root, visible_at=previous_batch_finished)
+    capture_evidence(root,source_batch,'A_common_sync_after',symbol=record['symbol'],extra={'visible_at':previous_batch_finished.isoformat()})
     cfg = shadow_config(root, record['consistency_input']['config'], day)
     log = TradingMemoryLog(cfg)
     # 共同 pending 不进入反思；由正式原文同步完成。
@@ -166,7 +170,11 @@ def prepare_shadow_context(root, record, *, reflector, services, previous_batch_
     if strict.error:
         raise RuntimeError('影子反思失败，本日A缺失') from strict.error
     settle(target, now=previous_batch_finished, services=services, settings=settings, manual={})
+    from .ab_evidence import capture_evidence
+    source_batch=Path(root)/'data/runs'/day/'batches'/record['run_id']
+    capture_evidence(root,source_batch,'A_common_sync_before',symbol=record['symbol'],extra={'visible_at':previous_batch_finished.isoformat()})
     copy_common_settlements(root, visible_at=previous_batch_finished)
+    capture_evidence(root,source_batch,'A_common_sync_after',symbol=record['symbol'],extra={'visible_at':previous_batch_finished.isoformat()})
     return log.get_past_context(record['symbol'], as_of=cutoff.isoformat())
 
 

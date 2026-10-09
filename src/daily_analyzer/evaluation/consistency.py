@@ -360,7 +360,7 @@ def implementation_version():
               'TradingAgents/tradingagents/graph/role_llms.py','TradingAgents/tradingagents/graph/role_fallback.py',
               'src/daily_analyzer/model_scheme.py','TradingAgents/tradingagents/graph/setup.py',
               'TradingAgents/tradingagents/llm_clients/claude_exec/runner.py')
-    relative += ('src/daily_analyzer/evaluation/ab_path.py','src/daily_analyzer/evaluation/ab_ledger.py',
+    relative += ('src/daily_analyzer/evaluation/ab_evidence.py','src/daily_analyzer/evaluation/ab_startup.py','src/daily_analyzer/evaluation/ab_path.py','src/daily_analyzer/evaluation/ab_ledger.py',
                  'src/daily_analyzer/evaluation/ab_budget.py','src/daily_analyzer/evaluation/ab_orchestrator.py',
                  'src/daily_analyzer/evaluation/ab_reports.py','src/daily_analyzer/evaluation/ab_lifecycle.py','TradingAgents/tradingagents/llm_clients/codex_exec/runner.py',
                  'TradingAgents/tradingagents/memory/log.py',

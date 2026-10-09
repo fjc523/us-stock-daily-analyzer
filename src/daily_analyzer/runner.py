@@ -31,6 +31,7 @@ from daily_analyzer.config import (
 )
 from daily_analyzer.context import ProviderServices, create_context_manager, serialize_blocks
 from daily_analyzer.data_sources import AlpacaDataSource, FutuQuoteManager
+from daily_analyzer.evaluation.ab_evidence import capture_evidence
 from daily_analyzer.site import build_site, symbol_slug
 from daily_analyzer.storage import (
     RunAlreadyRunningError,
@@ -822,10 +823,12 @@ def _record_attempt(
                 and str(result.get("final_trade_decision") or "").strip()):
             from tradingagents.memory.log import TradingMemoryLog
             try:
+                capture_evidence(root,batch_dir,"B_append_before",symbol=outcome.item.symbol)
                 TradingMemoryLog({"memory_log_path": str(root / "data/tradingagents/memory/trading_memory.md")}).store_decision(
                     ticker=outcome.item.symbol, trade_date=trade_day.isoformat(),
                     final_trade_decision=result["final_trade_decision"], rating=result["final_rating"], replace_pending=True,
                 )
+                capture_evidence(root,batch_dir,"B_append_after",symbol=outcome.item.symbol)
             except Exception as exc:
                 result.setdefault('data_limitations',[]).append('决策记忆更新失败')
                 atomic_write_json(current_dir / f"{slug}.json", result)
@@ -1230,6 +1233,7 @@ def run_analysis(
             "last_error": None,
         }
         atomic_write_json(batch_dir / "batch.json", batch)
+        capture_evidence(root,batch_dir,"batch_start")
         if scheduled:
             _write_status(
                 root,
@@ -1518,7 +1522,9 @@ def run_analysis(
             )
             append_log(root, window.trade_date, current_now, f"批次 {run_id} 结束，状态 {final_status}")
             if window.mode == "live":
+                capture_evidence(root,batch_dir,"settlement_before")
                 (settler or _settle_completed)(root, current_now)
+                capture_evidence(root,batch_dir,"settlement_after")
             exit_code = 0 if final_status == "completed" else 1
             return RunOutcome(exit_code, f"批次 {run_id}：{final_status}", run_id, final_status)
         finally:
@@ -1569,6 +1575,8 @@ def run_analysis(
                 get_shared_data_source().close_batch()
         finally:
             lock_context.__exit__(None, None, None)
+        if batch_dir is not None and batch is not None:
+            capture_evidence(root,batch_dir,"batch_end")
         if scheduled and batch is not None and batch.get('mode')=='live' and batch.get('status')=='completed':
             from daily_analyzer.evaluation.ab_orchestrator import completed_batch_hook
             completed_batch_hook(root,now=_clock_now(clock))

@@ -24,28 +24,58 @@ def resolve_cost(symbol, result_type):
     return {'cost_bp':amount,'cost_source':source,'type':result_type,'cost_policy_version':COST_POLICY_VERSION,'cost_unassigned_reason':reason}
 
 
+def precondition_trace(text, *, allocation=0, target=0, age=0):
+    """P1–P5完整子句分类与满足性分离；保留Unicode原文跨度，未知OUT。"""
+    original=text or '';clauses=[];start=0;reference=None;validity=5
+    symbol=r'(?:[A-Z][A-Z0-9.^-]*)'
+    prefix=r'(?:仅)?(?:(?:先|须|已)?(?:核实|核对|核验))?'
+    config=prefix+rf'(?:{symbol})?(?:(?:实际|真实|常态|当前|现)(?:{symbol})?)?(?:配置|现配)'
+    numeric=r'(\d+(?:\.\d+)?)'
+    pieces=[]
+    for sep in re.finditer(r'[；;。，]|且',original):pieces.append((start,sep.start()));start=sep.end()
+    pieces.append((start,len(original)))
+    for begin,end in pieces:
+        raw=original[begin:end];clause=raw.strip()
+        if not clause:continue
+        begin+=len(raw)-len(raw.lstrip());end=begin+len(clause)
+        kind='OUT';satisfied=False;predicate=None;bound=None
+        if re.fullmatch(prefix+rf'(?:{symbol})?(?:实际|真实)?持仓(?:(?:及|与|和)标准量)?',clause) or clause=='按单标的标准量计算':
+            # “实际持有某标的”等额外适用范围不属于持仓核对。
+            if re.search(r'核实|核对|核验',clause) or clause=='按单标的标准量计算':kind='P1';satisfied=True
+        elif (m:=re.fullmatch(config+r'\s*(≥|>=|>|高于|至少|达到或超过)\s*(?:标准量)?'+numeric+r'%(?:标准量|及标准量|时减配|时执行|者适用|适用|才减)?',clause)):
+            bound=float(m[2]);strict=m[1] in ('>','高于');kind='P2';satisfied=allocation>bound if strict else allocation>=bound
+            predicate={'operator':'>' if strict else '>=','bound':bound,'basis':'allocation'}
+        elif (m:=re.fullmatch(config+r'(?:超过目标|高于目标)至少'+numeric+r'个百分点',clause)) or (m:=re.fullmatch(r'(?:较目标超配至少|超配≥)'+numeric+r'个百分点',clause)):
+            kind='P2';bound=float(m[1]);satisfied=allocation-target>=bound;predicate={'operator':'>=','bound':bound,'basis':'allocation_minus_target'}
+        elif (m:=re.fullmatch(config+r'(?:超过目标|高于|超过)'+numeric+r'%至少'+numeric+r'个百分点',clause)) or (m:=re.fullmatch(r'(?:超过|高于)'+numeric+r'%至少'+numeric+r'个百分点',clause)):
+            kind='P2';bound=float(m[1]);satisfied=allocation>=bound+float(m[2]);predicate={'operator':'>=','bound':bound+float(m[2]),'basis':'allocation'}
+        elif (m:=re.fullmatch(config+r'较'+numeric+r'%(?:目标高出至少|超配≥)'+numeric+r'个百分点',clause)):
+            kind='P2';bound=float(m[1]);satisfied=allocation>=bound+float(m[2]);predicate={'operator':'>=','bound':bound+float(m[2]),'basis':'allocation'}
+        elif (m:=re.fullmatch(r'偏离至少'+numeric+r'个百分点',clause)) and reference and reference['basis']=='allocation':
+            kind='P2';satisfied=allocation>=reference['bound']+float(m[1]);predicate={'operator':'>=','bound':reference['bound']+float(m[1]),'basis':'allocation'}
+        elif clause=='超额尚未调整完成' or (clause=='仍有未处理差额' and reference and reference['basis']=='allocation_minus_target'):
+            kind='P2';satisfied=allocation-target>=10;predicate={'operator':'>=','bound':10,'basis':'allocation_minus_target'}
+        elif re.fullmatch(r'(?:仅(?:限)?(?:常规|正常)(?:交易)?时段(?:执行|（执行）|\(执行\))?|仅常规开盘|下一常规交易时段|常规(?:交易)?时段流动性正常)',clause):
+            kind='P3';satisfied=True
+        elif (m:=re.fullmatch(r'(?:(?:自)?(?:分析日|当日|(?:\d{4}-)?\d{2}-\d{2})起)?(?P<days>\d+)个?交易日(?:内)?(?:有效)?|(?:有效期?|限)(?P<days2>\d+)个?交易日|确认和成交均限分析日起(?P<days3>\d+)交易日',clause)):
+            validity=int(next(v for v in m.groupdict().values() if v is not None))
+            kind='P4';satisfied=age<=validity;predicate={'operator':'<=','bound':validity,'basis':'XNYS_age'}
+        elif re.fullmatch(r'(?:到期|届满|逾期)(?:更新|重算|刷新|复评|重评)|到期复评并更新保护方案',clause):
+            kind='P4';satisfied=age<=validity;predicate={'operator':'<=','bound':validity,'basis':'XNYS_age'}
+        elif re.fullmatch(r'(?:持仓)?与\d+(?:\.\d+)?%相差不到10个百分点(?:则)?不操作|与目标差<10个百分点不动|避免重复减仓|保护腿优先',clause):
+            kind='P5';satisfied=True
+        if kind=='P2':reference=predicate
+        entry={'text':clause,'start':begin,'end':end,'whitelist_class':kind,'satisfied':bool(satisfied)}
+        if predicate is not None:entry['predicate']=predicate
+        clauses.append(entry)
+    return {'overall':'受限不执行' if any(c['whitelist_class']=='OUT' for c in clauses) else '可判','clauses':clauses}
+
+
 def preconditions(text, *, allocation, target, age):
-    """每一子句完整匹配预注册白名单；未知语义不放行。"""
-    failures = []
-    for clause in filter(None, (s.strip() for s in re.split(r'[；;。，]|且', text or ''))):
-        accepted = False
-        if re.fullmatch(r'(?:先)?(?:核实|核对|核对实际|已核实)(?:[A-Z]+)?(?:实际)?持仓(?:及|与)标准量', clause):
-            accepted = True
-        elif (match := re.fullmatch(r'(?:实际|常态)?配置\s*(≥|>=|>|高于)\s*(\d+(?:\.\d+)?)%', clause)):
-            bound = float(match[2]); accepted = allocation > bound if match[1] in ('>', '高于') else allocation >= bound
-        elif (match := re.fullmatch(r'高于(\d+(?:\.\d+)?)%至少(\d+(?:\.\d+)?)个百分点', clause)):
-            accepted = allocation >= float(match[1]) + float(match[2])
-        elif clause == '超额尚未调整完成':
-            accepted = allocation-target >= 10
-        elif re.fullmatch(r'(?:仅常规时段(?:（执行）|\(执行\))?|仅常规开盘|常规时段流动性正常)', clause):
-            accepted = True
-        elif (match := re.fullmatch(r'(?:(?:分析日|当日)起(\d+)个?交易日有效|有效(\d+)交易日)', clause)):
-            accepted = age <= int(match[1] or match[2])
-        elif re.fullmatch(r'与\d+(?:\.\d+)?%相差不到10个百分点不操作|避免重复减仓|保护腿优先', clause):
-            accepted = True
-        if not accepted:
-            failures.append(clause)
-    return not failures, failures
+    """执行时仍须全部可判子句满足；OUT不得因数值满足而放行。"""
+    trace=precondition_trace(text,allocation=allocation,target=target,age=age)
+    failures=[c['text'] for c in trace['clauses'] if not c['satisfied']]
+    return not failures,failures
 
 
 def buy_price(leg, bar, *, confirmed=False):
