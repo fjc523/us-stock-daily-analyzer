@@ -191,7 +191,7 @@ T47数据缺失补齐：仅N1重大新闻同句绑定、N2新闻真实截断、F
 
 显式单次测试入口为 `consistency --run-id <已成功批次> --test-mode --path-mode --repeats 1 --group abpath-A --past-context-file <影子历史原文>`，仅从冻结 debate 输入运行，禁止借用 `--reconstructed`。工件记录原快照、替换后输入及历史文件哈希；只替换 `state.past_context`，正式目录保护仍生效。该命令实际执行会调用模型，当前不得运行真实实验。
 
-R1/R2/R3及账户方式无关的冻结、预算、隔离与禁用批次编排已有独立局部验证；R4/R5按已授权v5.3切换逐标的订阅段独立配对账户，当前仍在工程验收中。实验配置尚不存在，未分叉正式历史，20日运行与D25/D30/D40续评均未开始；须完成独立工程验收并由主负责人委托投研最终审核通过后安排启用。
+R1–R5按v5.3及cost-v1完成工程实现、独立测试、功能审核与经理工程验收，含逐标的订阅段独立配对账户和默认禁用接入。主仓全量968项及真实Git两项通过；TA原生1464项及92子测试通过，两个未改Windows模拟用例因macOS errno别名缺失失败，经基线字节一致核对后仅外部兼容适配局部复验通过，原失败保留；不能冒称原生TA全绿或实际Windows通过。实验配置尚不存在，未分叉正式历史，20日运行与D25/D30/D40续评均未开始；须由主负责人委托投研最终审核，通过后安排安全部署相同版本及启用。
 
 权威规格为v5.2全文加2026-10-10 v5.3增量及用户最新退订日口径：反思与C2按生产函数自然滞后首次可见于D7；昨日确认买单以U盘中成交也受已有批次盘中止损屏蔽，以O开盘成交才豁免。开发交付保持禁用，未运行任何真实实验。
 
@@ -199,13 +199,13 @@ R1/R2/R3及账户方式无关的冻结、预算、隔离与禁用批次编排已
 
 逐账户实际NAV、同窗被动持有/L1与SPY附注单列；等权账户日收益差的连乘只称“合成配对差值指数”，不是组合NAV或A/B NAV比。退订日隔夜收益与平仓成本仍参与，完成平仓后才退出样本；与当天新开账户并列时收益样本数可超过4，无存续配对日标无样本、指数保留历史。此口径按用户覆盖v5.3 F40退订日遗漏，最终投研需核对原文。
 
-当前不得执行prepare/enable或真实实验，须待工程验收及最终投研通过后由主负责人安排。在已部署相同版本的项目目录执行以下顺序。`prepare`记录投研原件、按验收美东日期生成T0并核T0−1成功定时批次，分叉/空跑后仍禁用；必须在T0生产批次开始前完成，否则T0顺延，保留原分叉证据并由负责人重新安排，工具不覆盖既有分叉。若错过T0，在尚未产生任何A模型结果的前提下，主负责人先`ab-path disable`，将整个`data/evaluation/ab-path`移入带日期的`data/evaluation/ab-path-preparation-archive/<原T0>-<时间戳>/`完整保全，重新取得顺延后的验收/准备时点再执行prepare；已有A模型结果时禁止用该准备重排流程覆盖，交投研裁决。开发不自动迁移或删除运行工件。
+当前不得执行prepare/enable或真实实验，须待最终投研通过后由主负责人安排。在已部署相同版本的项目目录执行以下顺序。`prepare`记录投研原件、按验收美东日期生成T0并核T0−1成功定时批次，分叉/空跑后仍禁用；必须在T0生产批次开始前完成，否则T0顺延，保留原分叉证据并由负责人重新安排，工具不覆盖既有分叉。若错过T0，在尚未产生任何A模型结果的前提下，主负责人先`ab-path disable`，将整个`data/evaluation/ab-path`移入带日期的`data/evaluation/ab-path-preparation-archive/<原T0>-<时间戳>/`完整保全，重新取得顺延后的验收/准备时点再执行prepare；已有A模型结果时禁止用该准备重排流程覆盖，交投研裁决。开发不自动迁移或删除运行工件。
 
 ```bash
-python -m daily_analyzer ab-path status
-python -m daily_analyzer ab-path prepare --accepted-at '<投研验收含时区时刻>' --review-reference '<通过原件或委托卡>'
-python -m daily_analyzer ab-path dry-run
-python -m daily_analyzer ab-path enable
+.venv/bin/python -m daily_analyzer ab-path status
+.venv/bin/python -m daily_analyzer ab-path prepare --accepted-at '<投研验收含时区时刻>' --review-reference '<通过原件或委托卡>'
+.venv/bin/python -m daily_analyzer ab-path dry-run
+.venv/bin/python -m daily_analyzer ab-path enable
 ```
 
 启用后复用既有 `run --scheduled`，只在首成功定时批次完成且生产锁释放后运行A；不改launchd北京时间排程或订阅。失败可在下一次A管线开始前用 `ab-path run --retry-date YYYY-MM-DD` 重试，截止后永久拒收。停用新调用使用 `ab-path disable`；270/700硬上限或校准超限写实验目录的`budget-stop.json`并停止，不自动提高预算或删除停止记录。provider尝试计量和真实tokens/CLI估计费用分别保留在`model-attempts.jsonl`、`llm_calls.jsonl`，预留失败仍计数，估计费用不是账单。
