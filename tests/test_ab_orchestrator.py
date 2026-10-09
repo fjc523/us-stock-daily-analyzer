@@ -55,6 +55,18 @@ class Prices:
         return [dict(date=d.date().isoformat(),open=100,high=103,low=99,close=101) for d in days],'合成同源日线'
 
 
+def capture_fixture(root,record):
+    """合成完整state与生产字段同源，显式创建首日验收工件。"""
+    from daily_analyzer.evaluation.ab_path import capture_t0_b_state
+    state={'company_of_interest':record['symbol'],'trade_date':record['upstream_trade_date'],
+           'final_trade_decision':record['final_trade_decision'],
+           'investment_plan':record.get('investment_plan'),'trader_investment_plan':record.get('trader_investment_plan')}
+    state.update({'structured_'+k:v for k,v in record['structured'].items()})
+    batch_dir=root/'data/runs'/record['upstream_trade_date']/'batches'/record['run_id']
+    assert capture_t0_b_state(root,batch_dir,record,state,record['final_rating'])['status']=='captured'
+    return state
+
+
 def configured(tmp_path, day='2026-10-12'):
     area=experiment_root(tmp_path);state=calendar_after('2026-10-09')
     state.update(enabled=True,symbols=['SPY','QQQ','TSLA','SPCX'],previous_batch_finished='2026-10-09T09:00:00-04:00')
@@ -67,11 +79,13 @@ def configured(tmp_path, day='2026-10-12'):
     path=tmp_path/'data/runs'/day/'batches'/batch['run_id']
     atomic_write_json(path/'batch.json',batch)
     snapshot=fixture_snapshot();snapshot['config']['trade_date']=day;snapshot['state']['company_of_interest']='SPY';snapshot['state']['trade_date']=day
-    record={'analyzed_symbol':'SPY','status':'success','symbol':'SPY','type':'etf','run_id':batch['run_id'],'mode':'live','trade_date':day,
+    record={'analyzed_symbol':'SPY','status':'success','symbol':'SPY','type':'etf','run_id':batch['run_id'],'mode':'live','trade_date':day,'upstream_trade_date':day,
             'finished_at':batch['finished_at'],'price_data_end_date':'2026-10-09','consistency_input':snapshot,
             'final_rating':'Hold','final_trade_decision':'**Recommendation**: Hold\n**Target Allocation**: 100%',
-            'structured':{'pm_decision':{'rating':'Hold','target_allocation_pct':100,'buy_legs':[],'reduce_legs':[]}}}
+            'rating_cn':'持有','investment_plan':None,'trader_investment_plan':None,
+            'structured':{'research_plan':None,'trader_proposal':None,'pm_decision':{'rating':'Hold','target_allocation_pct':100,'buy_legs':[],'reduce_legs':[]}}}
     atomic_write_json(path/'results/SPY.json',record)
+    capture_fixture(tmp_path,record)
     return state,record
 
 
@@ -199,6 +213,7 @@ def test_B_all_symbols_frozen_before_first_A_failure(tmp_path,monkeypatch):
     for symbol in ('QQQ','TSLA','SPCX'):
         copied=deepcopy(record);copied['symbol']=symbol;copied['analyzed_symbol']=symbol;copied['consistency_input']['state']['company_of_interest']=symbol
         atomic_write_json(tmp_path/'data/runs/2026-10-12/batches/run2026-10-12/results'/f'{symbol}.json',copied)
+        capture_fixture(tmp_path,copied)
     monkeypatch.setattr(module,'_current_ta_dirty',lambda:False)
     monkeypatch.setattr(module,'prepare_shadow_context',lambda *a,**k:'影子历史')
     import daily_analyzer.evaluation.ab_reports as reports
@@ -257,6 +272,7 @@ def test_dynamic_symbol_uses_record_identity_not_filename_slug(tmp_path,monkeypa
     record['symbol']=record['analyzed_symbol']='BRK.B';record['consistency_input']['state']['company_of_interest']='BRK.B'
     old=batch_path.parent/'results/SPY.json';old.unlink()
     atomic_write_json(batch_path.parent/'results/BRK-B.json',record)
+    capture_fixture(tmp_path,record)
     monkeypatch.setattr(module,'_current_ta_dirty',lambda:False)
     monkeypatch.setattr(module,'prepare_shadow_context',lambda *a,**k:'影子历史')
     import daily_analyzer.evaluation.ab_reports as reports

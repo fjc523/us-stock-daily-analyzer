@@ -16,7 +16,7 @@ def saved(tmp_path):
     path = tmp_path/'data/runs/2026-10-02/batches/test/results/SMTC.json'
     path.parent.mkdir(parents=True)
     snapshot = fixture_snapshot()
-    path.write_text(json.dumps({'status': 'success', 'symbol': 'SMTC', 'trade_date':'2026-10-02', 'consistency_input': snapshot}))
+    path.write_text(json.dumps({'status': 'success', 'symbol': 'SMTC', 'trade_date':'2026-10-02', 'upstream_trade_date':'2026-10-02', 'consistency_input': snapshot}))
     past = tmp_path/'past.txt'
     past.write_text('独立A历史')
     return snapshot, past

@@ -186,6 +186,15 @@ def dispatch(root, *, now, retry_date=None, executor=None, reflector_factory=Non
                     atomic_write_json(area/'budget-stop.json',{'category':'integrity','reason':'首批B冻结原件发生变化，停止交开发'})
                     raise PathIntegrityError('首批B冻结原件发生变化')
                 atomic_write_json(frozen,record)
+        from .ab_path import verify_t0_b_states, experiment_record
+        verify_t0_b_states(root,batch,records)
+        # 正式B与冻结原件不补写字段；仅实验工作副本采用标准日期。
+        try:
+            records={symbol:experiment_record(record)
+                     for symbol,record in records.items() if record.get('status')=='success'}
+        except PathIntegrityError as exc:
+            atomic_write_json(area/'budget-stop.json',{'category':'integrity','reason':'生产日期适配失败','error':str(exc)})
+            raise
         previous_finished=max((b['finished_at'] for b in available.values() if b['trade_date']<day),default=state['previous_batch_finished'])
         from daily_analyzer.config import load_project_config
         from .settlement import SettlementServices

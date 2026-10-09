@@ -419,6 +419,9 @@ def run_consistency(root, run_id, *, repeats=2, from_stage='debate', test_mode=F
                and (symbols is None or record.get('symbol') in symbols)]
     if not records or (symbols is not None and set(symbols) != {r['symbol'] for r in records}):
         raise ValueError('找不到指定成功标的')
+    if path_mode:
+        from .ab_path import experiment_record
+        records=[experiment_record(record) for record in records]
     for record in records:
         if str(record.get('consistency_input_status') or '').startswith('unavailable:'):
             raise ValueError('保存一致性快照不可用：'+record['consistency_input_status'])

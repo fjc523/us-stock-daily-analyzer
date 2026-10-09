@@ -18,7 +18,8 @@ from .settlement import last_complete_session, bar_prices, entry_plan, load_outc
 def frozen_results(root):
     """B只读首次冻结批次，A只读成功独立结果。"""
     area=experiment_root(root)
-    return {'B':[json.loads(p.read_text()) for p in sorted((area/'B').glob('*/*.json'))],
+    from .ab_path import experiment_record
+    return {'B':[experiment_record(json.loads(p.read_text())) for p in sorted((area/'B').glob('*/*.json'))],
             'A':[json.loads(p.read_text()) for p in sorted((area/'A/data/runs').glob('*/batches/*/results/*.json'))]}
 
 

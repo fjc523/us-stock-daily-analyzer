@@ -55,7 +55,7 @@ def test_F44_production_result_type_dispatch_and_report_local_skip(tmp_path,monk
     from datetime import datetime
     import json
     from types import SimpleNamespace
-    from test_ab_orchestrator import configured,Prices,NY,fake_executor
+    from test_ab_orchestrator import configured,Prices,NY,fake_executor,capture_fixture
     import daily_analyzer.evaluation.ab_orchestrator as module
     from daily_analyzer.evaluation.ab_path import experiment_root
     from daily_analyzer.storage import atomic_write_json
@@ -69,6 +69,7 @@ def test_F44_production_result_type_dispatch_and_report_local_skip(tmp_path,monk
         if kind is None:copy.pop('type')
         else:copy['type']=kind
         atomic_write_json(batch_path.parent/'results'/f'{symbol}.json',copy)
+        capture_fixture(tmp_path,copy)
     monkeypatch.setattr(module,'_current_ta_dirty',lambda:False)
     monkeypatch.setattr(module,'prepare_shadow_context',lambda *a,**k:'隔离影子历史')
     seen=[]

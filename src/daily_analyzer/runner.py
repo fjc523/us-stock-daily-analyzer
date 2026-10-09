@@ -648,6 +648,8 @@ def _analyze_item(
         if appended:
             result["appended"] = True
         result_path = batch_dir / "results" / f"{symbol_slug(item.symbol)}.json"
+        from daily_analyzer.evaluation.ab_path import capture_t0_b_state
+        capture_t0_b_state(root,batch_dir,result,final_state,rating)
         atomic_write_json(result_path, result)
         return AttemptOutcome(item, result, None, True)
     except BaseException as exc:

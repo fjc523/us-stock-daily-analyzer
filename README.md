@@ -213,3 +213,13 @@ R1–R5按v5.3及cost-v1完成工程实现、独立测试、功能审核与经�
 D20之后包括反思在内不再调用模型，同一成功定时批次hook仍可离线续评，或负责人执行 `ab-path mature`；`ab-path ledger`只重算冻结决策与已完整日线。主曲线只到D20，D21主报告与D25/D30/D40成熟报告写`data/evaluation/ab-path/`。TS是配置倾斜代理分数，不能称收益曲线。共同历史、A结果、B冻结、账本和成熟报告均位于该目录；一致性工件只在对应`consistency/<run_id>/abpath-A/`。
 
 证据局限：10-09真实非空context可验证单日金标；10-12~16四标五日黄金原件、投研10月全部前提预标注、历史完整structured final-state原件及自然自动触发/真实模型预算仍为NOT_TESTED。零模型夹具及历史回放不能代替上述自然证据。生产本地源码保持原已发布版本，远端候选与本地部署状态在交接中分别列明。
+
+#### T49 投研M1返工与T0首日同源验收
+
+前述工程验收不等于投研通过。T49F终审发现影子memory缺尾分隔符；本轮仅修正分叉/共同同步的非空块尾分隔符（空块仍空），生产TA不改。同日四标连续三日追加、每次同步和生产同函数结算的独立证据为D6零反思、D7/D8/D9累计4/8/12条，原投研失败原件保留。
+
+已启用实验的T0 scheduled/live生产B在现有result建造点将同次完整state/result及run_id、symbol、日期和hash保存到`data/evaluation/ab-path/T0-state/<run_id>/<symbol>.json`，通常B/禁用/非T0不采集。采集失败不改正式B成功结果，只持久停止实验；首批B冻结后、任何A或反思前，缺件、身份日期、hash、同次result及复用生产函数的字段投影不符均写`budget-stop.json`的integrity停止，校验通过写同目录`verification.json`。正式result实际日期为`upstream_trade_date`；实验工作副本严格核对后才补标准`trade_date`，已有两字段冲突也停止，正式及冻结B原件不补字段。
+
+主负责人T0检查：prepare成功不能代替T0−1真实结算完成日志；须保留前批batch与实际结算日志/共同memory和outcomes原件。T0首批结束核对上述verification及四标逐条state/result原件；任何失败先执行`.venv/bin/python -m daily_analyzer ab-path disable`并保留integrity原件，不清停机文件强行重试。A成功后按`A/data/runs/<日期>/batches/<run_id>/results/*.json`逐条核`A/data/tradingagents/memory/trading_memory.md`的日期、标的和final_trade_decision正文；共同尾后连续多标/多日追加同步不得串块、丢条，失败同样停机。具体读取步骤见外部`m1-rework/implementation/m1-handoff.md`，未发生的首日自然证据不得核销。
+
+真实材料局限：最近五日10-05~09缺SPCX前四日原件，10-06/07无成功定时、SPCX10-09仅手动，不能组成四标五日首成功定时金标。局部16条真实B正文追加同步逐条一致；首轮回放漏共同C2输入导致10-09四context mismatch，原失败与diff保留，补真实outcomes并按前批完成时刻PIT同步后四条逐字一致（源为10-08最后completed手动批次，非R5自然首定时PIT），仅属当前真实原件按asof派生，不是历史A/各日原始共同快照。真实D7成熟/反思及完整五日仍NOT_TESTED；70条前提仅原文/来源清单交投研标注，不自行给投研标签。

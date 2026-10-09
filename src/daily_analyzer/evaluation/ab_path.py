@@ -65,7 +65,7 @@ def fork_history(root, t0, *, now):
     blocks = [b for b in _memory_blocks(memory) if _block_date(b) < t0]
     destination = target/'data/tradingagents/memory/trading_memory.md'
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(TradingMemoryLog._SEPARATOR.join(blocks), encoding='utf-8')
+    destination.write_text(TradingMemoryLog._SEPARATOR.join(blocks)+(TradingMemoryLog._SEPARATOR if blocks else ''), encoding='utf-8')
     outcomes = root/'data/evaluation/outcomes.jsonl'
     rows = [json.loads(line) for line in outcomes.read_text().splitlines() if line.strip()] if outcomes.exists() else []
     rows = [r for r in rows if r.get('trade_date', '') < t0]
@@ -103,7 +103,7 @@ def copy_common_settlements(root, *, visible_at=None):
     blocks = _memory_blocks(memory)
     blocks = [formal.get(_block_date(b)+b.strip().splitlines()[0].split('|')[1].strip(), b)
               if _block_date(b) < fork['t0'] else b for b in blocks]
-    memory.write_text(TradingMemoryLog._SEPARATOR.join(blocks), encoding='utf-8')
+    memory.write_text(TradingMemoryLog._SEPARATOR.join(blocks)+(TradingMemoryLog._SEPARATOR if blocks else ''), encoding='utf-8')
     from daily_analyzer.evaluation.settlement import load_outcomes, write_outcomes
     source = load_outcomes(Path(root)/'data/evaluation/outcomes.jsonl')
     path = target/'data/evaluation/outcomes.jsonl'
@@ -168,3 +168,88 @@ def prepare_shadow_context(root, record, *, reflector, services, previous_batch_
     settle(target, now=previous_batch_finished, services=services, settings=settings, manual={})
     copy_common_settlements(root, visible_at=previous_batch_finished)
     return log.get_past_context(record['symbol'], as_of=cutoff.isoformat())
+
+
+def _evidence_hash(value):
+    return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
+
+def _t0_projection(record, final_state, rating):
+    """复用生产适配合同；整个result另与同次原件逐字段相等核验。"""
+    from daily_analyzer.runner import final_state_result_fields
+    adapted=adapt_result(record,final_state,rating)
+    keys=tuple(final_state_result_fields(final_state,rating))+('investment_plan','trader_investment_plan')
+    return {key:adapted.get(key) for key in keys}
+
+
+def production_trade_date(record):
+    """生产原件只读upstream日期；工作副本标准字段不得与它矛盾。"""
+    from .consistency import PathIntegrityError
+    day=record.get('upstream_trade_date')
+    if not day or (record.get('trade_date') is not None and record['trade_date']!=day):
+        raise PathIntegrityError('生产upstream_trade_date缺失或与实验trade_date冲突')
+    return day
+
+
+def experiment_record(record):
+    """规范化只发生于实验工作副本，不回写正式或冻结B原件。"""
+    return {**record,'trade_date':production_trade_date(record)}
+
+
+def capture_t0_b_state(root, batch_dir, record, final_state, rating):
+    """只捕获已启用T0定时B的现成完整state；工件失败不改变正式B结果。"""
+    area=experiment_root(root);state_file=area/'experiment.json'
+    if not state_file.exists():return {'status':'disabled'}
+    try:
+        state=json.loads(state_file.read_text())
+        if not state.get('enabled') or record.get('upstream_trade_date')!=state.get('t0'):return {'status':'not_T0'}
+        batch=json.loads((Path(batch_dir)/'batch.json').read_text())
+        if not batch.get('scheduled') or batch.get('mode')!='live' or record['symbol'] not in batch.get('planned_items',[]):
+            return {'status':'not_scheduled_plan'}
+        body={'run_id':record['run_id'],'symbol':record['symbol'],'trade_date':production_trade_date(record),
+              'full_state':deepcopy(final_state),'rating':str(rating),'result':deepcopy(record)}
+        body['state_sha256']=_evidence_hash(body['full_state']);body['result_sha256']=_evidence_hash(body['result'])
+        projected=_t0_projection(record,final_state,rating)
+        if any(record.get(key)!=value for key,value in projected.items()):raise ValueError('完整B state与同次result投影不一致')
+        atomic_write_json(area/'T0-state'/record['run_id']/f"{record['symbol']}.json",body)
+        return {'status':'captured'}
+    except Exception as exc:
+        # 此失败属于实验，不把正式B成功改写为失败。
+        try:atomic_write_json(area/'budget-stop.json',{'category':'integrity','reason':'T0完整B同源证据捕获失败','error':str(exc)})
+        except OSError:
+            import logging
+            logging.getLogger(__name__).exception('T0实验停止证据写入失败；A前缺件核验仍拒绝执行')
+        return {'status':'failed','error':str(exc)}
+
+
+def verify_t0_b_states(root, batch, records):
+    """T0首成功B冻结后、任何A反思前校验同源完整state与result原件。"""
+    from .consistency import PathIntegrityError
+    area=experiment_root(root);state_file=area/'experiment.json'
+    state=json.loads(state_file.read_text()) if state_file.exists() else {}
+    if not state.get('enabled') or batch['trade_date']!=state.get('t0'):return {'status':'not_T0'}
+    checked=[]
+    try:
+        for symbol in batch['planned_items']:
+            record=records.get(symbol,{})
+            if record.get('status')!='success' or not record.get('consistency_input'):continue
+            path=area/'T0-state'/batch['run_id']/f'{symbol}.json'
+            proof=json.loads(path.read_text())
+            if not isinstance(proof,dict) or not isinstance(proof.get('full_state'),dict):
+                raise ValueError('T0完整B证据或state不是对象')
+            source=proof['full_state']
+            if not (proof['run_id']==record['run_id']==batch['run_id'] and
+                    proof['symbol']==record['symbol']==record['analyzed_symbol']==symbol==source.get('company_of_interest') and
+                    proof['trade_date']==production_trade_date(record)==batch['trade_date']==source.get('trade_date')):
+                raise ValueError('T0完整B证据身份或日期不一致')
+            if proof['state_sha256']!=_evidence_hash(source) or proof['result_sha256']!=_evidence_hash(proof['result']):
+                raise ValueError('T0完整B同源证据哈希失配')
+            if proof['result']!=record:raise ValueError('T0同次result与首次冻结B逐字段不同')
+            expected=_t0_projection(record,source,proof['rating'])
+            if any(record.get(key)!=value for key,value in expected.items()):raise ValueError('T0完整B state/result逐字段投影不同')
+            checked.append({'symbol':symbol,'state_sha256':proof['state_sha256'],'result_sha256':proof['result_sha256'],'fields':list(expected)})
+        atomic_write_json(area/'T0-state'/batch['run_id']/'verification.json',{'status':'passed','checked':checked})
+        return {'status':'passed','checked':checked}
+    except (OSError,ValueError,KeyError,TypeError) as exc:
+        atomic_write_json(area/'budget-stop.json',{'category':'integrity','reason':'T0完整B同源对照失败，A前停止','error':str(exc)})
+        raise PathIntegrityError('T0完整B同源对照失败：'+str(exc)) from exc
