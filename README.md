@@ -235,3 +235,9 @@ D20之后包括反思在内不再调用模型，同一成功定时批次hook仍�
 替代金标按实际T0前统一最近五个scheduled/live/completed交易日首成功批次冻结，不能按标挑天或用手动凑满；当前仅10-02/05/08/09，SPY/QQQ/TSLA/SPCX为3/5、4/5、3/5、0/5。投研原6/10 context一致结论保留：10-02 QQQ缺原context，不是两文本比较失败；10-09三标实际差异不能挪用M1不同分叉范围4/4。自有C2/非四标历史与逐日原始共同快照缺口未可信重建，完整黄金仍阻断启动；新增自然采集不是提前验收通过。
 
 首日只读验收命令`.venv/bin/python -m daily_analyzer.evaluation.ab_startup --manifest <真实manifest>`逐标对应actual planned_items、batch item/B成功或缺失、snapshot、allocation audit/run_symbols和verification.checked；不能以空checked、少应验标的或硬编码四标代替。D1–D5每日用投研`T49F2/probes/check_startup_memory.py`检查原序列化结构、共同字节和各自真实正文，手动/额外条目原样披露，不过滤凑一致。任一工具非0须先`ab-path disable`并保全输出及原件；可执行包装与manifest格式在外部`f2-rework/implementation/f2-handoff.md`。prepare成功不代替T0−1真实结算日志；T0自然checked、D1–D5真实回执/补齐SPCX和20日/续评仍NOT_TESTED，OpenSpec37.7未完成。
+
+### T51 回放记忆与日线归属
+
+历史回放沿用本次上下文冻结截止（美东08:31），记忆层按带时区的结算时刻比较，同日收盘后回放也不会解除过滤。仅日期的旧resolved标签等到美东次日零点才可见；未知或无时区时刻在冻结查询中排除。实时读取保留既有行为，日期旧接口保留日终语义；不修改成熟规则、自然滞后或历史结算正文。
+
+单标的日线来源状态只由目标symbol及显式analysis_symbol价格代理判定，背景日线尝试仍完整保存并标明归属，不能覆盖目标全失败；目标备用源成功仍显示降级。宏观、新闻类别与整体分析成功状态不变。

@@ -645,7 +645,8 @@ def _analyze_item(
                 result['consistency_input'] = snapshot(final_state)
             except Exception as exc:
                 result['consistency_input_status'] = 'unavailable: '+type(exc).__name__
-        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
+        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")),
+            symbol=item.symbol, analysis_symbol=item.analysis_symbol)
         if appended:
             result["appended"] = True
         result_path = batch_dir / "results" / f"{symbol_slug(item.symbol)}.json"
@@ -707,7 +708,8 @@ def _analyze_item(
                 )
             except Exception:
                 pass
-        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")))
+        result["data_source_status"] = source_collector.snapshot(ticker_blocks, shared_config, fred_configured=bool(os.environ.get("FRED_API_KEY")),
+            symbol=item.symbol, analysis_symbol=item.analysis_symbol)
         if appended:
             result["appended"] = True
         atomic_write_json(

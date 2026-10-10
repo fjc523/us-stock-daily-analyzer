@@ -121,9 +121,9 @@ class SourceStatusCollector:
             self.events.append(row)
 
     def _context(self, blocks):
-        def record(category, source, outcome="success", error=None, metadata=None):
+        def record(category, source, outcome="success", error=None, metadata=None, symbol=None):
             self.observe({"category": category, "method": "context", "source": source,
-                          "outcome": outcome, "error": error, 'statement_metadata': metadata})
+                          "outcome": outcome, "error": error, 'statement_metadata': metadata, "symbol": symbol})
         for name, block in blocks.items():
             data = block.get("data") if isinstance(block, Mapping) else None
             if not isinstance(data, Mapping):
@@ -149,11 +149,11 @@ class SourceStatusCollector:
                 record("板块映射", data.get("benchmark_reason"))
             category = {"price_anchors": "日线", "macro_releases": "新闻"}.get(name)
             if category and data.get("error"):
-                record(category, "上下文来源", "failed", data["error"])
+                record(category, "上下文来源", "failed", data["error"], symbol=data.get("symbol"))
             if name == "price_anchors" and not data.get("anchors"):
-                record("日线", data.get("source", "日线来源"), "failed", "锚点不可用")
+                record("日线", data.get("source", "日线来源"), "failed", "锚点不可用", symbol=data.get("symbol"))
 
-    def snapshot(self, blocks, config, *, fred_configured=False):
+    def snapshot(self, blocks, config, *, fred_configured=False, symbol=None, analysis_symbol=None):
         self._context(blocks)
         rows = []
         with self.lock:
@@ -171,6 +171,21 @@ class SourceStatusCollector:
             if category in ("宏观指标", "VIX") and not fred_configured:
                 if not any(event["source"].lower() in ('fred','fred api') for event in attempts):
                     attempts.append({"source": "FRED", "outcome": "unconfigured", "error": "未配置FRED_API_KEY", "recorded_at": datetime.now(timezone.utc).isoformat()})
+            all_attempts = attempts
+            background_count = 0
+            if category == "日线" and symbol:
+                targets = {str(value).upper() for value in (symbol, analysis_symbol) if value}
+                # 指数价格代理由调用方analysis_symbol明确指定，不推断背景别名。
+                attempts = []
+                for event in all_attempts:
+                    event_symbol = str(event.get("symbol") or "").upper()
+                    # 旧已存锚点事件无symbol，只接受当前collector的context失败；不拿无归属成功补缺。
+                    relevant = event_symbol in targets or (not event_symbol and event.get("method") == "context" and event.get("outcome") != "success")
+                    event["scope"] = "目标" if relevant else "背景" if event_symbol else "归属未明"
+                    if relevant:
+                        attempts.append(event)
+                    elif event_symbol:
+                        background_count += 1
             used = list(dict.fromkeys(event["source"] for event in attempts if event["outcome"] == "success"))
             failed = [event for event in attempts if event["outcome"] in ("failed", "no_data")]
             configured_attempts = [event for event in attempts if event["outcome"] != "unconfigured"]
@@ -189,6 +204,8 @@ class SourceStatusCollector:
             reason = "；".join(dict.fromkeys(event.get("error", "") for event in attempts if event.get("error")))
             if status == "正常" and failed:
                 reason = "部分请求失败，主源仍可用；" + reason
+            if category == "日线" and symbol and background_count:
+                reason = "；".join(filter(None, [reason, f"背景日线{background_count}次尝试保留供审阅，不参与目标状态"]))
             statement_meta = {}
             if category == '财报报表':
                 statement_events = [event for event in attempts if event.get('statement_metadata')]
@@ -204,5 +221,5 @@ class SourceStatusCollector:
             rows.append({"category": category, "source": "、".join(used) or "—", "status": status,
                          **statement_meta,
                          "reason": reason,
-                         "attempts": attempts, "recorded_at": attempts[-1].get("recorded_at") if attempts else None})
+                         "attempts": all_attempts, "recorded_at": all_attempts[-1].get("recorded_at") if all_attempts else None})
         return rows

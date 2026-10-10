@@ -225,7 +225,9 @@ class AnalyzerGraph(TradingAgentsGraph):
             trade_date,
             asset_type=asset_type,
             past_context=self.memory_log.get_past_context(
-                memory_ticker, as_of=self._memory_as_of(trade_date)
+                memory_ticker, as_of=self._memory_as_of(
+                    trade_date, self.context_as_of if self.mode == "backfill" else None
+                )
             ),
             instrument_context=self.resolve_instrument_context(
                 company_name, asset_type, trade_date
