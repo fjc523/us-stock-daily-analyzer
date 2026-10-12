@@ -166,3 +166,30 @@ def test_supply_dates_outside_calendar_preserve_visible_events(monkeypatch, tmp_
     assert block.data['status'] == '有事件'
     assert len(block.data['events']) == 3
     assert '2026-10-24／首个可交易日 2026-10-26' in block.markdown
+
+
+def test_full_history_bad_price_is_verbatim_production_baseline():
+    """真实SPY日线按low-four原件恢复68.47，满窗剔除坏价仍逐字兼容05b7dfc。"""
+    import importlib.util
+    reference = FIX / 'price_anchors_05b7dfc.py'
+    spec = importlib.util.spec_from_file_location('daily_analyzer.context.tu53_baseline_05b7dfc', reference)
+    baseline = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(baseline)
+    rows = bars('SPY')
+    for row in rows:
+        if str(row['Date'])[:10] == '2026-02-02':
+            row['Low'] = 68.47
+    services = SimpleNamespace(prices=SimpleNamespace(bars=lambda *a: (rows, 'Alpaca SIP')))
+    blocks = []
+    for provider_class in (baseline.PriceAnchorsProvider, PriceAnchorsProvider):
+        p = provider_class(services)
+        p.prepare({'price_data_end_date': '2026-10-02'})
+        blocks.append(p.build({'symbol': 'SPY'}, CUTOFF))
+    original, candidate = blocks
+    assert candidate.markdown == original.markdown
+    assert candidate.data['anchors'] == original.data['anchors']
+    assert candidate.data['window_252d_count'] == 251
+    assert candidate.data['anchors']['252d_Low']['value'] == 626.11
+    assert '|一年锚点|距P_Close（%）|距P_Close（ATR14）|' in candidate.markdown
+    assert '不等于52周' not in candidate.markdown
+    assert '剔除异常日线1条（2026-02-02）' in candidate.markdown
