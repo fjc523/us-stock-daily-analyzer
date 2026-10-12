@@ -1,0 +1,75 @@
+# 首批条款由 TU53 夹具转录；来源 424B4，数量为上限，不代表实际出售或流通盘。
+version: 1
+events:
+- symbol: SPCX
+  kind: lockup_release
+  date_rule: fixed
+  date: 2026-09-24
+  shares_max: 328400000
+  shares_text: Up to 328.4 million shares of Class A common stock, representing 7%
+    of the shares subject to the 180-day lock-up period.
+  condition: null
+  source:
+    form: 424B4
+    accession: 0001628280-26-042639
+    visible_at: '2026-06-12T10:04:16Z'
+    url: https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+  entered_at: '2026-10-13T02:30:00+08:00'
+- symbol: SPCX
+  kind: lockup_release
+  date_rule: fixed
+  date: 2026-10-09
+  shares_max: 328400000
+  shares_text: Up to 328.4 million shares of Class A common stock, representing 7%
+    of the shares subject to the 180-day lock-up period.
+  condition: null
+  source:
+    form: 424B4
+    accession: 0001628280-26-042639
+    visible_at: '2026-06-12T10:04:16Z'
+    url: https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+  entered_at: '2026-10-13T02:30:00+08:00'
+- symbol: SPCX
+  kind: lockup_release
+  date_rule: fixed
+  date: 2026-10-24
+  shares_max: 328400000
+  shares_text: Up to 328.4 million shares of Class A common stock, representing 7%
+    of the shares subject to the 180-day lock-up period.
+  condition: null
+  source:
+    form: 424B4
+    accession: 0001628280-26-042639
+    visible_at: '2026-06-12T10:04:16Z'
+    url: https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+  entered_at: '2026-10-13T02:30:00+08:00'
+- symbol: SPCX
+  kind: lockup_release
+  date_rule: after_earnings
+  earnings_period_end: 2026-09-30
+  trading_days_after: 2
+  shares_max: 1300000000
+  shares_text: Up to 1.3 billion shares of Class A common stock, representing 28%
+    of the shares subject to the 180-day lock-up period.
+  condition: null
+  source:
+    form: 424B4
+    accession: 0001628280-26-042639
+    visible_at: '2026-06-12T10:04:16Z'
+    url: https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+  entered_at: '2026-10-13T02:30:00+08:00'
+- symbol: SPCX
+  kind: lockup_release
+  date_rule: fixed
+  date: 2026-12-08
+  shares_max: 797600000
+  shares_text: Up to (i) 328.4 million shares ... if the Additional Release Shares
+    were released on the First Earnings Release Date or (ii) up to 797.6 million shares
+    if the Additional Release Shares were not released ...
+  condition: 数量取决于 First Earnings Release Date 附加解禁是否发生；本条只录原文上限，不录推算结论
+  source:
+    form: 424B4
+    accession: 0001628280-26-042639
+    visible_at: '2026-06-12T10:04:16Z'
+    url: https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+  entered_at: '2026-10-13T02:30:00+08:00'

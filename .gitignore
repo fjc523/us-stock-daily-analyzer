@@ -15,3 +15,6 @@ config/secrets.env
 .DS_Store
 .vantage/tasks/
 openspec/changes/**/evidence/
+
+# 公开供给条款配置随版本维护
+!config/supply_events.yaml

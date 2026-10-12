@@ -1,0 +1,23 @@
+{
+  "来源": "/Users/zhoulei/.vantage/bots/eae4b2b7/workspace/reviews/TU53/fixtures",
+  "特斯拉来源": "data/tradingagents/cache/sec_edgar/submissions_CIK0001318605.json",
+  "sha256": {
+    "supply_events_SPCX_draft.yaml": "8178d6746ba18f33e6b0dfda042d621a2f07198f014771547de452bd5d2969a9",
+    "README.md": "652611d6e8c939ff22932b6894e848872965d10af6bf25673b62a26b4a0c5094",
+    "daily_bars/QQQ-alpaca-data.csv": "6fdb4bf3d243cdc6a7b052439906ce6164c3dd79207470ecc735ae0a83bd96aa",
+    "daily_bars/SPY-alpaca-data.csv": "b421108603f46df158a52271c725d7473e44ea85b9210a4b9f660bde3380a8bf",
+    "daily_bars/SPY-historical-anchors-lowfour-20261004.json": "44cda2731753484dca20cffb63aea2974098d04d08106c5fb1a914595595a71b",
+    "daily_bars/SPCX-alpaca-data.csv": "af5dabf9e4bbbe97f370a6d5ee91656bda11af1787ce750a466dce3b659461de",
+    "daily_bars/TSLA-alpaca-data.csv": "05904b4ef937a090b0db9f9636b9d3debf1751d664a2f6277b184a959447b9cc",
+    "sec/submissions_CIK0001318605.json": "27a31cfd5b331f965f1b36402f38f0f67622baee975a2814171e98b2dbb26a75",
+    "sec/submissions_CIK0001181412_batch20261012.json": "cd388de319df3fecdc521938c73ee2278b78ffd9b08baef179b22cbdca9f4c80",
+    "results/result_TSLA_20261012.json": "79857b929ac35c19292f202f76808722811a4881ce2c8c1a90ec01f069946667",
+    "results/news_alpaca_market_news_20261012.json": "a2eb9517c6b3dea9163bd3fb4fe090e53adf029bedfc2cb4302cc5e47bc82323",
+    "results/result_SPY_20261012.json": "ff6eb9ad0b2f3cbdfce571dcb27d9e7d24bfb2a7d73e112373c8cf85c792e1a9",
+    "results/MANIFEST.json": "b12f490cfe5da7fd2b82ade121a42373562fc7308d3e902f129f6da762c2b3cc",
+    "results/result_GSPC_index_20261001.json": "5e655a62296da5486fbeb078610ad0f8fb93b2238423c985d0f865299cea0a78",
+    "results/result_QQQ_20261012.json": "1991de4e8bf4723121d00f69d98f78b8249d46651bbaab3dcd27fa3256e77fc5",
+    "results/result_SPCX_20261012.json": "8039436e592d7a881d9cae048b3b89933b3cc7a549d6a7bb46d0545b64608cdf"
+  },
+  "富途说明": "没有真实快照；按已安装SDK字段构造离线行，不代表真实行情"
+}

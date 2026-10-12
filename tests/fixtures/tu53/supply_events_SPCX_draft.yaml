@@ -1,0 +1,49 @@
+# TU53 夹具：SPCX 锁定期解禁条款草案（投研录入样例，供 D3 开发测试与首批录入复用）
+# 来源：SEC 424B4，accession 0001628280-26-042639，acceptanceDateTime 2026-06-12T10:04:16Z
+# URL：https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm
+# 原文截取：reviews/TU53/evidence/SEC_424B4_lockup_excerpt.txt（"Sales of Restricted Shares"表 + "Underwriting—Lock-up Agreements" a–e）
+# 约定：shares_max 取原文 "Up to" 上限；shares_text 原样保留英文原文；不录入任何推算结果（如条件是否满足）。
+# 说明：本文件是夹具草案，不是生产配置；生产文件路径与字段以提案 D3 规格为准。
+version: 1
+events:
+  - symbol: SPCX
+    kind: lockup_release
+    date_rule: fixed
+    date: 2026-09-24
+    shares_max: 328400000
+    shares_text: "Up to 328.4 million shares of Class A common stock, representing 7% of the shares subject to the 180-day lock-up period."
+    condition: null
+    source: {form: 424B4, accession: 0001628280-26-042639, visible_at: "2026-06-12T10:04:16Z"}
+  - symbol: SPCX
+    kind: lockup_release
+    date_rule: fixed
+    date: 2026-10-09
+    shares_max: 328400000
+    shares_text: "Up to 328.4 million shares of Class A common stock, representing 7% of the shares subject to the 180-day lock-up period."
+    condition: null
+    source: {form: 424B4, accession: 0001628280-26-042639, visible_at: "2026-06-12T10:04:16Z"}
+  - symbol: SPCX
+    kind: lockup_release
+    date_rule: fixed
+    date: 2026-10-24          # 原文日期为周六；渲染时另列"首个可交易日 2026-10-26"，不改原值
+    shares_max: 328400000
+    shares_text: "Up to 328.4 million shares of Class A common stock, representing 7% of the shares subject to the 180-day lock-up period."
+    condition: null
+    source: {form: 424B4, accession: 0001628280-26-042639, visible_at: "2026-06-12T10:04:16Z"}
+  - symbol: SPCX
+    kind: lockup_release
+    date_rule: after_earnings
+    earnings_period_end: 2026-09-30
+    trading_days_after: 2     # "The second full trading day on Nasdaq immediately following the public release ..."
+    shares_max: 1300000000
+    shares_text: "Up to 1.3 billion shares of Class A common stock, representing 28% of the shares subject to the 180-day lock-up period."
+    condition: null
+    source: {form: 424B4, accession: 0001628280-26-042639, visible_at: "2026-06-12T10:04:16Z"}
+  - symbol: SPCX
+    kind: lockup_release
+    date_rule: fixed
+    date: 2026-12-08
+    shares_max: 797600000
+    shares_text: "Up to (i) 328.4 million shares ... if the Additional Release Shares were released on the First Earnings Release Date or (ii) up to 797.6 million shares if the Additional Release Shares were not released ..."
+    condition: "数量取决于 First Earnings Release Date 附加解禁是否发生；本条只录原文上限，不录推算结论"
+    source: {form: 424B4, accession: 0001628280-26-042639, visible_at: "2026-06-12T10:04:16Z"}

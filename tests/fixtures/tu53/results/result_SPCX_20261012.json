@@ -1,0 +1,277 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/SPCX.json",
+ "source_sha256": "9e03bef290bd4c544c0b04c172ee821110dff8cc3fefa000473acd2acb2c5772",
+ "symbol": "SPCX",
+ "type": "stock",
+ "analyzed_symbol": "SPCX",
+ "context_as_of": "2026-10-12T08:31:55-04:00",
+ "price_data_end_date": "2026-10-09",
+ "news_truncated": true,
+ "data_queries": [
+  {
+   "name": "get_verified_market_snapshot",
+   "started_at": "2026-10-12T08:32:15-04:00",
+   "finished_at": "2026-10-12T08:32:15-04:00"
+  },
+  {
+   "name": "get_insider_transactions",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:18-04:00"
+  },
+  {
+   "name": "get_fundamentals",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:18-04:00"
+  },
+  {
+   "name": "get_cashflow",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:21-04:00"
+  },
+  {
+   "name": "get_balance_sheet",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:21-04:00"
+  },
+  {
+   "name": "get_income_statement",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:21-04:00"
+  },
+  {
+   "name": "get_earnings_expectations",
+   "started_at": "2026-10-12T08:32:18-04:00",
+   "finished_at": "2026-10-12T08:32:33-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:32:29-04:00",
+   "finished_at": "2026-10-12T08:32:30-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_stock_data",
+   "started_at": "2026-10-12T08:33:18-04:00",
+   "finished_at": "2026-10-12T08:33:18-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:33:20-04:00",
+   "finished_at": "2026-10-12T08:33:20-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:34:22-04:00",
+   "finished_at": "2026-10-12T08:34:22-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:37:07-04:00",
+   "finished_at": "2026-10-12T08:37:08-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:40:34-04:00",
+   "finished_at": "2026-10-12T08:40:35-04:00"
+  }
+ ],
+ "price_anchors": {
+  "title": "price_anchors",
+  "markdown": "标的SPCX；完整日线截至P=2026-10-09；实际来源Alpaca SIP adjustment=all。\n| 锚点 | 美元 | 类型 | 来源日期 |\n|---|---:|---|---|\n| P_Open | 165.3400 | P日开盘 | 2026-10-09 |\n| P_High | 166.3800 | P日高点 | 2026-10-09 |\n| P_Low | 160.6100 | P日低点 | 2026-10-09 |\n| P_Close | 162.5700 | P日收盘 | 2026-10-09 |\n| close_10_ema | 160.2219 | 均线 | 2026-10-09 |\n| close_20_sma | 154.4015 | 均线 | 2026-10-09 |\n| close_50_sma | 144.2380 | 均线 | 2026-10-09 |\n| close_200_sma | 数据不足 | 均线 | 2026-10-09 |\n| atr | 7.0187 | ATR14 | 2026-10-09 |\n| 20d_High | 176.4199 | 20日极值 | 2026-10-06 |\n| 20d_Low | 142.8721 | 20日极值 | 2026-09-15 |\n| 60d_High | 176.4199 | 60日极值 | 2026-10-06 |\n| 60d_Low | 104.8300 | 60日极值 | 2026-08-03 |\n| 252d_High | 225.6400 | 已有83交易日极值（不足252日） | 2026-06-16 |\n| 252d_Low | 104.8300 | 已有83交易日极值（不足252日） | 2026-08-03 |\n|一年锚点|距P_Close（%）|距P_Close（ATR14）|\n|---|---:|---:|\n|252d_High|+38.80%|+8.99|\n|252d_Low|-35.52%|-8.23|\nclose_200_sma数据不足",
+  "data": {
+   "symbol": "SPCX",
+   "as_of": "2026-10-09",
+   "source": "Alpaca SIP adjustment=all",
+   "anchors": {
+    "P_Open": {
+     "value": 165.34,
+     "date": "2026-10-09",
+     "type": "P日开盘"
+    },
+    "P_High": {
+     "value": 166.38,
+     "date": "2026-10-09",
+     "type": "P日高点"
+    },
+    "P_Low": {
+     "value": 160.61,
+     "date": "2026-10-09",
+     "type": "P日低点"
+    },
+    "P_Close": {
+     "value": 162.57,
+     "date": "2026-10-09",
+     "type": "P日收盘"
+    },
+    "close_10_ema": {
+     "value": 160.22186642682308,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_20_sma": {
+     "value": 154.4015,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_50_sma": {
+     "value": 144.238,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_200_sma": {
+     "value": null,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "atr": {
+     "value": 7.018739529767594,
+     "date": "2026-10-09",
+     "type": "ATR14"
+    },
+    "20d_High": {
+     "value": 176.4199,
+     "date": "2026-10-06",
+     "type": "20日极值"
+    },
+    "20d_Low": {
+     "value": 142.8721,
+     "date": "2026-09-15",
+     "type": "20日极值"
+    },
+    "60d_High": {
+     "value": 176.4199,
+     "date": "2026-10-06",
+     "type": "60日极值"
+    },
+    "60d_Low": {
+     "value": 104.83,
+     "date": "2026-08-03",
+     "type": "60日极值"
+    },
+    "252d_High": {
+     "value": 225.64,
+     "date": "2026-06-16",
+     "type": "已有83交易日极值（不足252日）",
+     "sample_days": 83,
+     "distance_pct": 38.79559574337208,
+     "distance_atr": 8.985943947985255
+    },
+    "252d_Low": {
+     "value": 104.83,
+     "date": "2026-08-03",
+     "type": "已有83交易日极值（不足252日）",
+     "sample_days": 83,
+     "distance_pct": -35.51700805806729,
+     "distance_atr": -8.226548336081635
+    }
+   },
+   "warnings": [
+    "close_200_sma数据不足"
+   ],
+   "window_252d_count": 83
+  },
+  "as_of": "2026-10-12T08:31:55.010533-04:00",
+  "sources": [
+   "Alpaca SIP adjustment=all"
+  ]
+ },
+ "expected_return_20d_range": "−7% ~ +9%（相对SPY超额）",
+ "pm_buy_legs": [
+  {
+   "kind": "突破",
+   "status": "待触发",
+   "zone_low": 176.42,
+   "zone_high": 178.17,
+   "trigger_rule": "收盘站上",
+   "trigger_price": 176.42,
+   "confirm_days": 2,
+   "stop_loss": 165.68,
+   "stop_anchor": "P_High−0.1ATR",
+   "first_target": 225.64,
+   "target_method": null,
+   "target_anchor": "252d_High",
+   "reason": "区间上沿上方没有更近的阻力候选；止损距上沿1.78ATR，处于推荐区间；盈亏比3.80。252d_High只有83日数据（数据限制#6）。",
+   "preconditions": "常规时段执行，跳空越过上沿不追；CPI/PPI/零售销售公布前不执行；有效期至10-16"
+  },
+  {
+   "kind": "回踩",
+   "status": "仅观察",
+   "zone_low": 160.22,
+   "zone_high": 160.61,
+   "trigger_rule": null,
+   "trigger_price": null,
+   "confirm_days": null,
+   "stop_loss": null,
+   "stop_anchor": null,
+   "first_target": null,
+   "target_method": null,
+   "target_anchor": null,
+   "reason": "P_High 166.38距区间上沿160.61仅0.82ATR，不合格。改看166.38突破跟随：止损用P_Low时盈亏比约1.0，低于1.5，同样不合格。",
+   "preconditions": ""
+  }
+ ],
+ "plan_checks_pm": [
+  {
+   "d_atr": 1.779521799751636,
+   "rr": 3.8006405124099336,
+   "expected_rr": 3.8006405124099336,
+   "expected_target": {
+    "name": "252d_High",
+    "price": 225.64
+   },
+   "stop_anchor": "P_High",
+   "stop_anchor_name_status": "recognized",
+   "target_anchor_name_status": "recognized",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": false,
+    "target_mismatch": false,
+    "stop_unanchored": false,
+    "stop_distance_out_of_range": false,
+    "rr_below_min": false,
+    "target_far": true,
+    "zone_invalid": false,
+    "target_unanchored": false
+   },
+   "r36_expected_fails": [],
+   "qualified": true,
+   "status": "待触发"
+  },
+  {
+   "d_atr": null,
+   "rr": null,
+   "expected_rr": null,
+   "expected_target": {
+    "name": "20d_High",
+    "price": 176.4199
+   },
+   "stop_anchor": null,
+   "stop_anchor_name_status": "missing",
+   "target_anchor_name_status": "missing",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": true,
+    "target_mismatch": true,
+    "stop_unanchored": true,
+    "stop_distance_out_of_range": true,
+    "rr_below_min": true,
+    "target_far": false,
+    "zone_invalid": false,
+    "target_unanchored": true
+   },
+   "r36_expected_fails": [
+    "zone_under_horizontal_resistance",
+    "stop_unanchored",
+    "stop_distance_out_of_range",
+    "target_unanchored",
+    "rr_below_min"
+   ],
+   "qualified": false,
+   "status": "仅观察"
+  }
+ ],
+ "fundamentals_valuation_excerpt": "\n\n### SPCX估值\n富途2026-10-12 08:32查询的估值依据为官方前收盘160.57美元，与注入日线2026-10-09收盘162.57美元存在差异；快照现价162.57美元及盘前164.16美元均未用于重算。工具仅提供市销率分位73.86%，且独立更新、历史样本范围不明；未提供市销率倍数、市值、市盈率及市净率，因此不足以量化绝对估值。价格历史长度另受数据限制#6约束。\n\n### SPCX预期与修正\n2026-10-12一致预期快照：本季／下季每股收益0.16115／0.45964美元，收入129.142／199.298亿美元。每股收益较30天前上调15.12%／11.74%，较7天前上调15.99%／8.61%；近30天上调／下调人数分别为1／1和2／0。本季修正方向并非一致上调。工具未明确“本季／下季”期末，不能自行指定季度；该数据非历史时点数据库，更新延迟未保证。二季度实际每股收益-0.",
+ "news_truncation_excerpt": "已结束时段见限制#1，长期趋势证据见限制#6。以上仅解释事件传导，不构成评级或交易结论。\n\n新增证据限制：三次新闻结果均截断至20条，不能覆盖完整回溯区间；且主要为Benzinga摘要或转引，缺少协议、融资及监管原文，限制金额、进度和财务影响核验。“SpaceXAI/Grok”诉讼未获主体归属证明，不计入SPCX风险。\n\n### SPCX事件表\n日期均为ET"
+}

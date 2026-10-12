@@ -1,0 +1,238 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/QQQ.json",
+ "source_sha256": "ae0c6a2740004e801f6bb6b10d830f1abfe83ef1a0fbdda9352fed6f6bc7dbf9",
+ "symbol": "QQQ",
+ "type": "etf",
+ "analyzed_symbol": "QQQ",
+ "context_as_of": "2026-10-12T08:31:27-04:00",
+ "price_data_end_date": "2026-10-09",
+ "news_truncated": true,
+ "data_queries": [
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:33:25-04:00",
+   "finished_at": "2026-10-12T08:33:26-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_verified_market_snapshot",
+   "started_at": "2026-10-12T08:33:27-04:00",
+   "finished_at": "2026-10-12T08:33:27-04:00"
+  },
+  {
+   "name": "get_global_news",
+   "started_at": "2026-10-12T08:34:30-04:00",
+   "finished_at": "2026-10-12T08:34:31-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_stock_data",
+   "started_at": "2026-10-12T08:35:22-04:00",
+   "finished_at": "2026-10-12T08:35:22-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:37:48-04:00",
+   "finished_at": "2026-10-12T08:37:49-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:41:06-04:00",
+   "finished_at": "2026-10-12T08:41:06-04:00"
+  }
+ ],
+ "price_anchors": {
+  "title": "price_anchors",
+  "markdown": "标的QQQ；完整日线截至P=2026-10-09；实际来源Alpaca SIP adjustment=all。\n| 锚点 | 美元 | 类型 | 来源日期 |\n|---|---:|---|---|\n| P_Open | 752.5500 | P日开盘 | 2026-10-09 |\n| P_High | 752.8700 | P日高点 | 2026-10-09 |\n| P_Low | 748.3650 | P日低点 | 2026-10-09 |\n| P_Close | 751.2700 | P日收盘 | 2026-10-09 |\n| close_10_ema | 748.0980 | 均线 | 2026-10-09 |\n| close_20_sma | 737.3565 | 均线 | 2026-10-09 |\n| close_50_sma | 724.0018 | 均线 | 2026-10-09 |\n| close_200_sma | 670.8759 | 均线 | 2026-10-09 |\n| atr | 9.1740 | ATR14 | 2026-10-09 |\n| 20d_High | 762.8600 | 20日极值 | 2026-10-06 |\n| 20d_Low | 699.2700 | 20日极值 | 2026-09-16 |\n| 60d_High | 762.8600 | 60日极值 | 2026-10-06 |\n| 60d_Low | 660.4500 | 60日极值 | 2026-07-29 |\n| 252d_High | 762.8600 | 252交易日极值 | 2026-10-06 |\n| 252d_Low | 554.4100 | 252交易日极值 | 2026-03-30 |\n|一年锚点|距P_Close（%）|距P_Close（ATR14）|\n|---|---:|---:|\n|252d_High|+1.54%|+1.26|\n|252d_Low|-26.20%|-21.46|",
+  "data": {
+   "symbol": "QQQ",
+   "as_of": "2026-10-09",
+   "source": "Alpaca SIP adjustment=all",
+   "anchors": {
+    "P_Open": {
+     "value": 752.55,
+     "date": "2026-10-09",
+     "type": "P日开盘"
+    },
+    "P_High": {
+     "value": 752.87,
+     "date": "2026-10-09",
+     "type": "P日高点"
+    },
+    "P_Low": {
+     "value": 748.365,
+     "date": "2026-10-09",
+     "type": "P日低点"
+    },
+    "P_Close": {
+     "value": 751.27,
+     "date": "2026-10-09",
+     "type": "P日收盘"
+    },
+    "close_10_ema": {
+     "value": 748.0980468536546,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_20_sma": {
+     "value": 737.3565,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_50_sma": {
+     "value": 724.0017999999999,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_200_sma": {
+     "value": 670.87585,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "atr": {
+     "value": 9.173986263756653,
+     "date": "2026-10-09",
+     "type": "ATR14"
+    },
+    "20d_High": {
+     "value": 762.86,
+     "date": "2026-10-06",
+     "type": "20日极值"
+    },
+    "20d_Low": {
+     "value": 699.27,
+     "date": "2026-09-16",
+     "type": "20日极值"
+    },
+    "60d_High": {
+     "value": 762.86,
+     "date": "2026-10-06",
+     "type": "60日极值"
+    },
+    "60d_Low": {
+     "value": 660.45,
+     "date": "2026-07-29",
+     "type": "60日极值"
+    },
+    "252d_High": {
+     "value": 762.86,
+     "date": "2026-10-06",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": 1.5427209924527843,
+     "distance_atr": 1.2633548456234602
+    },
+    "252d_Low": {
+     "value": 554.41,
+     "date": "2026-03-30",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": -26.203628522368795,
+     "distance_atr": -21.458501717811366
+    }
+   },
+   "warnings": [],
+   "window_252d_count": 252
+  },
+  "as_of": "2026-10-12T08:31:27.162823-04:00",
+  "sources": [
+   "Alpaca SIP adjustment=all"
+  ]
+ },
+ "expected_return_20d_range": "−4% ~ +5%",
+ "pm_buy_legs": [
+  {
+   "kind": "突破",
+   "status": "待触发",
+   "zone_low": 762.86,
+   "zone_high": 765.15,
+   "trigger_rule": "收盘站上",
+   "trigger_price": 762.86,
+   "confirm_days": 2,
+   "stop_loss": 747.91,
+   "stop_anchor": "P_Low−0.05ATR",
+   "first_target": 792.67,
+   "target_method": "ATR替代",
+   "target_anchor": "U+3ATR（U上方无具名阻力，布林上轨不计）",
+   "reason": "上沿U=765.15；止损距离1.88ATR，目标距离3ATR，盈亏比1.60，三项检查均通过。用于确认中期趋势延续。",
+   "preconditions": "10/15 PPI、零售销售公布后执行；突破日量≥20日均量；越过上沿不追；有效期至10/16"
+  },
+  {
+   "kind": "回踩",
+   "status": "仅观察",
+   "zone_low": 737.36,
+   "zone_high": 748.1,
+   "trigger_rule": null,
+   "trigger_price": null,
+   "confirm_days": null,
+   "stop_loss": null,
+   "stop_anchor": null,
+   "first_target": null,
+   "target_method": null,
+   "target_anchor": null,
+   "reason": "P_High 752.87位于U=748.10上方0.52ATR，在1ATR以内，区间不合格。若把上沿下移至743.23，目标P_High、止损close_20_sma−0.5ATR，盈亏比0.92<1.5，仍不合格。",
+   "preconditions": "仅用于复评；收盘守住20日线是中期趋势的观察条件"
+  }
+ ],
+ "plan_checks_pm": [
+  {
+   "d_atr": 1.8792267073812259,
+   "rr": 1.5962877030162395,
+   "expected_rr": 1.596401321999418,
+   "expected_target": {
+    "name": "ATR替代",
+    "price": 792.67195879127
+   },
+   "stop_anchor": "P_Low",
+   "stop_anchor_name_status": "recognized",
+   "target_anchor_name_status": "not_applicable",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": false,
+    "target_mismatch": false,
+    "stop_unanchored": false,
+    "stop_distance_out_of_range": false,
+    "rr_below_min": false,
+    "target_far": false,
+    "zone_invalid": false,
+    "target_unanchored": false
+   },
+   "r36_expected_fails": [],
+   "qualified": true,
+   "status": "待触发"
+  },
+  {
+   "d_atr": null,
+   "rr": null,
+   "expected_rr": null,
+   "expected_target": {
+    "name": "20d_High",
+    "price": 762.86
+   },
+   "stop_anchor": null,
+   "stop_anchor_name_status": "missing",
+   "target_anchor_name_status": "missing",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": true,
+    "target_mismatch": true,
+    "stop_unanchored": true,
+    "stop_distance_out_of_range": true,
+    "rr_below_min": true,
+    "target_far": false,
+    "zone_invalid": false,
+    "target_unanchored": true
+   },
+   "r36_expected_fails": [
+    "zone_under_horizontal_resistance",
+    "stop_unanchored",
+    "stop_distance_out_of_range",
+    "target_unanchored",
+    "rr_below_min"
+   ],
+   "qualified": false,
+   "status": "仅观察"
+  }
+ ],
+ "news_truncation_excerpt": "承压叙事一致，但不能证明因果；已结束夜盘仅作参考（限制#1）。低VIX也不能排除事件跳空风险。\n\n新闻工具均成功，但分别截断至20、30条，且主要来自同一媒体；部分仅有标题或评论摘要，缺少原始公告、单股权重及盈利修订数据。因此无法穷尽事件或量化其对QQQ的贡献。媒体引用的大盘开盘预测概率不代表QQQ未来5–20日收益概率。\n\n## QQQ 事件表\n日期均为美"
+}

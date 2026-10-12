@@ -5,7 +5,7 @@ import re
 import threading
 
 CATEGORIES = ("日线", "扩展时段报价", "新闻", "财报报表", "估值", "内部人交易",
-              "财报日历", "经济日历", "一致预期", "期权", "空头", "情绪", "宏观指标", "VIX", "板块映射", "StockTwits", "Reddit", "预测市场", "ETF 结构")
+              "财报日历", "经济日历", "一致预期", "期权", "空头", "情绪", "宏观指标", "VIX", "板块映射", "StockTwits", "Reddit", "预测市场", "ETF 结构", "供给事件")
 METHOD_CATEGORY = {
     "sentiment_assessment": "情绪",
     "get_earnings_expectations": "一致预期",
@@ -128,6 +128,10 @@ class SourceStatusCollector:
             data = block.get("data") if isinstance(block, Mapping) else None
             if not isinstance(data, Mapping):
                 continue
+            if name == "supply_events":
+                record("供给事件", "SEC EDGAR／人工条款",
+                       "success" if data.get("status") in ("有事件", "已核查无") else "no_data",
+                       data.get("reason"), symbol=data.get("symbol"))
             if name == "etf_structure":
                 record("ETF 结构", data.get("source_url") or "发行方公开持仓",
                        "success" if data.get("status") == "available" else "no_data",

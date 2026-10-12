@@ -1,0 +1,278 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/TSLA.json",
+ "source_sha256": "9aab9629eca42bc8ef08446bfac2dc4695077cfdb89ad60a0a864ee324f2d2ca",
+ "symbol": "TSLA",
+ "type": "stock",
+ "analyzed_symbol": "TSLA",
+ "context_as_of": "2026-10-12T08:31:45-04:00",
+ "price_data_end_date": "2026-10-09",
+ "news_truncated": true,
+ "data_queries": [
+  {
+   "name": "get_insider_transactions",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:26-04:00"
+  },
+  {
+   "name": "get_fundamentals",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:26-04:00"
+  },
+  {
+   "name": "get_balance_sheet",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:28-04:00"
+  },
+  {
+   "name": "get_cashflow",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:28-04:00"
+  },
+  {
+   "name": "get_income_statement",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:28-04:00"
+  },
+  {
+   "name": "get_earnings_expectations",
+   "started_at": "2026-10-12T08:32:26-04:00",
+   "finished_at": "2026-10-12T08:32:31-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:34:12-04:00",
+   "finished_at": "2026-10-12T08:34:12-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_verified_market_snapshot",
+   "started_at": "2026-10-12T08:34:14-04:00",
+   "finished_at": "2026-10-12T08:34:14-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:34:33-04:00",
+   "finished_at": "2026-10-12T08:34:33-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:35:09-04:00",
+   "finished_at": "2026-10-12T08:35:10-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_stock_data",
+   "started_at": "2026-10-12T08:35:26-04:00",
+   "finished_at": "2026-10-12T08:35:26-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:36:28-04:00",
+   "finished_at": "2026-10-12T08:36:30-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:40:51-04:00",
+   "finished_at": "2026-10-12T08:40:52-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:43:57-04:00",
+   "finished_at": "2026-10-12T08:43:58-04:00"
+  }
+ ],
+ "price_anchors": {
+  "title": "price_anchors",
+  "markdown": "标的TSLA；完整日线截至P=2026-10-09；实际来源Alpaca SIP adjustment=all。\n| 锚点 | 美元 | 类型 | 来源日期 |\n|---|---:|---|---|\n| P_Open | 382.3800 | P日开盘 | 2026-10-09 |\n| P_High | 388.5600 | P日高点 | 2026-10-09 |\n| P_Low | 379.7100 | P日低点 | 2026-10-09 |\n| P_Close | 382.7000 | P日收盘 | 2026-10-09 |\n| close_10_ema | 373.4151 | 均线 | 2026-10-09 |\n| close_20_sma | 368.6595 | 均线 | 2026-10-09 |\n| close_50_sma | 354.7449 | 均线 | 2026-10-09 |\n| close_200_sma | 390.6045 | 均线 | 2026-10-09 |\n| atr | 11.8562 | ATR14 | 2026-10-09 |\n| 20d_High | 388.5600 | 20日极值 | 2026-10-09 |\n| 20d_Low | 345.8800 | 20日极值 | 2026-09-30 |\n| 60d_High | 388.5600 | 60日极值 | 2026-10-09 |\n| 60d_Low | 297.3800 | 60日极值 | 2026-07-29 |\n| 252d_High | 498.8300 | 252交易日极值 | 2025-12-22 |\n| 252d_Low | 297.3800 | 252交易日极值 | 2026-07-29 |\n|一年锚点|距P_Close（%）|距P_Close（ATR14）|\n|---|---:|---:|\n|252d_High|+30.34%|+9.79|\n|252d_Low|-22.29%|-7.20|",
+  "data": {
+   "symbol": "TSLA",
+   "as_of": "2026-10-09",
+   "source": "Alpaca SIP adjustment=all",
+   "anchors": {
+    "P_Open": {
+     "value": 382.38,
+     "date": "2026-10-09",
+     "type": "P日开盘"
+    },
+    "P_High": {
+     "value": 388.56,
+     "date": "2026-10-09",
+     "type": "P日高点"
+    },
+    "P_Low": {
+     "value": 379.71,
+     "date": "2026-10-09",
+     "type": "P日低点"
+    },
+    "P_Close": {
+     "value": 382.7,
+     "date": "2026-10-09",
+     "type": "P日收盘"
+    },
+    "close_10_ema": {
+     "value": 373.4150688163854,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_20_sma": {
+     "value": 368.6595,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_50_sma": {
+     "value": 354.7449,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_200_sma": {
+     "value": 390.6045,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "atr": {
+     "value": 11.856226593010689,
+     "date": "2026-10-09",
+     "type": "ATR14"
+    },
+    "20d_High": {
+     "value": 388.56,
+     "date": "2026-10-09",
+     "type": "20日极值"
+    },
+    "20d_Low": {
+     "value": 345.88,
+     "date": "2026-09-30",
+     "type": "20日极值"
+    },
+    "60d_High": {
+     "value": 388.56,
+     "date": "2026-10-09",
+     "type": "60日极值"
+    },
+    "60d_Low": {
+     "value": 297.38,
+     "date": "2026-07-29",
+     "type": "60日极值"
+    },
+    "252d_High": {
+     "value": 498.83,
+     "date": "2025-12-22",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": 30.34491769009668,
+     "distance_atr": 9.794853285653234
+    },
+    "252d_Low": {
+     "value": 297.38,
+     "date": "2026-07-29",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": -22.294225241703682,
+     "distance_atr": -7.196218740479927
+    }
+   },
+   "warnings": [],
+   "window_252d_count": 252
+  },
+  "as_of": "2026-10-12T08:31:45.180199-04:00",
+  "sources": [
+   "Alpaca SIP adjustment=all"
+  ]
+ },
+ "expected_return_20d_range": "−8% ~ +7%（相对SPY超额，含10月21日财报波动）",
+ "pm_buy_legs": [
+  {
+   "kind": "回踩",
+   "status": "仅观察",
+   "zone_low": 368.66,
+   "zone_high": 373.42,
+   "trigger_rule": "触及区间",
+   "trigger_price": null,
+   "confirm_days": null,
+   "stop_loss": 353.55,
+   "stop_anchor": "close_50_sma−0.1ATR",
+   "first_target": 388.56,
+   "target_method": "阻力位",
+   "target_anchor": "P_High",
+   "reason": "目标距区间上沿1.28个ATR，止损距1.68个ATR，盈亏比0.76，低于1.5，不合格；另外财报前不新增仓位。",
+   "preconditions": "10月21日盘后财报前不新增仓位；有效期5个交易日"
+  },
+  {
+   "kind": "突破",
+   "status": "仅观察",
+   "zone_low": 390.6,
+   "zone_high": 393.56,
+   "trigger_rule": "收盘站上",
+   "trigger_price": 390.6,
+   "confirm_days": 2,
+   "stop_loss": 372.23,
+   "stop_anchor": "close_10_ema−0.1ATR",
+   "first_target": 498.83,
+   "target_method": "阻力位",
+   "target_anchor": "252d_High",
+   "reason": "止损距1.80个ATR，盈亏比约4.9，技术上合格；但目标距8.88个ATR，超过3个ATR，单列统计。财报前不新增仓位，站上后只提请复评Overweight。",
+   "preconditions": "财报前不新增仓位；需相对SPY继续领先；有效期5个交易日"
+  }
+ ],
+ "plan_checks_pm": [
+  {
+   "d_atr": 1.6759126391624026,
+   "rr": 0.7619526925012573,
+   "expected_rr": 0.7619526925012573,
+   "expected_target": {
+    "name": "20d_High",
+    "price": 388.56
+   },
+   "stop_anchor": "close_50_sma",
+   "stop_anchor_name_status": "recognized",
+   "target_anchor_name_status": "recognized",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": false,
+    "target_mismatch": false,
+    "stop_unanchored": false,
+    "stop_distance_out_of_range": false,
+    "rr_below_min": true,
+    "target_far": false,
+    "zone_invalid": false,
+    "target_unanchored": true
+   },
+   "r36_expected_fails": [
+    "target_unanchored",
+    "rr_below_min"
+   ],
+   "qualified": false,
+   "status": "仅观察"
+  },
+  {
+   "d_atr": 1.7990546851199805,
+   "rr": 4.935302390998596,
+   "expected_rr": 4.935302390998596,
+   "expected_target": {
+    "name": "252d_High",
+    "price": 498.83
+   },
+   "stop_anchor": "close_10_ema",
+   "stop_anchor_name_status": "recognized",
+   "target_anchor_name_status": "recognized",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": false,
+    "target_mismatch": false,
+    "stop_unanchored": false,
+    "stop_distance_out_of_range": false,
+    "rr_below_min": false,
+    "target_far": true,
+    "zone_invalid": false,
+    "target_unanchored": false
+   },
+   "r36_expected_fails": [],
+   "qualified": true,
+   "status": "仅观察"
+  }
+ ],
+ "fundamentals_valuation_excerpt": "内，存在业绩、指引及估值重定价风险。三张财报表体最新期末均为2026-06-30；表头的2026-10-02财报相关8-K日期不能替代季度表期，目前没有Q3实际财务数据。以下同比、环比仅描述Q2，不代表Q3走势。\n\n### TSLA 最新季度：增长未转化为经营利润\n2026Q2营收282.36亿美元，同比增25.52%、环比增26.13%；毛利47.51亿美元，毛利率16.83%，较2025Q2下降0.41个百分点、较2026Q1下降4.26个百分点。\n\n2026Q2营业利润3.98亿美元，同比降56.88%、环比降57.70%；营业利润率1.41%，对比2025Q2的4.10%和2026Q1的4.20%。营收扩张与营业利润收缩并存，是本周期的重要基本面约束。\n\n2026Q2净利润11.14亿美元，同比降4.95%、环比增133.54%；摊薄EPS为0.32美元。净利润环比改善不能等同主营盈利改善；缺少非经营",
+ "news_truncation_excerpt": null
+}

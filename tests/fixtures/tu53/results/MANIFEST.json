@@ -1,0 +1,22 @@
+[
+ {
+  "fixture": "result_SPCX_20261012.json",
+  "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/SPCX.json"
+ },
+ {
+  "fixture": "result_TSLA_20261012.json",
+  "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/TSLA.json"
+ },
+ {
+  "fixture": "result_SPY_20261012.json",
+  "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/SPY.json"
+ },
+ {
+  "fixture": "result_QQQ_20261012.json",
+  "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/QQQ.json"
+ },
+ {
+  "fixture": "result_GSPC_index_20261001.json",
+  "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-01/batches/20261001T153401-92666/results/^GSPC.json"
+ }
+]

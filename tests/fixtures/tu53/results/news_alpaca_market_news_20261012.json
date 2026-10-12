@@ -1,0 +1,110 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/SPCX.json",
+ "source_sha256": "9e03bef290bd4c544c0b04c172ee821110dff8cc3fefa000473acd2acb2c5772",
+ "json_path": "context_blocks.macro_releases.data.market_news / .truncated / .calendars.earnings",
+ "as_of": "2026-10-12T08:31:55.010533-04:00",
+ "truncated": false,
+ "calendars_earnings": [],
+ "market_news": [
+  {
+   "title": "Keefe, Bruyette & Woods Maintains Outperform on American International Gr, Lowers Price Target to $90",
+   "created_at": "2026-10-12T12:29:54+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Leerink Partners Assumes Equillium at Outperform, Announces Price Target of $6",
+   "created_at": "2026-10-12T12:29:04+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Full Transcript: SIGA Technologies Q2 2026 Earnings Call",
+   "created_at": "2026-10-12T12:28:53+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "NHTSA Opens Petition Review Into Allegations Tesla Robotaxis Exceed Speed Limits in Active School Zones",
+   "created_at": "2026-10-12T12:28:10+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Leerink Partners Assumes Connect Biopharma Hldgs at Outperform, Announces Price Target of $4",
+   "created_at": "2026-10-12T12:27:34+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Blend Labs Q2 2026 Earnings Call: Complete Transcript",
+   "created_at": "2026-10-12T12:27:15+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Keefe, Bruyette & Woods Maintains Market Perform on American Financial Group, Lowers Price Target to $147",
+   "created_at": "2026-10-12T12:26:10+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Leerink Partners Initiates Coverage On Q32 Bio with Outperform Rating, Announces Price Target of $40",
+   "created_at": "2026-10-12T12:25:40+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Keefe, Bruyette & Woods Maintains Market Perform on Arch Capital Group, Lowers Price Target to $95",
+   "created_at": "2026-10-12T12:25:21+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Why Is First Tracks Biotherapeutics Stock Soaring Monday?",
+   "created_at": "2026-10-12T12:23:55+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Leerink Partners Initiates Coverage On Vera Therapeutics with Market Perform Rating, Announces Price Target of $34",
+   "created_at": "2026-10-12T12:22:34+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Leerink Partners Initiates Coverage On Nektar Therapeutics with Outperform Rating, Announces Price Target of $130",
+   "created_at": "2026-10-12T12:20:18+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Salesforce Agrees To Acquire AI-Powered Analytics Platforms Loops; Financial Terms Undisclosed",
+   "created_at": "2026-10-12T12:19:35+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Amazon To $310? Here Are 10 Top Analyst Forecasts For Monday",
+   "created_at": "2026-10-12T12:19:24+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "FNB Earnings Are Imminent; These Most Accurate Analysts Revise Forecasts Ahead Of Earnings Call",
+   "created_at": "2026-10-12T12:19:06+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "What's Going On With Fastly Stock Monday?",
+   "created_at": "2026-10-12T12:18:42+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Lucid Capital Markets Initiates Coverage On Prenetics Global with Buy Rating, Announces Price Target of $54",
+   "created_at": "2026-10-12T12:17:49+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "'EU To Cap Chinese Hybrid-Vehicle Imports At 350,000 Units Annually, Official Says; The Cap Will Include A Fixed Annual Increase Of 6%' - WSJ",
+   "created_at": "2026-10-12T12:17:33+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Ocean Power Technologies' PowerBuoy 2.0 Solar And Wind Mini To Participate In Upcoming U.S. Government Operational Exercise",
+   "created_at": "2026-10-12T12:17:10+00:00",
+   "revised_after_cutoff": false
+  },
+  {
+   "title": "Innovate Q2 2026 Earnings Call Transcript",
+   "created_at": "2026-10-12T12:16:13+00:00",
+   "revised_after_cutoff": false
+  }
+ ]
+}

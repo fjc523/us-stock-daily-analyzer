@@ -1,0 +1,17 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-01/batches/20261001T153401-92666/results/^GSPC.json",
+ "source_sha256": "ca2961355f6237bef97710abb3e0d7019a79e5aeada3a11af9b2cdb60eb0022a",
+ "symbol": "^GSPC",
+ "type": "index",
+ "analyzed_symbol": "SPY",
+ "status": "success",
+ "mode": "live",
+ "context_as_of": "2026-10-01T15:34:17-04:00",
+ "price_data_end_date": "2026-09-30",
+ "context_block_names": [
+  "market_regime",
+  "sector_strength",
+  "extended_hours",
+  "macro_releases"
+ ]
+}

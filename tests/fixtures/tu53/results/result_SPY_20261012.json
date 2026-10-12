@@ -1,0 +1,217 @@
+{
+ "source_path": "/Users/zhoulei/Documents/us-stock-daily-analyzer/data/runs/2026-10-12/batches/20261012T083007-16293/results/SPY.json",
+ "source_sha256": "559b69db56204752a518833ad939340c884c18b3175f929fff78814a74a36bd3",
+ "symbol": "SPY",
+ "type": "etf",
+ "analyzed_symbol": "SPY",
+ "context_as_of": "2026-10-12T08:31:00-04:00",
+ "price_data_end_date": "2026-10-09",
+ "news_truncated": true,
+ "data_queries": [
+  {
+   "name": "get_verified_market_snapshot",
+   "started_at": "2026-10-12T08:32:05-04:00",
+   "finished_at": "2026-10-12T08:32:05-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:32:05-04:00",
+   "finished_at": "2026-10-12T08:32:06-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_stock_data",
+   "started_at": "2026-10-12T08:32:25-04:00",
+   "finished_at": "2026-10-12T08:32:25-04:00"
+  },
+  {
+   "name": "get_global_news",
+   "started_at": "2026-10-12T08:33:13-04:00",
+   "finished_at": "2026-10-12T08:33:13-04:00",
+   "truncated": true
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:37:21-04:00",
+   "finished_at": "2026-10-12T08:37:21-04:00"
+  },
+  {
+   "name": "get_news",
+   "started_at": "2026-10-12T08:40:52-04:00",
+   "finished_at": "2026-10-12T08:40:53-04:00"
+  }
+ ],
+ "price_anchors": {
+  "title": "price_anchors",
+  "markdown": "标的SPY；完整日线截至P=2026-10-09；实际来源Alpaca SIP adjustment=all。\n| 锚点 | 美元 | 类型 | 来源日期 |\n|---|---:|---|---|\n| P_Open | 776.2400 | P日开盘 | 2026-10-09 |\n| P_High | 779.4200 | P日高点 | 2026-10-09 |\n| P_Low | 775.1400 | P日低点 | 2026-10-09 |\n| P_Close | 778.5700 | P日收盘 | 2026-10-09 |\n| close_10_ema | 772.8306 | 均线 | 2026-10-09 |\n| close_20_sma | 767.6010 | 均线 | 2026-10-09 |\n| close_50_sma | 766.2832 | 均线 | 2026-10-09 |\n| close_200_sma | 719.6486 | 均线 | 2026-10-09 |\n| atr | 6.5948 | ATR14 | 2026-10-09 |\n| 20d_High | 781.6200 | 20日极值 | 2026-10-06 |\n| 20d_Low | 747.7400 | 20日极值 | 2026-09-16 |\n| 60d_High | 781.6200 | 60日极值 | 2026-10-06 |\n| 60d_Low | 727.2900 | 60日极值 | 2026-07-29 |\n| 252d_High | 781.6200 | 252交易日极值 | 2026-10-06 |\n| 252d_Low | 626.1100 | 252交易日极值 | 2026-03-30 |\n|一年锚点|距P_Close（%）|距P_Close（ATR14）|\n|---|---:|---:|\n|252d_High|+0.39%|+0.46|\n|252d_Low|-19.58%|-23.12|",
+  "data": {
+   "symbol": "SPY",
+   "as_of": "2026-10-09",
+   "source": "Alpaca SIP adjustment=all",
+   "anchors": {
+    "P_Open": {
+     "value": 776.24,
+     "date": "2026-10-09",
+     "type": "P日开盘"
+    },
+    "P_High": {
+     "value": 779.42,
+     "date": "2026-10-09",
+     "type": "P日高点"
+    },
+    "P_Low": {
+     "value": 775.14,
+     "date": "2026-10-09",
+     "type": "P日低点"
+    },
+    "P_Close": {
+     "value": 778.57,
+     "date": "2026-10-09",
+     "type": "P日收盘"
+    },
+    "close_10_ema": {
+     "value": 772.8306133403884,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_20_sma": {
+     "value": 767.601,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_50_sma": {
+     "value": 766.2832,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "close_200_sma": {
+     "value": 719.6486,
+     "date": "2026-10-09",
+     "type": "均线"
+    },
+    "atr": {
+     "value": 6.594779218970679,
+     "date": "2026-10-09",
+     "type": "ATR14"
+    },
+    "20d_High": {
+     "value": 781.62,
+     "date": "2026-10-06",
+     "type": "20日极值"
+    },
+    "20d_Low": {
+     "value": 747.74,
+     "date": "2026-09-16",
+     "type": "20日极值"
+    },
+    "60d_High": {
+     "value": 781.62,
+     "date": "2026-10-06",
+     "type": "60日极值"
+    },
+    "60d_Low": {
+     "value": 727.29,
+     "date": "2026-07-29",
+     "type": "60日极值"
+    },
+    "252d_High": {
+     "value": 781.62,
+     "date": "2026-10-06",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": 0.39174383806208235,
+     "distance_atr": 0.4624870520648002
+    },
+    "252d_Low": {
+     "value": 626.11,
+     "date": "2026-03-30",
+     "type": "252交易日极值",
+     "sample_days": 252,
+     "distance_pct": -19.58205427899868,
+     "distance_atr": -23.118287199278853
+    }
+   },
+   "warnings": [],
+   "window_252d_count": 252
+  },
+  "as_of": "2026-10-12T08:31:00.157819-04:00",
+  "sources": [
+   "Alpaca SIP adjustment=all"
+  ]
+ },
+ "expected_return_20d_range": "-3.0% ~ +4.0%",
+ "pm_buy_legs": [
+  {
+   "kind": "突破",
+   "status": "待触发",
+   "zone_low": 781.62,
+   "zone_high": 783.27,
+   "trigger_rule": "收盘站上",
+   "trigger_price": 781.62,
+   "confirm_days": 2,
+   "stop_loss": 773.16,
+   "stop_anchor": "P_Low−0.3ATR",
+   "first_target": 803.05,
+   "target_method": "ATR替代",
+   "target_anchor": "U+3ATR（U上方无候选阻力）",
+   "reason": "突破20d_High/252d_High，U=783.27；止损距U 1.53ATR，目标距U 3ATR，盈亏比1.96≥1.5，各项检查通过。",
+   "preconditions": "10-14、10-15收盘确认（覆盖CPI/PPI），两日成交量≥20日均量；10-16执行，到期未触发须重审"
+  },
+  {
+   "kind": "回踩",
+   "status": "仅观察",
+   "zone_low": null,
+   "zone_high": null,
+   "trigger_rule": null,
+   "trigger_price": null,
+   "confirm_days": null,
+   "stop_loss": null,
+   "stop_anchor": null,
+   "first_target": null,
+   "target_method": null,
+   "target_anchor": null,
+   "reason": "U=772.83时，P_High 779.42在U上方0.999ATR，未通过1ATR检查；以close_50_sma为锚的止损距离≤0.70ATR，以20d_Low为锚的止损距离3.01ATR，均不在1–2.5ATR范围内。",
+   "preconditions": "仅复评"
+  }
+ ],
+ "plan_checks_pm": [
+  {
+   "d_atr": 1.5330308512705593,
+   "rr": 1.9564787339267997,
+   "expected_rr": 1.956907780109992,
+   "expected_target": {
+    "name": "ATR替代",
+    "price": 803.054337656912
+   },
+   "stop_anchor": "P_Low",
+   "stop_anchor_name_status": "recognized",
+   "target_anchor_name_status": "not_applicable",
+   "checks": {
+    "rr_reason_text": false,
+    "zone_under_horizontal_resistance": false,
+    "target_mismatch": false,
+    "stop_unanchored": false,
+    "stop_distance_out_of_range": false,
+    "rr_below_min": false,
+    "target_far": false,
+    "zone_invalid": false,
+    "target_unanchored": false
+   },
+   "r36_expected_fails": [],
+   "qualified": true,
+   "status": "待触发"
+  },
+  {
+   "d_atr": null,
+   "rr": null,
+   "expected_target": null,
+   "checks": {
+    "rr_reason_text": false,
+    "anchors_unavailable": true
+   },
+   "qualified": false,
+   "status": "仅观察"
+  }
+ ],
+ "news_truncation_excerpt": "值。报道引用的“高开概率78%”只涉及单日开盘、且未独立核验，不代表未来5–20日收益概率。\n\n数据边界：新闻两次返回均截断，无法视为完整周度覆盖，部分仅有标题；因此不能确认无其他重大事件。盘外证据适用限制#1，不把夜盘或低量盘前变化视为正式交易确认。\n\n## 事件表\n方向均指对 SPY 的潜在影响；日期为美东时间。\n\n|日期|来源|事件或观点|重要性|方向"
+}

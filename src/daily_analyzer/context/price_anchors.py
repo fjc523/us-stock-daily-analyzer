@@ -93,6 +93,7 @@ class PriceAnchorsProvider:
         if not valid.empty:
             valid = valid[valid.High.map(math.isfinite) & valid.Low.map(math.isfinite)]
         data['window_252d_count'] = len(valid)
+        data['window_252d_first_date'] = str(valid.Date.iloc[0]) if not valid.empty else None
         for field, operation in [('High', 'idxmax'), ('Low', 'idxmin')]:
             name = '252d_' + field
             if valid.empty:
@@ -115,11 +116,14 @@ class PriceAnchorsProvider:
         lines = [f'标的{symbol}；完整日线截至P={self.end}；实际来源{source}。',
                  '| 锚点 | 美元 | 类型 | 来源日期 |', '|---|---:|---|---|']
         lines.extend(f"| {name} | {row['value']:.4f} | {row['type']} | {row['date']} |" if row['value'] is not None else f"| {name} | 数据不足 | {row['type']} | {row['date']} |" for name,row in anchors.items())
-        lines.extend(['|一年锚点|距P_Close（%）|距P_Close（ATR14）|', '|---|---:|---:|'])
+        window_label = f'一年锚点（实有{len(valid)}交易日，首个有效日线{data["window_252d_first_date"]}）' if 0 < len(valid) < 252 else '一年锚点'
+        lines.extend([f'|{window_label}|距P_Close（%）|距P_Close（ATR14）|', '|---|---:|---:|'])
         for name in ('252d_High', '252d_Low'):
             row = anchors[name]
             pct = f"{row['distance_pct']:+.2f}%" if row['distance_pct'] is not None else '不可计算'
             atr = f"{row['distance_atr']:+.2f}" if row['distance_atr'] is not None else '不可计算'
             lines.append(f'|{name}|{pct}|{atr}|')
+        if 0 < len(valid) < 252:
+            lines.append(f'252d_High/252d_Low 为已有{len(valid)}交易日极值，不等于52周/一年高低点；样本起点不代表上市日期。')
         lines.extend(data['warnings'])
         return ContextBlock(self.name,'\n'.join(lines),data,cutoff,[source])

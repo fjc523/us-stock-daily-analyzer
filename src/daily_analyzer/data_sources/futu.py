@@ -382,11 +382,23 @@ class FutuDataSource:
         row = rows[0]
         valuation = self._call("get_valuation_detail", code=futu_code(ticker))[0]
         values = {"官方前收盘": row.get("prev_close_price"), "快照现价（独立列示）": row.get("last_price"),
-                  "市盈率TTM": row.get("equity_pe_ratio"), "市净率": row.get("equity_pb_ratio"),
-                  "总市值": row.get("equity_market_val"), "52周高": row.get("highest52weeks_price"),
+                  "市盈率TTM": row.get("pe_ttm_ratio"), "市净率": row.get("pb_ratio"),
+                  "总市值": row.get("total_market_val"), "流通市值": row.get("circular_market_val"), "52周高": row.get("highest52weeks_price"),
                   "52周低": row.get("lowest52weeks_price"), "快照时间": row.get("update_time"),
                   "估值类型": valuation.get("valuation_type"), "估值分位%": valuation.get("trend", {}).get("valuation_percentile"),
                   "分位时间": valuation.get("last_update_time_str")}
+        # 倍数由富途按其快照价计算，不按盘前价重算；原始字段保留以供审计。
+        import pandas as pd
+        import numpy as np
+        for label in ("市盈率TTM", "市净率", "总市值", "流通市值"):
+            raw = values[label]
+            if isinstance(row.get("equity_valid"), (bool, np.bool_)) and not row["equity_valid"]:
+                values[label] = "不适用（非正股，equity_valid=False）"
+            elif raw is None or pd.isna(raw):
+                values[label] = "缺失"
+            elif label in ("市盈率TTM", "市净率") and raw <= 0:
+                values[label] = ("亏损或不适用" if label == "市盈率TTM" else "净资产为负或不适用") + f"（原值 {raw}）"
+        values["快照原始估值"] = {key: row.get(key) for key in ("equity_valid", "pe_ttm_ratio", "pb_ratio", "total_market_val", "circular_market_val")}
         return _futu_markdown("估值", [values], "估值依据prev_close_price；实时分位按其独立更新时间，非盘前价重算。")
 
     def insiders(self, ticker, curr_date):

@@ -63,8 +63,9 @@ def test_valuation_price_is_separate_from_current_quote(monkeypatch):
     import tradingagents.dataflows.date_window as window
     monkeypatch.setattr(window,'is_historical',lambda value:False)
     source=FutuDataSource()
-    monkeypatch.setattr(source,'_call', lambda method,**kw: ([{'prev_close_price':100,'last_price':102,'equity_pe_ratio':30,'update_time':'2026-10-02'}],) if method=='get_market_snapshot' else ({'valuation_type':'PE','trend':{'valuation_percentile':70}},))
+    monkeypatch.setattr(source,'_call', lambda method,**kw: ([{'prev_close_price':100,'last_price':102,'equity_valid':True,'pe_ttm_ratio':30,'pb_ratio':4,'total_market_val':123456,'circular_market_val':100000,'update_time':'2026-10-02'}],) if method=='get_market_snapshot' else ({'valuation_type':'PE','trend':{'valuation_percentile':70}},))
     text=source.fundamentals('TSLA','2026-10-02')
+    assert all(value in text for value in ('\"市盈率TTM\": 30', '\"市净率\": 4', '\"总市值\": 123456', '\"流通市值\": 100000'))
     assert '官方前收盘' in text and '快照现价（独立列示）' in text and 'prev_close_price' in text and '估值分位%' in text
 
 
