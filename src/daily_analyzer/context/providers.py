@@ -390,6 +390,9 @@ class SectorStrengthProvider:
                 f"{symbol} 相对 {BENCHMARK_NAMES.get(benchmark_symbol, benchmark_symbol)}（{benchmark_symbol}）：" + "；".join(f"{days}日 {_format_pct(relative[f'benchmark_excess_{days}d'])}" for days in (5, 20, 60)),
                 "相对 SPY：" + "；".join(f"{days}日 {_format_pct(relative[f'spy_excess_{days}d'])}" for days in (5, 20, 60)),
             ])
+            daily_lines, daily_data = self._spy_daily_excess(symbol)
+            lines.extend(daily_lines)
+            data.update(daily_data)
             if not sector_etf:
                 lines.append("未能识别所属板块，以上为指数基准比较。")
             if metadata.get("membership_as_of"):
@@ -414,6 +417,55 @@ class SectorStrengthProvider:
                 lines.append(f"{symbol} 相对 {comparison['name']}（{comparison['symbol']}）：" + "；".join(
                     f"{days}日 {_format_pct(comparison[f'excess_{days}d'])}" for days in (5, 20, 60)))
         return ContextBlock(self.name, "\n".join(lines), data, self.end, self.sources)
+
+    def _spy_daily_excess(self, symbol: str) -> tuple[list[str], dict[str, Any]]:
+        """复用同源批次日线，按交易日保留缺价，不跨缺口计算收益。"""
+        stock_rows, stock_source = self.services.prices.bars(symbol, self.end)
+        spy_rows, spy_source = self.services.prices.bars("SPY", self.end)
+        stock = normalize_closes(stock_rows, self.end)
+        spy = normalize_closes(spy_rows, self.end)
+        data = {"spy_daily_excess_5d": [], "spy_window_start": None,
+                "spy_window_dropped": None, "spy_window_added": None,
+                "spy_daily_excess_sources": [stock_source, spy_source]}
+        if min(sum(value > 0 for value in stock.values()), sum(value > 0 for value in spy.values())) < 6:
+            data["spy_daily_excess_status"] = "样本不足"
+            return ["近5个交易日逐日超额：样本不足，未提供逐日超额。",
+                    "与上一交易日相比，5日窗口：样本不足，未提供逐日超额。"], data
+        sessions = _expected_sessions(self.end, 7)
+
+        def daily(previous: date, current: date) -> dict[str, Any]:
+            returns = []
+            for closes in (stock, spy):
+                before, after = closes.get(previous), closes.get(current)
+                returns.append(after / before - 1 if before is not None and after is not None
+                               and before > 0 and after > 0 else None)
+            stock_ret, spy_ret = returns
+            excess = stock_ret - spy_ret if stock_ret is not None and spy_ret is not None else None
+            return {"date": current.isoformat(), "stock_ret": stock_ret, "spy_ret": spy_ret,
+                    "excess": excess, "status": "可用" if excess is not None else "数据缺失"}
+
+        daily_rows = [daily(previous, current) for previous, current in zip(sessions[1:-1], sessions[2:])]
+        dropped = daily(sessions[0], sessions[1])
+        added = daily_rows[-1]
+        start = {"date": sessions[1].isoformat(), "stock_close": stock.get(sessions[1]),
+                 "spy_close": spy.get(sessions[1])}
+        data.update({"spy_daily_excess_5d": daily_rows, "spy_window_start": start,
+                     "spy_window_dropped": dropped, "spy_window_added": added,
+                     "spy_daily_excess_status": "可用" if all(row["excess"] is not None for row in [*daily_rows, dropped]) else "数据缺失"})
+
+        def excess_text(row: dict[str, Any]) -> str:
+            return _format_pct(row["excess"]).replace("%", "pp") if row["excess"] is not None else "数据缺失"
+
+        start_close = start["stock_close"]
+        start_text = f"{start_close:.2f}" if start_close is not None and start_close > 0 else "数据缺失"
+        return [
+            "近5个交易日逐日超额（个股−SPY，收盘对收盘）：" + "｜".join(
+                f"{row['date'][5:].replace('-', '/')} {excess_text(row)}" for row in daily_rows
+            ) + f"；5日窗口起点 {sessions[1]:%m/%d} 收盘 {start_text}。",
+            f"与上一交易日相比，5日窗口移出 {sessions[1]:%m/%d}（当日超额 {excess_text(dropped)}）、"
+            f"新增 {sessions[-1]:%m/%d}（当日超额 {excess_text(added)}）；"
+            "N日相对收益的变化若主要来自移出日，不代表新出现的走势。",
+        ], data
 
     def _comparison(self, symbol: str, benchmark: str, kind: str, reason: str) -> dict[str, Any]:
         """图表复用批次缓存，共同首日归一为100，不补造行情。"""

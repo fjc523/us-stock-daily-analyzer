@@ -998,3 +998,86 @@ def test_active_overnight_stale_futu_analysis_fetches_fresh_alpaca_without_chang
     assert quote["price"] == 100.5 and quote["status"] == "可用"
     assert quote["source"] == "Alpaca feed=overnight"
     assert any(call[0] == "snapshots" and call[2] == "overnight" and call[1].count("NVDA") == 1 for call in alpaca.calls)
+
+
+@pytest.mark.parametrize("end,start,close", [(date(2026, 10, 12), "2026-10-05", 171.09), (date(2026, 10, 9), "2026-10-02", 158.96)])
+def test_spy_daily_excess_real_cached_bars(end, start, close):
+    # 价格从既有真实缓存提取，期望逐日按CSV原始收盘独立推导。
+    import csv
+    fixture = Path(__file__).parent / "fixtures" / "tu54" / "daily_bars"
+    rows = {}
+    for symbol in ("SPCX", "SPY"):
+        with (fixture / f"{symbol}-alpaca-data.csv").open() as handle:
+            rows[symbol] = list(csv.DictReader(handle))
+    provider = SectorStrengthProvider(_services(prices=FakePrices(rows=rows)))
+    item = WatchlistItem(symbol="SPCX", type="stock")
+    provider.prepare({"price_data_end_date": end, "trade_date": end + timedelta(days=1), "items": [item]})
+    block = provider.build(item, end)
+    data = block.data
+    assert data["spy_window_start"] == {"date": start, "stock_close": close, "spy_close": 774.83 if end.day == 12 else 769.64}
+    closes = {symbol: {row["Date"]: float(row["Close"]) for row in values} for symbol, values in rows.items()}
+    days = _sessions(end, 7)
+    for actual, before, after in zip([data["spy_window_dropped"], *data["spy_daily_excess_5d"]], days, days[1:]):
+        stock_ret = closes["SPCX"][after.isoformat()] / closes["SPCX"][before.isoformat()] - 1
+        spy_ret = closes["SPY"][after.isoformat()] / closes["SPY"][before.isoformat()] - 1
+        assert actual["date"] == after.isoformat()
+        assert actual["stock_ret"] == pytest.approx(stock_ret)
+        assert actual["spy_ret"] == pytest.approx(spy_ret)
+        assert actual["excess"] == pytest.approx(stock_ret - spy_ret)
+    assert len(data["spy_daily_excess_5d"]) == 5
+    assert data["spy_window_added"] == data["spy_daily_excess_5d"][-1]
+    if end.day == 12:
+        assert data["spy_window_dropped"]["excess"] * 100 == pytest.approx(6.96, abs=0.01)
+        assert data["spy_window_added"]["excess"] * 100 == pytest.approx(0.58, abs=0.01)
+        assert "10/05 收盘 171.09" in block.markdown
+
+
+@pytest.mark.parametrize("missing_index", [0, 3, 6, None])
+def test_spy_daily_excess_missing_price_never_bridges_gap(missing_index):
+    end = date(2026, 10, 12)
+    rows = _rows(end, 10)
+    if missing_index is not None:
+        # 最后7根的首根为额外前收盘，内部缺价影响相邻两天，末根为P。
+        rows[-7 + missing_index]["c"] = None
+    provider = SectorStrengthProvider(_services(prices=FakePrices(rows={"ANY": rows, "SPY": _rows(end, 10)})))
+    provider.end = end
+    lines, data = provider._spy_daily_excess("ANY")
+    actual = [data["spy_window_dropped"], *data["spy_daily_excess_5d"]]
+    days = _sessions(end, 7)
+    expected = [] if missing_index is None else [days[i].isoformat() for i in range(1, 7) if missing_index in (i - 1, i)]
+    assert [row["date"] for row in actual if row["excess"] is None] == expected
+    assert ("数据缺失" in "\n".join(lines)) == bool(expected)
+    assert all(row["excess"] in (None, 0) for row in actual)
+
+
+@pytest.mark.parametrize("count", [0, 5, 6])
+def test_spy_daily_excess_short_history_and_extra_previous_close(count):
+    end = date(2026, 10, 12)
+    provider = SectorStrengthProvider(_services(prices=FakePrices(rows={"NEW": _rows(end, count) if count else [], "SPY": _rows(end, 10)})))
+    provider.end = end
+    lines, data = provider._spy_daily_excess("NEW")
+    if count < 6:
+        assert all("样本不足，未提供逐日超额" in line for line in lines)
+        assert data["spy_daily_excess_5d"] == []
+    else:
+        assert len(data["spy_daily_excess_5d"]) == 5
+        assert all(row["excess"] is not None for row in data["spy_daily_excess_5d"])
+        assert data["spy_window_dropped"]["excess"] is None
+        assert "数据缺失" in lines[1]
+
+
+def test_spy_daily_excess_uses_prepared_price_cache_without_network():
+    end = date(2026, 10, 12)
+    class CachedAlpaca(FakeAlpaca):
+        def daily_bars(self, symbols, start, finish):
+            self.calls.append(tuple(symbols))
+            return {symbol: _rows(end, 10) for symbol in symbols}
+    alpaca = CachedAlpaca()
+    provider = SectorStrengthProvider(_services(prices=DailyPriceService(alpaca, FakeYahoo())))
+    item = WatchlistItem(symbol="GENERIC", type="stock", sector_etf="XLI")
+    provider.prepare({"trade_date": end + timedelta(days=1), "price_data_end_date": end, "items": [item]})
+    before = list(alpaca.calls)
+    block = provider.build(item, end)
+    assert alpaca.calls == before
+    assert block.data["spy_daily_excess_sources"] == ["Alpaca SIP adjustment=all"] * 2
+    assert len(block.data["spy_daily_excess_5d"]) == 5
