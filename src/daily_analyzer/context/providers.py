@@ -273,6 +273,9 @@ class SectorStrengthProvider:
             else:
                 metadata = official.get(symbol, {})
                 sector_etf = metadata.get("benchmark_symbol") if metadata.get("benchmark_kind") == "sector" else None
+                if not sector_etf:
+                    # 保留既有批次来源标签，避免改变 ETF/指数块；实际股票映射以逐标的理由为准。
+                    self._sector_source_used = True
                 if str(_value(batch, "mode", "live")) != "backfill":
                     cached_sector, issuer_reason = issuer_sector_mapping(
                         self.services.project_root, symbol, metadata, _trade_date(batch), self.services.clock())
@@ -281,7 +284,6 @@ class SectorStrengthProvider:
                     if cached_sector:
                         sector_etf = cached_sector
                 if not sector_etf:
-                    self._sector_source_used = True
                     sector_etf = self.services.yahoo.sector_etf(symbol)
                 self.stock_sector_etfs[symbol] = (sector_etf, False)
                 if sector_etf:

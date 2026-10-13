@@ -150,3 +150,33 @@ def test_cache_from_different_fund_cannot_reuse(tmp_path):
     seed(tmp_path, fund="SPY")
     block = build(provider(tmp_path), ("SPCX",))[0]
     assert block["data"]["benchmark_symbol"] == "XLI"
+
+
+def test_mixed_batch_keeps_nonstock_bytes_and_does_not_query_yahoo(tmp_path, monkeypatch):
+    """缓存介入前的原路径作对照，核对完整序列化块而非只比 data。"""
+    import daily_analyzer.context.providers as module
+    seed(tmp_path)
+    items = [{"symbol": "SPCX", "type": "stock"}, {"symbol": "SPY", "type": "etf"},
+             {"symbol": "^GSPC", "type": "index"}]
+    current = provider(tmp_path)
+    current.services.yahoo.sector_etf = lambda symbol: pytest.fail("缓存沿用不得额外查询 Yahoo")
+    current.prepare({**BATCH, "items": items})
+    after = [json.dumps(current.build(item, "2026-10-13T08:31:00-04:00").to_dict(), ensure_ascii=False).encode() for item in items]
+    stock = current.build(items[0], "2026-10-13T08:31:00-04:00").data
+    assert stock["benchmark_symbol"] == "XLC" and "沿用 2026-10-12 名单" in stock["benchmark_reason"]
+    monkeypatch.setattr(module, "issuer_sector_mapping", lambda *args: (None, None))
+    previous = provider(tmp_path)
+    previous.prepare({**BATCH, "items": items})
+    before = [json.dumps(previous.build(item, "2026-10-13T08:31:00-04:00").to_dict(), ensure_ascii=False).encode() for item in items]
+    assert after[1:] == before[1:]
+
+
+def test_normal_fields_complete_output_bytes_unchanged(tmp_path, monkeypatch):
+    import daily_analyzer.context.providers as module
+    payload = json.loads(FIXTURE.read_text())
+    for row in payload["holdings"]:
+        row["sectorName"] = "Communication Services" if row["ticker"] == "SPCX" else "Consumer Discretionary"
+    current = build(provider(tmp_path, source(payload)))
+    monkeypatch.setattr(module, "issuer_sector_mapping", lambda *args: (None, None))
+    previous = build(provider(tmp_path, source(payload)))
+    assert json.dumps(current, ensure_ascii=False).encode() == json.dumps(previous, ensure_ascii=False).encode()
