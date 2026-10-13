@@ -8,6 +8,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from .issuer_sector_cache import issuer_sector_mapping
 from .analysis_quote import active_window, recent_after_window, observation, raw_futu, raw_alpaca
 from .base import ContextBlock, ContextManager, ProviderRegistry, ProviderServices
 from .market_data import as_date, previous_trading_day, normalize_closes, _expected_sessions
@@ -253,6 +254,7 @@ class SectorStrengthProvider:
         self.end = _price_end(batch)
         symbols = [*SECTOR_ETFS, "SPY"]
         unresolved = []
+        issuer_reasons = {}
         stock_symbols = []
         official = self.services.index_metadata.lookup([_symbol(item) for item in _items(batch) if _item_type(item) == "stock"]) if str(_value(batch, "mode", "live")) != "backfill" else {}
         for item in _items(batch):
@@ -271,6 +273,13 @@ class SectorStrengthProvider:
             else:
                 metadata = official.get(symbol, {})
                 sector_etf = metadata.get("benchmark_symbol") if metadata.get("benchmark_kind") == "sector" else None
+                if str(_value(batch, "mode", "live")) != "backfill":
+                    cached_sector, issuer_reason = issuer_sector_mapping(
+                        self.services.project_root, symbol, metadata, _trade_date(batch), self.services.clock())
+                    if issuer_reason:
+                        issuer_reasons[symbol] = issuer_reason
+                    if cached_sector:
+                        sector_etf = cached_sector
                 if not sector_etf:
                     self._sector_source_used = True
                     sector_etf = self.services.yahoo.sector_etf(symbol)
@@ -280,7 +289,7 @@ class SectorStrengthProvider:
             sector_etf, manual = self.stock_sector_etfs[symbol]
             if sector_etf:
                 self.benchmarks[symbol] = {"benchmark_symbol": sector_etf, "benchmark_kind": "sector",
-                                           "benchmark_reason": "手工指定板块" if manual else official[symbol]["benchmark_reason"] if official.get(symbol, {}).get("benchmark_kind") == "sector" else "Yahoo板块映射"}
+                                           "benchmark_reason": "手工指定板块" if manual else issuer_reasons[symbol] if symbol in issuer_reasons and cached_sector else official[symbol]["benchmark_reason"] if official.get(symbol, {}).get("benchmark_kind") == "sector" else "Yahoo板块映射"}
             else:
                 unresolved.append(symbol)
         if stock_symbols:
@@ -296,6 +305,8 @@ class SectorStrengthProvider:
                 symbols.append(metadata["benchmark_symbol"])
                 if metadata["benchmark_kind"] == "sector":
                     self.stock_sector_etfs[symbol] = (metadata["benchmark_symbol"], False)
+        for symbol, reason in issuer_reasons.items():
+            self.benchmarks[symbol] = {**self.benchmarks[symbol], "issuer_sector_reason": reason}
         self.metrics = self.services.prices.metrics(list(dict.fromkeys(symbols)), self.end, (5, 20, 60))
         sources = [str(metric.get("source", "")) for metric in self.metrics.values()]
         if self._sector_source_used:

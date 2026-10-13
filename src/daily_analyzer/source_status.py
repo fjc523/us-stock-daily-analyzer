@@ -89,6 +89,8 @@ def _fallback_used(category, attempts, used, config):
         return False
     if category in {"一致预期", "空头"}:
         return False
+    if category == "板块映射" and any((event.get("statement_metadata") or {}).get("issuer_sector_fallback") for event in attempts):
+        return True
     primary = _primary_source(category, config)
     if primary:
         return any(_canonical_source(source) != primary for source in used)
@@ -150,7 +152,9 @@ class SourceStatusCollector:
                             metadata = {'minute_contract': True, 'fallback_used': bool(segment.get('fallback_used')), 'preflight': data.get('preflight'), 'source_failures': segment.get('source_failures')} if segment.get('volume_scope') else None
                             record("扩展时段报价", segment.get("source") or "扩展时段来源", "success" if valid else "failed", segment.get("warning") or (None if valid else segment.get("status")), metadata)
             if name == "sector_strength" and data.get("benchmark_reason"):
-                record("板块映射", data.get("benchmark_reason"))
+                reason = data.get("issuer_sector_reason")
+                record("板块映射", data.get("benchmark_reason"), error=reason,
+                       metadata={"issuer_sector_fallback": True} if reason else None)
             category = {"price_anchors": "日线", "macro_releases": "新闻"}.get(name)
             if category and data.get("error"):
                 record(category, "上下文来源", "failed", data["error"], symbol=data.get("symbol"))
