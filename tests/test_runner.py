@@ -279,7 +279,7 @@ def test_failed_forced_attempt_keeps_previous_success_and_records_retry(
         (root / "data" / "runs" / "2026-10-02" / "manifest.json").read_text(encoding="utf-8")
     )
     assert manifest["items"]["NVDA"]["recent_retry_failure"]["status"] == "failed"
-    assert len(manifest["items"]["NVDA"]["attempts"]) == 2
+    assert len(manifest["items"]["NVDA"]["attempts"]) == 4
     _FakeGraph.fail_symbols = set()
 
 
@@ -301,7 +301,7 @@ def test_quota_stops_dispatch_and_marks_remaining_tickers(
     result = _run(root, clock=lambda: now)
 
     assert result.exit_code == 1
-    assert _FakeGraph.analyzed == ["NVDA"]
+    assert _FakeGraph.analyzed == ["NVDA", "NVDA", "NVDA"]
     batch = json.loads(
         (root / "data" / "runs" / "2026-10-02" / "batches" / result.run_id / "batch.json").read_text(encoding="utf-8")
     )
@@ -619,13 +619,16 @@ def test_aborted_outcome_stops_dispatch_before_concurrent_fatal_config_returns(
         reset_abort()
 
     assert result.exit_code == 1
-    assert submitted == ["NVDA", "SPY"]
+    assert submitted.count("NVDA") == submitted.count("SPY") == 3
     assert set(manager.built_symbols) == {"NVDA", "SPY"}
     assert "TSLA" not in manager.built_symbols
     batch = json.loads(
         (root / "data" / "runs" / "2026-10-02" / "batches" / result.run_id / "batch.json").read_text(encoding="utf-8")
     )
-    assert batch["items"]["NVDA"]["status"] == "skipped_fatal"
+    assert batch["items"]["NVDA"]["status"] == "failed"
+    manifest = json.loads((root / "data/runs/2026-10-02/manifest.json").read_text())
+    assert len(manifest["items"]["NVDA"]["attempts"]) == 3
+    assert all(row["status"] == "failed" for row in manifest["items"]["NVDA"]["attempts"])
     assert batch["items"]["SPY"]["status"] == "failed"
     assert batch["items"]["TSLA"]["status"] == "skipped_fatal"
 
@@ -1346,7 +1349,7 @@ def test_explicit_quota_recovery_dispatches_only_new_selection(tmp_path, monkeyp
     assert any(row['request_id'] == 'old-schema' and '不是当前额度检测' in row['reason'] for row in batch['append_rejections'])
     assert 'DIA' not in batch['items']
     assert set(_FakeGraph.analyzed) == {'NVDA', 'QQQ', 'SPY'}
-    assert len(_FakeGraph.analyzed) == 3
+    assert len(_FakeGraph.analyzed) == (7 if still_quota else 5)
     assert batch['items']['SPY']['status'] == ('failed' if still_quota else 'success')
     assert batch['items']['TSLA']['status'] == batch['items']['IWM']['status'] == 'skipped_quota'
     assert read_json(directory / 'results/TSLA.json')['status'] == 'skipped_quota'
@@ -1385,7 +1388,53 @@ def test_click_before_quota_requires_another_explicit_click(tmp_path, monkeypatc
     result = _run(root, clock=lambda: now, tickers='NVDA', analyzer_factory=QuotaGraph)
     directory = root / 'data/runs/2026-10-02/batches' / result.run_id
     batch = read_json(directory / 'batch.json')
-    assert _FakeGraph.analyzed == ['NVDA']
+    assert _FakeGraph.analyzed == ['NVDA', 'NVDA', 'NVDA']
     assert 'SPY' not in batch['items']
     assert len(batch['append_rejections']) == 1
     assert '再次点击尝试恢复' in batch['append_rejections'][0]['reason']
+
+
+@pytest.mark.parametrize("failures", [0, 2, 3])
+@pytest.mark.parametrize("quota", [False, True])
+def test_same_batch_retries_each_failure_and_records_attempts(tmp_path, monkeypatch, failures, quota):
+    import daily_analyzer.runner as runner
+    from tradingagents.llm_clients.codex_exec.errors import CodexQuotaError
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: None)
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    calls = []
+    class Graph(_FakeGraph):
+        def propagate(self, *args, **kwargs):
+            calls.append(self.item.symbol)
+            if len(calls) <= failures:
+                raise (CodexQuotaError("测试额度失败") if quota else RuntimeError("测试分析失败"))
+            return super().propagate(*args, **kwargs)
+    root = _project(tmp_path, ("NVDA",), parallelism=1)
+    now = datetime(2026, 10, 2, 10, 15, tzinfo=NEW_YORK)
+    _FakeGraph.fail_symbols = set()
+    _FakeGraph.errors_by_symbol = {}
+    outcome = _run(root, clock=lambda: now, analyzer_factory=Graph,
+                   sleeper=lambda seconds: pytest.fail("重试不应退避"))
+    manifest = json.loads((root / "data/runs/2026-10-02/manifest.json").read_text())
+    attempts = manifest["items"]["NVDA"]["attempts"]
+    assert len(calls) == len(attempts) == (1 if failures == 0 else 3)
+    assert len({row["run_id"] for row in attempts}) == 1
+    assert [row["status"] for row in attempts] == (["failed"] * min(failures, 3) + (["success"] if failures < 3 else []))
+    assert outcome.status == ("failed" if failures == 3 else "completed")
+
+
+def test_partial_scheduled_batch_still_skips_next_seasonal_trigger(tmp_path, monkeypatch):
+    import daily_analyzer.runner as runner
+    monkeypatch.setattr(runner, "_codex_version", lambda settings: None)
+    monkeypatch.setattr(runner, "_fork_state", lambda root: {})
+    root = _project(tmp_path, parallelism=1)
+    _FakeGraph.fail_symbols = {"NVDA"}
+    _FakeGraph.errors_by_symbol = {}
+    try:
+        first = _run(root, clock=lambda: datetime(2026, 10, 2, 8, 40, tzinfo=NEW_YORK), scheduled=True)
+        assert first.status == "partial"
+        second = _run(root, clock=lambda: datetime(2026, 10, 2, 9, 40, tzinfo=NEW_YORK), scheduled=True)
+        status = json.loads((root / "data/status.json").read_text())
+        assert second.run_id is None
+        assert status["last_schedule_event"]["result"] == "skipped_already_done"
+    finally:
+        _FakeGraph.fail_symbols = set()

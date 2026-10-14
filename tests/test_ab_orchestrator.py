@@ -259,7 +259,7 @@ def test_allocation_identity_mismatch_stops_before_model(tmp_path,monkeypatch,wr
         if wrong=='both_symbol':record['consistency_input']['state']['company_of_interest']='QQQ'
     atomic_write_json(tmp_path/'data/runs/2026-10-12/batches/run2026-10-12/results/SPY.json',record)
     monkeypatch.setattr(module,'_current_ta_dirty',lambda:False)
-    with pytest.raises(PathIntegrityError,match='身份'):
+    with pytest.raises(PathIntegrityError,match='T0完整B同源对照失败' if wrong=='date' else '身份'):
         dispatch(tmp_path,now=datetime(2026,10,12,17,tzinfo=NY),executor=lambda *a:pytest.fail('身份错误不得调用'),services=SimpleNamespace(prices=Prices()),settings=EvaluationSettings())
     assert json.loads((experiment_root(tmp_path)/'budget-stop.json').read_text())['category']=='integrity'
 

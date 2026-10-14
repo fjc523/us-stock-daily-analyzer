@@ -54,7 +54,7 @@ def test_empty_settings_file_uses_documented_defaults(tmp_path: Path) -> None:
     assert settings.llm.quick.model == "gpt-6.1-sol"
     assert settings.run.max_parallel_tickers == 3
     assert settings.alpaca.requests_per_minute == 180
-    assert settings.schedule.anchor == "08:30 America/New_York"
+    assert settings.schedule.anchor == "08:40 America/New_York"
 
 
 def test_settings_range_and_anchor_errors_include_chinese_field_paths() -> None:

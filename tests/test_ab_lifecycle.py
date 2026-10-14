@@ -180,7 +180,7 @@ def test_mature_TS_direction_only_annotates_existing_curve(tmp_path):
     atomic_write_json(area/'allocations/2026-10-12.json',allocate(None,'2026-10-12',['TSLA']))
     atomic_write_json(area/'ledger/curves.json',{'paired_difference_curve':[{'cumulative_difference':.02}]})
     for path,target in [('A',110),('B',100)]:
-        record={'run_id':'r','symbol':'TSLA','trade_date':'2026-10-12','final_rating':'Hold','structured':{'pm_decision':{'target_allocation_pct':target}}}
+        record={'run_id':'r','symbol':'TSLA','upstream_trade_date':'2026-10-12','trade_date':'2026-10-12','final_rating':'Hold','structured':{'pm_decision':{'target_allocation_pct':target}}}
         target_path=area/'A/data/runs/2026-10-12/batches/r/results/TSLA.json' if path=='A' else area/'B/2026-10-12/TSLA.json'
         atomic_write_json(target_path,record)
         outcomes=area/'A/data/evaluation/outcomes.jsonl' if path=='A' else tmp_path/'data/evaluation/outcomes.jsonl'

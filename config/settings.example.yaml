@@ -74,7 +74,7 @@ run:
   min_start_after_anchor_seconds: 60
 
 schedule:
-  anchor: "08:30 America/New_York"
+  anchor: "08:40 America/New_York"
 
 futu:
   enabled: true

@@ -131,7 +131,7 @@ BASE = _ENV.from_string(
     const insideCalendar = today >= (payload.calendar_start || "0000-00-00") && today <= (payload.calendar_end || "9999-99-99");
     const isSession = insideCalendar ? sessions.includes(today) : ![0,6].includes(new Date(today + "T12:00:00Z").getUTCDay());
     if (!isSession) return {kind:"done",title:"今日非交易日",detail:"NYSE 今日休市。"};
-    const anchor = String(payload.anchor_time || "08:30").split(":").map(Number);
+    const anchor = String(payload.anchor_time || "08:40").split(":").map(Number);
     const afterWarning = timeInZone(now, payload.market_timezone || "America/New_York") >= anchor[0]*60+anchor[1]+15;
     let detail = "尚未记录今日运行。";
     if (afterWarning && !eventToday) detail = "今日尚未运行，请检查电脑是否开机、已登录且已唤醒。";
@@ -528,7 +528,7 @@ HOME = _ENV.from_string(_SOURCE_STATUS + """<section id="status-banner" class="b
 <label>代理 ETF（指数）<input name="proxy" maxlength="20" placeholder="常用指数自动匹配；其他指数需填写"></label>
 </div></details><p id="manager-message" class="error toast" role="status"></p><button class="primary" type="submit" disabled>添加订阅</button></form></dialog>
 <dialog id="settings-manager" aria-labelledby="settings-title"><div class="section-heading" style="margin-top:0"><h2 id="settings-title">分析参数</h2><button id="close-settings" type="button">关闭</button></div>
-<p class="small muted">下一次分析生效；当前批次继续使用原配置。定时在美股交易日开盘前一小时（08:30 ET），周末不分析。</p>
+<p class="small muted">下一次分析生效；当前批次继续使用原配置。定时在美股交易日开盘前50分钟（08:40 ET），周末不分析。</p>
 <form id="settings-form"><h3>分析师与辩论 · quick</h3><div class="form-grid"><label>模型<select name="quick_model" required></select></label><label>推理强度<select name="quick_effort" required></select></label></div>
 <h3>研究经理、交易员、组合经理 · deep</h3><div class="form-grid"><label>模型<select name="deep_model" required></select></label><label>推理强度<select name="deep_effort" required></select></label></div>
 <p id="model-source" class="small muted"></p>

@@ -205,7 +205,7 @@ def test_trigger_conversion_and_rendered_plist_cover_dst_and_fixed_offset(tmp_pa
     ]
     assert plist["WorkingDirectory"] == str(root)
     assert plist["StartCalendarInterval"] == [
-        {"Hour": hour, "Minute": 30, "Weekday": weekday}
+        {"Hour": hour, "Minute": 40, "Weekday": weekday}
         for hour in (20, 21) for weekday in range(1, 6)
     ]
     assert str(codex.parent) in plist["EnvironmentVariables"]["PATH"]
@@ -223,7 +223,7 @@ def test_install_status_and_uninstall_use_only_injected_launchctl(tmp_path: Path
     install = schedule_install(root, runner=runner, launch_agents_dir=launch_agents, local_timezone="Asia/Shanghai")
     plist_path = launch_agents / PLIST_NAME
     assert install["ok"] is True
-    assert install["triggers"] == ["20:30", "21:30"]
+    assert install["triggers"] == ["20:40", "21:40"]
     assert runner.calls[0][1] == "bootout"
     assert runner.calls[-1][1] == "bootstrap"
     assert plist_path.is_file()
@@ -244,9 +244,9 @@ def test_install_status_and_uninstall_use_only_injected_launchctl(tmp_path: Path
         launch_agents_dir=launch_agents,
     )
     assert status["installed"] is True and status["loaded"] is True
-    assert status["triggers"] == ["20:30", "21:30"]
-    assert status["today_anchor_beijing"] == "2026-10-02 20:30 北京时间"
-    assert "2026-10-05 20:30" in status["next_trading_day_anchor_beijing"]
+    assert status["triggers"] == ["20:40", "21:40"]
+    assert status["today_anchor_beijing"] == "2026-10-02 20:40 北京时间"
+    assert "2026-10-05 20:40" in status["next_trading_day_anchor_beijing"]
     assert status["last_run"]["status"] == "partial"
     assert status["last_schedule_event"]["result"] == "skipped_already_done"
 
@@ -527,3 +527,14 @@ def test_doctor_checks_opend_server_version(monkeypatch,version,warning):
     monkeypatch.setitem(sys.modules,'futu',SimpleNamespace(OpenQuoteContext=Quote,RET_OK=0))
     result=module._probe_futu(SimpleNamespace(futu=SimpleNamespace(enabled=True,host='127.0.0.1',port=11111)))
     assert result['warning'] is warning and result['server_ver']==int(version)
+
+
+def test_default_anchor_0840_dst_and_winter_transition():
+    from daily_analyzer.config import parse_settings
+    from daily_analyzer.site import _anchor
+    anchor = parse_settings({}).schedule.anchor
+    assert anchor == "08:40 America/New_York"
+    assert schedule_trigger_times(anchor, local_timezone=ZoneInfo("Asia/Shanghai"), year=2026) == [{"Hour": 20, "Minute": 40}, {"Hour": 21, "Minute": 40}]
+    for day, hour in [("2026-10-30", 20), ("2026-11-02", 21)]:
+        stamp = _anchor(anchor, datetime.fromisoformat(day).date()).astimezone(ZoneInfo("Asia/Shanghai"))
+        assert (stamp.hour, stamp.minute) == (hour, 40)

@@ -968,7 +968,7 @@ def _role_summary(value: Any) -> str:
 def _anchor(anchor: str, trading_day: date) -> datetime:
     match = re.fullmatch(r"(\d{2}):(\d{2})\s+(\S+)", anchor)
     if not match:
-        match = re.fullmatch(r"(\d{2}):(\d{2})\s+(\S+)", "08:30 America/New_York")
+        match = re.fullmatch(r"(\d{2}):(\d{2})\s+(\S+)", "08:40 America/New_York")
     zone = ZoneInfo(match.group(3))
     return datetime.combine(trading_day, time(int(match.group(1)), int(match.group(2))), zone)
 
@@ -1049,7 +1049,7 @@ def render_home(project_root: str | Path, *, now: datetime | None = None, manage
     banner_data = {
         **calendar,
         "market_timezone": anchor_match.group(3) if anchor_match else _MARKET_TZ,
-        "anchor_time": f"{anchor_match.group(1)}:{anchor_match.group(2)}" if anchor_match else "08:30",
+        "anchor_time": f"{anchor_match.group(1)}:{anchor_match.group(2)}" if anchor_match else "08:40",
         "last_run": status.get("last_run") or {},
         "last_schedule_event": status.get("last_schedule_event") or {},
     }
@@ -1158,7 +1158,7 @@ def _build_pages(build_root: Path, grouped: dict[str, list[dict[str, Any]]], roo
     banner_data = {
         **calendar,
         "market_timezone": anchor_match.group(3) if anchor_match else _MARKET_TZ,
-        "anchor_time": f"{anchor_match.group(1)}:{anchor_match.group(2)}" if anchor_match else "08:30",
+        "anchor_time": f"{anchor_match.group(1)}:{anchor_match.group(2)}" if anchor_match else "08:40",
         "last_run": status.get("last_run") or {},
         "last_schedule_event": status.get("last_schedule_event") or {},
     }

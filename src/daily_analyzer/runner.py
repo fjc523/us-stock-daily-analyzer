@@ -763,13 +763,14 @@ def _recompute_manifest(root: Path, trade_day: date, now: datetime) -> dict[str,
     histories: dict[str, list[dict[str, Any]]] = {}
     for batch in _batch_records(root, trade_day):
         for slug, item in (batch.get("items") or {}).items():
-            histories.setdefault(slug, []).append(
-                {
-                    "run_id": batch.get("run_id"),
+            # 旧批次没有逐次记录，仍保留原有单条历史口径。
+            histories.setdefault(slug, []).extend(
+                {"run_id": batch.get("run_id"), **attempt}
+                for attempt in (item.get("attempts") or [{
                     "status": item.get("status"),
                     "error": item.get("error"),
                     "duration_seconds": item.get("duration_seconds"),
-                }
+                }])
             )
     manifest_items = {}
     for slug, result in current.items():
@@ -836,6 +837,11 @@ def _record_attempt(
                 atomic_write_json(current_dir / f"{slug}.json", result)
                 atomic_write_json(batch_dir / 'results' / f"{slug}.json", result)
                 append_log(root, trade_day, now, f"批次 {batch.get('run_id')} {outcome.item.symbol} 决策记忆更新失败：{type(exc).__name__}")
+    batch["items"].setdefault(slug, {}).setdefault("attempts", []).append({
+        "status": result.get("status"),
+        "error": result.get("error"),
+        "duration_seconds": result.get("duration_seconds"),
+    })
     batch["items"].setdefault(slug, {}).update(
         {
             "symbol": outcome.item.symbol,
@@ -1355,12 +1361,14 @@ def run_analysis(
             except ImportError:
                 reset_abort = None
 
+            analysis_kwargs = {}
             with ThreadPoolExecutor(
                 max_workers=settings.run.max_parallel_tickers,
                 thread_name_prefix="daily-analyzer",
             ) as executor:
                 while True:
-                    receive_appends()
+                    if not any(row.get("attempts") and row.get("status") == "running" for row in batch["items"].values()):
+                        receive_appends()
                     while pending and len(futures) < settings.run.max_parallel_tickers and stop_reason is None:
                         if monotonic() - run_started_mono >= settings.run.max_duration_minutes * 60:
                             stop_reason = "skipped_timeout"
@@ -1368,8 +1376,7 @@ def run_analysis(
                         item = pending.popleft()
                         batch["items"][symbol_slug(item.symbol)]["status"] = "running"
                         atomic_write_json(batch_dir / "batch.json", batch)
-                        future = executor.submit(
-                            _analyze_item,
+                        kwargs = dict(
                             item=item,
                             run_id=run_id,
                             root=root,
@@ -1386,6 +1393,8 @@ def run_analysis(
                             source_seed=append_seeds.get(item.symbol, batch_source_collector.events),
                             appended=batch["items"][symbol_slug(item.symbol)].get("source") == "append",
                         )
+                        analysis_kwargs[item.symbol] = kwargs
+                        future = executor.submit(_analyze_item, **kwargs)
                         futures[future] = item
                     if not futures:
                         append_offset = _close_appends(batch_dir, batch, append_offset)
@@ -1397,6 +1406,26 @@ def run_analysis(
                         (future, futures.pop(future), future.result())
                         for future in done
                     ]
+                    terminal = []
+                    for future, item, outcome in completed:
+                        slug = symbol_slug(item.symbol)
+                        previous_attempts = batch["items"][slug].get("attempts", [])
+                        if not outcome.succeeded and len(previous_attempts) < 2:
+                            _record_attempt(
+                                root=root, trade_day=window.trade_date,
+                                batch_dir=batch_dir, batch=batch, outcome=outcome,
+                                current=current, now=_clock_now(clock),
+                            )
+                            # 单只失败立即再试，最多三次；不受错误分类或退避影响。
+                            if reset_abort is not None:
+                                reset_abort()
+                            batch["items"][slug]["status"] = "running"
+                            atomic_write_json(batch_dir / "batch.json", batch)
+                            retry = executor.submit(_analyze_item, **analysis_kwargs[item.symbol])
+                            futures[retry] = item
+                        else:
+                            terminal.append((future, item, outcome))
+                    completed = terminal
                     if any(
                         outcome.category in {"fatal_config", "aborted"}
                         for _, _, outcome in completed
@@ -1411,10 +1440,6 @@ def run_analysis(
                             pass
                     for _, item, outcome in completed:
                         category = outcome.category
-                        if fatal_seen and category == "aborted":
-                            outcome.result["status"] = "skipped_fatal"
-                            outcome.result["error"] = outcome.result.get("error") or "Codex 子进程因致命错误中止"
-                            outcome.succeeded = False
                         if category == "quota" and stop_reason is None:
                             stop_reason = "skipped_quota"
                         slug = symbol_slug(item.symbol)

@@ -309,7 +309,7 @@ class RunSettings(ConfigModel):
 
 
 class ScheduleSettings(ConfigModel):
-    anchor: str = "08:30 America/New_York"
+    anchor: str = "08:40 America/New_York"
 
     @field_validator("anchor")
     @classmethod
@@ -318,7 +318,7 @@ class ScheduleSettings(ConfigModel):
         match = re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d\s+(\S+)", value)
         if not match:
             raise ValueError(
-                "格式必须为 HH:MM <IANA 时区>，例如 08:30 America/New_York"
+                "格式必须为 HH:MM <IANA 时区>，例如 08:40 America/New_York"
             )
         try:
             ZoneInfo(match.group(2))
